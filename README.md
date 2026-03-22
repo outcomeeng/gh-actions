@@ -1,4 +1,4 @@
-# SPX GitHub Actions
+# Outcome Engineering GitHub Actions
 
 Reusable GitHub Actions workflows for Claude Code integration.
 
@@ -34,7 +34,7 @@ on:
 
 jobs:
   claude:
-    uses: simonheimlicher/spx-gh-actions/.github/workflows/claude.yml@main
+    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
@@ -53,7 +53,7 @@ on:
 
 jobs:
   review:
-    uses: simonheimlicher/spx-gh-actions/.github/workflows/claude-code-review.yml@main
+    uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
@@ -130,10 +130,10 @@ secrets:
       json_path: claudeAiOauth.accessToken   # JSON path to extract
 
 repos:
-  simonheimlicher/spx-gh-actions:
+  outcomeeng/gh-actions:
     secrets:
       - CLAUDE_CODE_OAUTH_TOKEN
-  simonheimlicher/another-repo:
+  outcomeeng/another-repo:
     secrets:
       - CLAUDE_CODE_OAUTH_TOKEN
 ```

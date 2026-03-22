@@ -1,11 +1,11 @@
-# SPX GitHub Actions
+# Outcome Engineering GitHub Actions
 
 Reusable GitHub Actions workflows for Claude Code integration.
 
 ## Repository Structure
 
 ```
-spx-gh-actions/
+gh-actions/
 ├── .github/
 │   └── workflows/
 │       ├── claude.yml              # @claude mention handler
