@@ -4,16 +4,16 @@ Reusable GitHub Actions workflows for Claude Code integration.
 
 ## Available Workflows
 
-| Workflow | Description |
-|----------|-------------|
-| `claude.yml` | Interactive Claude assistant triggered by `@claude` mentions |
-| `claude-code-review.yml` | Automatic code review on pull requests |
+| Workflow                 | Description                                                  |
+| ------------------------ | ------------------------------------------------------------ |
+| `claude.yml`             | Interactive Claude assistant triggered by `@claude` mentions |
+| `claude-code-review.yml` | Automatic code review on pull requests                       |
 
 ## Quick Start
 
 ### 1. Set up secrets
 
-Add `CLAUDE_CODE_OAUTH_TOKEN` to your repository secrets. See [Syncing Secrets](#syncing-secrets) below for an automated approach.
+Add `CLAUDE_CODE_OAUTH_TOKEN` to your repository secrets. See [Pushing Secrets](#pushing-secrets) below for an automated approach.
 
 ### 2. Create workflow files
 
@@ -39,7 +39,7 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
       authorized_roles: '["OWNER", "MEMBER", "COLLABORATOR"]'
-      mention_trigger: '@claude'
+      mention_trigger: "@claude"
 ```
 
 **For automatic PR reviews** - create `.github/workflows/claude-code-review.yml`:
@@ -64,22 +64,22 @@ jobs:
 
 ### claude.yml Inputs
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| `authorized_roles` | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed to trigger |
-| `mention_trigger` | `@claude` | Text that triggers the workflow |
-| `concurrency_cancel` | `true` | Cancel in-progress runs on new mention |
-| `allowed_tools` | (unrestricted) | Claude Code `--allowed-tools` argument |
-| `custom_prompt` | (empty) | Override default behavior with custom prompt |
+| Input                | Default                               | Description                                                 |
+| -------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| `authorized_roles`   | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed to trigger |
+| `mention_trigger`    | `@claude`                             | Text that triggers the workflow                             |
+| `concurrency_cancel` | `true`                                | Cancel in-progress runs on new mention                      |
+| `allowed_tools`      | (unrestricted)                        | Claude Code `--allowed-tools` argument                      |
+| `custom_prompt`      | (empty)                               | Override default behavior with custom prompt                |
 
 ### claude-code-review.yml Inputs
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| `authorized_roles` | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed |
-| `concurrency_cancel` | `false` | Cancel in-progress reviews on new PR update |
-| `allowed_tools` | (gh read/comment only) | Claude Code `--allowed-tools` argument |
-| `custom_prompt` | (default review prompt) | Custom review instructions |
+| Input                | Default                               | Description                                      |
+| -------------------- | ------------------------------------- | ------------------------------------------------ |
+| `authorized_roles`   | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed |
+| `concurrency_cancel` | `false`                               | Cancel in-progress reviews on new PR update      |
+| `allowed_tools`      | (gh read/comment only)                | Claude Code `--allowed-tools` argument           |
+| `custom_prompt`      | (default review prompt)               | Custom review instructions                       |
 
 ## Security
 
@@ -91,12 +91,14 @@ Both workflows include authorization checks. Only users with matching `author_as
 - Restrict `allowed_tools` to minimum required
 - Rotate tokens if compromise is suspected
 
-## Syncing Secrets
+## Pushing Secrets
 
-Managing the same secret across multiple repositories is tedious. The `sync-secrets.py` script automates this by:
+Setting `CLAUDE_CODE_OAUTH_TOKEN` in each repository is tedious. The `push-secrets.py` script automates this by:
 
 1. Reading the secret value from your **macOS Keychain** (no manual input needed)
-2. Syncing it to all configured repositories via `gh secret set`
+2. Finding the current GitHub repository from `git`
+3. Checking that the Claude workflow is installed
+4. Pushing the secret to that repository via `gh secret set`
 
 ### Prerequisites
 
@@ -107,36 +109,18 @@ Managing the same secret across multiple repositories is tedious. The `sync-secr
 ### Usage
 
 ```bash
-# Check which repos have/need the secret
-uv run scripts/sync-secrets.py list
+# Run from any subdirectory of the target repository.
 
-# Preview what would be synced
-uv run scripts/sync-secrets.py sync --dry-run --all
+# Check whether the current repository has the secret
+uv run /path/to/gh-actions/scripts/push-secrets.py check
 
-# Sync secrets (reads from Keychain automatically)
-uv run scripts/sync-secrets.py sync --all
+# Push secrets (reads from Keychain automatically)
+uv run /path/to/gh-actions/scripts/push-secrets.py push
 ```
 
-### Configuration
-
-Edit `scripts/secrets.yaml` to define secrets and target repositories:
-
-```yaml
-secrets:
-  CLAUDE_CODE_OAUTH_TOKEN:
-    description: OAuth token for Claude Code GitHub Action
-    keychain:
-      service: Claude Code-credentials       # Keychain item name
-      json_path: claudeAiOauth.accessToken   # JSON path to extract
-
-repos:
-  outcomeeng/gh-actions:
-    secrets:
-      - CLAUDE_CODE_OAUTH_TOKEN
-  outcomeeng/another-repo:
-    secrets:
-      - CLAUDE_CODE_OAUTH_TOKEN
-```
+The target repository is the Git repository where you run the command.
+If the repository does not have the Claude workflow installed, the script prints the setup URL for this repository.
+It exits without reading or pushing secrets.
 
 ### How Keychain Integration Works
 
@@ -146,6 +130,7 @@ The script uses macOS `security` CLI to read from your login keychain:
 security find-generic-password -s "Claude Code-credentials" -a "$USER" -w
 ```
 
+It expects that keychain item to contain JSON with `claudeAiOauth.accessToken`.
 On first run, macOS will prompt you to allow access. Click "Always Allow" to avoid future prompts.
 
 If the keychain lookup fails, the script falls back to prompting for the value.
