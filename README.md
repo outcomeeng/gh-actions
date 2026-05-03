@@ -102,6 +102,52 @@ jobs:
 | `extra_plugins`       | (empty)                               | Space-separated plugins to install beyond `.claude/settings.json` |
 | `skip_plugin_install` | `false`                               | Set `true` for repos that don't use the plugin marketplace        |
 
+## Common gotchas
+
+Two non-obvious behaviors hit during real installs. Knowing about them in advance saves debugging time.
+
+### `pull_request.author_association: NONE` for forked-repo PRs
+
+When a PR is opened from a branch in a **forked** repository (the kind GitHub creates with the "Fork" button), the `pull_request` event payload reports `author_association: NONE` even when the GitHub API returns `MEMBER` for the same user querying the same PR.
+
+The reusable workflow's `if:` gate is:
+
+```yaml
+if: contains(fromJSON(inputs.authorized_roles), github.event.pull_request.author_association)
+```
+
+If `NONE` isn't in your `authorized_roles`, the auto-review job skips silently. The job appears in Actions with `conclusion: skipped` and no log lines.
+
+**Workaround:** add `NONE` to the explicit `authorized_roles` in the caller workflow, accepting that any PR opener can trigger the bot:
+
+```yaml
+with:
+  authorized_roles: '["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR", "NONE"]'
+```
+
+A more secure fix would gate on `github.actor` against a named user allowlist instead. That's a future enhancement to the reusable workflow itself.
+
+### Workflow file at PR head must match `main` exactly
+
+The Anthropic action (`anthropics/claude-code-action`) validates that the calling workflow file at the PR's head ref is byte-identical to the version on the repo's default branch. This is a security check — without it, a PR could modify the workflow and abuse the bot.
+
+In practice this means:
+
+- **Adding the workflow files for the first time:** the first PR that contains the workflow files gets a 401 "Workflow validation failed" from the action. This is normal — the file isn't on `main` yet, so there's nothing to compare against. Once the PR merges, subsequent PRs review correctly.
+- **Updating the workflow:** any PR that modifies `.github/workflows/claude*.yml` will fail the same check until the change is on `main`. Land workflow changes via a separate PR (no other content) so the bot run isn't blocked on unrelated review.
+
+### For same-repo PRs, GitHub reads the workflow from the head ref
+
+For `pull_request` events from a branch in the same repository (not a fork), GitHub Actions reads the workflow definition from the **PR head**, not from the base. A PR branched off `main` *before* the workflow files existed will not trigger the workflow even after they merge — until the branch is rebased or merged with `main`.
+
+If you see `Claude Code Review` runs with `conclusion: skipped` on a PR right after adding the workflow files, check whether the workflow file exists on the PR branch:
+
+```bash
+git ls-tree origin/<pr-branch> .github/workflows/
+```
+
+If `claude-code-review.yml` isn't there, merge `main` into the PR branch (or rebase) to bring it in.
+
 ## Security
 
 Both workflows include authorization checks. Only users with matching `author_association` can trigger Claude workflows.
