@@ -32,6 +32,13 @@ on:
   pull_request_review:
     types: [submitted]
 
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
+  actions: read
+
 jobs:
   claude:
     uses: outcomeeng/gh-actions/.github/workflows/claude.yml@main
@@ -50,6 +57,12 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
 
 jobs:
   review:
