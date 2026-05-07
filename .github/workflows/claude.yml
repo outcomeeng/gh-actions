@@ -94,7 +94,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.claude/plugins
-          key: claude-plugins-${{ hashFiles('.claude/settings.json') }}-${{ inputs.plugin_marketplaces }}
+          key: claude-plugins-${{ hashFiles('.claude/settings.json') }}-${{ inputs.plugin_marketplaces }}-${{ inputs.extra_plugins }}
 
       - name: Setup Claude plugins
         if: ${{ !inputs.skip_plugin_install }}
@@ -115,7 +115,8 @@ jobs:
           echo "::endgroup::"
 
           if [[ -f .claude/settings.json ]]; then
-            if jq -e '.enabledPlugins' .claude/settings.json > /dev/null 2>&1; then
+            jq empty .claude/settings.json
+            if jq -e '.enabledPlugins' .claude/settings.json > /dev/null; then
               echo "::group::Install plugins from .claude/settings.json"
               while IFS= read -r plugin; do
                 [[ -z "$plugin" ]] && continue

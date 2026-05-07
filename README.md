@@ -4,10 +4,12 @@ Reusable GitHub Actions workflows for Claude Code integration.
 
 ## Available Workflows
 
-| Workflow                 | Description                                                  |
-| ------------------------ | ------------------------------------------------------------ |
-| `claude.yml`             | Interactive Claude assistant triggered by `@claude` mentions |
-| `claude-code-review.yml` | Automatic code review on pull requests                       |
+| Workflow                      | Description                                                  |
+| ----------------------------- | ------------------------------------------------------------ |
+| `claude.yml`                  | Interactive Claude assistant triggered by `@claude` mentions |
+| `claude-code-review.yml`      | Automatic code review on pull requests                       |
+| `claude-repo.yml`             | Runs the mention workflow in this repository                 |
+| `claude-code-review-repo.yml` | Runs PR review in this repository                            |
 
 ## Quick Start
 
@@ -34,8 +36,8 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  issues: read
+  pull-requests: write
+  issues: write
   id-token: write
   actions: read
 
@@ -109,6 +111,19 @@ Both workflows include authorization checks. Only users with matching `author_as
 - Never allow `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR` in production
 - Restrict `allowed_tools` to minimum required
 - Rotate tokens if compromise is suspected
+
+## OpenAI Cloud Code Review
+
+This repository includes `AGENTS.md` review guidance for OpenAI cloud code review. The repo-side setup is the instruction file; the review service still has to be enabled in ChatGPT settings.
+
+To enable reviews:
+
+1. Set up a cloud environment for `outcomeeng/gh-actions` in [ChatGPT environment settings](https://chatgpt.com/codex/settings/environments).
+2. Open [code review settings](https://chatgpt.com/codex/settings/code-review).
+3. Turn on code review for this repository.
+4. Request a review from a pull request comment with `@codex review`, or turn on automatic reviews in the same settings page.
+
+The reviewer reads `AGENTS.md` and applies the closest instruction file to each changed file. Keep the top-level review guidance current when workflow validation, security expectations, or example conventions change.
 
 ## Pushing Secrets
 
