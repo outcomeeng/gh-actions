@@ -33,6 +33,18 @@ on:
         description: "Custom review prompt (replaces default)"
         type: string
         default: ""
+      plugin_marketplaces:
+        description: "Space-separated list of marketplaces to register (owner/repo[@ref])"
+        type: string
+        default: "outcomeeng/plugins@main"
+      extra_plugins:
+        description: "Space-separated extra plugins to install beyond .claude/settings.json"
+        type: string
+        default: ""
+      skip_plugin_install:
+        description: "Set to true for repos that don't use the plugin marketplace"
+        type: boolean
+        default: false
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         description: "Claude Code OAuth token"
@@ -57,6 +69,55 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
+
+      - name: Restore Claude plugin cache
+        if: ${{ !inputs.skip_plugin_install }}
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.claude/plugins
+          key: claude-plugins-${{ hashFiles('.claude/settings.json') }}-${{ inputs.plugin_marketplaces }}
+
+      - name: Setup Claude plugins
+        if: ${{ !inputs.skip_plugin_install }}
+        shell: bash
+        env:
+          PLUGIN_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
+          EXTRA_PLUGINS: ${{ inputs.extra_plugins }}
+        run: |
+          set -euo pipefail
+          npm i -g @anthropic-ai/claude-code
+
+          echo "::group::Register plugin marketplaces"
+          for m in $PLUGIN_MARKETPLACES; do
+            [[ -z "$m" ]] && continue
+            echo "Adding marketplace: $m"
+            claude plugin marketplace add "$m"
+          done
+          echo "::endgroup::"
+
+          if [[ -f .claude/settings.json ]]; then
+            if jq -e '.enabledPlugins' .claude/settings.json > /dev/null 2>&1; then
+              echo "::group::Install plugins from .claude/settings.json"
+              while IFS= read -r plugin; do
+                [[ -z "$plugin" ]] && continue
+                echo "Installing $plugin"
+                claude plugin install "$plugin"
+              done < <(jq -r '.enabledPlugins | to_entries[] | select(.value == true) | .key' .claude/settings.json)
+              echo "::endgroup::"
+            else
+              echo "::notice::No enabledPlugins in .claude/settings.json — skipping settings-driven install"
+            fi
+          fi
+
+          if [[ -n "${EXTRA_PLUGINS}" ]]; then
+            echo "::group::Install extra plugins"
+            for p in $EXTRA_PLUGINS; do
+              [[ -z "$p" ]] && continue
+              echo "Installing $p"
+              claude plugin install "$p"
+            done
+            echo "::endgroup::"
+          fi
 
       - name: Set review prompt
         id: set-prompt
