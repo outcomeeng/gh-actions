@@ -8,10 +8,13 @@ Reusable GitHub Actions workflows for Claude Code integration.
 gh-actions/
 ├── .github/
 │   └── workflows/
-│       ├── claude.yml              # @claude mention handler
-│       └── claude-code-review.yml  # Automatic PR review
+│       ├── claude.yml                     # Reusable @claude mention handler
+│       ├── claude-code-review.yml         # Reusable automatic PR review
+│       ├── claude-repo.yml                # Repo-local mention caller
+│       └── claude-code-review-repo.yml    # Repo-local PR review caller
 ├── examples/
 │   └── caller-workflows/           # Example workflows for consuming repos
+├── AGENTS.md                       # Cloud review guidance
 ├── CLAUDE.md                       # This file
 └── README.md                       # User documentation
 ```

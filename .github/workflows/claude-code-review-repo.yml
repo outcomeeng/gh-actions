@@ -1,0 +1,21 @@
+# Run the reusable Claude Code Review workflow on this repository.
+
+name: Claude Code Review Repo
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  review:
+    uses: ./.github/workflows/claude-code-review.yml
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    with:
+      concurrency_cancel: true

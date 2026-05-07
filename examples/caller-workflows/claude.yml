@@ -38,4 +38,4 @@ jobs:
     # Plugin marketplace options (plugins read from .claude/settings.json by default):
     #   skip_plugin_install: true                              # repos with no plugins
     #   plugin_marketplaces: "outcomeeng/plugins@main acme-corp/plugins@v2"  # additional/override marketplaces
-    #   extra_plugins: "internal-style@acme"                  # install beyond .claude/settings.json
+    #   extra_plugins: "internal-style@acme-corp"             # install beyond .claude/settings.json
