@@ -77,22 +77,28 @@ jobs:
 
 ### claude.yml Inputs
 
-| Input                | Default                               | Description                                                 |
-| -------------------- | ------------------------------------- | ----------------------------------------------------------- |
-| `authorized_roles`   | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed to trigger |
-| `mention_trigger`    | `@claude`                             | Text that triggers the workflow                             |
-| `concurrency_cancel` | `true`                                | Cancel in-progress runs on new mention                      |
-| `allowed_tools`      | (unrestricted)                        | Claude Code `--allowed-tools` argument                      |
-| `custom_prompt`      | (empty)                               | Override default behavior with custom prompt                |
+| Input                 | Default                               | Description                                                       |
+| --------------------- | ------------------------------------- | ----------------------------------------------------------------- |
+| `authorized_roles`    | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed to trigger       |
+| `mention_trigger`     | `@claude`                             | Text that triggers the workflow                                   |
+| `concurrency_cancel`  | `true`                                | Cancel in-progress runs on new mention                            |
+| `allowed_tools`       | (unrestricted)                        | Claude Code `--allowed-tools` argument                            |
+| `custom_prompt`       | (empty)                               | Override default behavior with custom prompt                      |
+| `plugin_marketplaces` | `outcomeeng/plugins@main`             | Space-separated marketplaces to register (`owner/repo[@ref]`)     |
+| `extra_plugins`       | (empty)                               | Space-separated plugins to install beyond `.claude/settings.json` |
+| `skip_plugin_install` | `false`                               | Set `true` for repos that don't use the plugin marketplace        |
 
 ### claude-code-review.yml Inputs
 
-| Input                | Default                               | Description                                      |
-| -------------------- | ------------------------------------- | ------------------------------------------------ |
-| `authorized_roles`   | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed |
-| `concurrency_cancel` | `false`                               | Cancel in-progress reviews on new PR update      |
-| `allowed_tools`      | (gh read/comment only)                | Claude Code `--allowed-tools` argument           |
-| `custom_prompt`      | (default review prompt)               | Custom review instructions                       |
+| Input                 | Default                               | Description                                                       |
+| --------------------- | ------------------------------------- | ----------------------------------------------------------------- |
+| `authorized_roles`    | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed                  |
+| `concurrency_cancel`  | `false`                               | Cancel in-progress reviews on new PR update                       |
+| `allowed_tools`       | (gh read/comment only)                | Claude Code `--allowed-tools` argument                            |
+| `custom_prompt`       | (default review prompt)               | Custom review instructions                                        |
+| `plugin_marketplaces` | `outcomeeng/plugins@main`             | Space-separated marketplaces to register (`owner/repo[@ref]`)     |
+| `extra_plugins`       | (empty)                               | Space-separated plugins to install beyond `.claude/settings.json` |
+| `skip_plugin_install` | `false`                               | Set `true` for repos that don't use the plugin marketplace        |
 
 ## Security
 
