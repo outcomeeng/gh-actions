@@ -102,6 +102,30 @@ jobs:
 | `extra_plugins`       | (empty)                               | Space-separated plugins to install beyond `.claude/settings.json` |
 | `skip_plugin_install` | `false`                               | Set `true` for repos that don't use the plugin marketplace        |
 
+## Project marketplace declarations
+
+The reusable workflows install plugins listed in `.claude/settings.json` (`enabledPlugins`). Plugin keys use the form `name@marketplace-alias`, where the alias is what the marketplace publishes in its own manifest. For the install to succeed, that alias must already be registered.
+
+Two ways to register marketplaces, listed in order of preference:
+
+1. **Sidecar file `.claude/marketplaces.json` (recommended).** Commit a project-level mapping from alias to source. Anyone running the workflow on the project gets the right marketplaces without changing the caller workflow.
+
+   ```json
+   {
+     "marketplaces": {
+       "outcomeeng": "outcomeeng/plugins@main",
+       "claude-plugins-official": "anthropics/claude-plugins-official",
+       "taches-cc-resources": "glittercowboy/taches-cc-resources"
+     }
+   }
+   ```
+
+   The key documents the alias the marketplace publishes (must match what `enabledPlugins` references). The value is anything `claude plugin marketplace add` accepts: `owner/repo`, `owner/repo@ref`, etc.
+
+2. **`plugin_marketplaces` workflow input.** Pass a space-separated list at the call site. Useful for one-off CI marketplaces or for overriding the sidecar from a specific caller.
+
+Both register additively. If a project's `.claude/settings.json` references an alias that isn't covered by either source, `claude plugin install` fails on that plugin and the setup step exits.
+
 ## Common gotchas
 
 Three non-obvious behaviors surfaced during real installs. Knowing about them in advance saves debugging time.

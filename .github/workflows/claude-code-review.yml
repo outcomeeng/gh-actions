@@ -75,7 +75,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.claude/plugins
-          key: claude-plugins-${{ hashFiles('.claude/settings.json') }}-${{ inputs.plugin_marketplaces }}-${{ inputs.extra_plugins }}
+          key: claude-plugins-${{ hashFiles('.claude/settings.json') }}-${{ hashFiles('.claude/marketplaces.json') }}-${{ inputs.plugin_marketplaces }}-${{ inputs.extra_plugins }}
 
       - name: Setup Claude plugins
         if: ${{ !inputs.skip_plugin_install }}
@@ -94,6 +94,17 @@ jobs:
             claude plugin marketplace add "$m"
           done
           echo "::endgroup::"
+
+          if [[ -f .claude/marketplaces.json ]]; then
+            jq empty .claude/marketplaces.json
+            echo "::group::Register marketplaces from .claude/marketplaces.json"
+            while IFS= read -r source; do
+              [[ -z "$source" ]] && continue
+              echo "Adding marketplace: $source"
+              claude plugin marketplace add "$source"
+            done < <(jq -r '.marketplaces // {} | to_entries[] | .value' .claude/marketplaces.json)
+            echo "::endgroup::"
+          fi
 
           if [[ -f .claude/settings.json ]]; then
             jq empty .claude/settings.json
