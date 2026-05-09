@@ -152,7 +152,7 @@ jobs:
           plugins=$(echo "$plugins" | sed '/^$/d')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
-          delim="MULTILINE_$(uuidgen)"
+          delim="MULTILINE_$(cat /proc/sys/kernel/random/uuid)"
           {
             echo "plugins<<${delim}"
             echo "$plugins"

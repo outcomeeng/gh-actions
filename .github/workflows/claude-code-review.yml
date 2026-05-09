@@ -184,7 +184,7 @@ jobs:
           plugins=$(echo "$plugins" | sed '/^$/d')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
-          delim="MULTILINE_$(uuidgen)"
+          delim="MULTILINE_$(cat /proc/sys/kernel/random/uuid)"
           {
             echo "plugins<<${delim}"
             echo "$plugins"
@@ -205,7 +205,7 @@ jobs:
         id: set-prompt
         run: |
           if [ -n "${{ inputs.custom_prompt }}" ]; then
-            delimiter="CLAUDE_PROMPT_$(uuidgen)"
+            delimiter="CLAUDE_PROMPT_$(cat /proc/sys/kernel/random/uuid)"
             {
               echo "prompt<<$delimiter"
               echo "${{ inputs.custom_prompt }}"
