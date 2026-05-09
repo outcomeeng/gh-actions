@@ -48,7 +48,7 @@ on:
 
 jobs:
   authorize:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -84,7 +84,7 @@ jobs:
           esac
 
   validate-workflow:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
@@ -136,7 +136,7 @@ jobs:
     concurrency:
       group: claude-review-${{ github.event.pull_request.number }}
       cancel-in-progress: ${{ inputs.concurrency_cancel }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       pull-requests: write
