@@ -47,7 +47,6 @@ jobs:
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
-      authorized_roles: '["OWNER", "MEMBER", "COLLABORATOR"]'
       mention_trigger: "@claude"
 ```
 
@@ -71,34 +70,32 @@ jobs:
     uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-    with:
-      authorized_roles: '["OWNER", "MEMBER", "COLLABORATOR"]'
 ```
 
 ## Configuration
 
 ### claude.yml Inputs
 
-| Input                 | Default                               | Description                                                       |
-| --------------------- | ------------------------------------- | ----------------------------------------------------------------- |
-| `authorized_roles`    | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed to trigger       |
-| `mention_trigger`     | `@claude`                             | Text that triggers the workflow                                   |
-| `concurrency_cancel`  | `true`                                | Cancel in-progress runs on new mention                            |
-| `allowed_tools`       | (unrestricted)                        | Claude Code `--allowed-tools` argument                            |
-| `custom_prompt`       | (empty)                               | Override default behavior with custom prompt                      |
-| `plugin_marketplaces` | (empty)                               | Space-separated extra marketplaces to register (`owner/repo`)     |
-| `extra_plugins`       | (empty)                               | Space-separated plugins to install beyond `.claude/settings.json` |
+| Input                 | Default               | Description                                                       |
+| --------------------- | --------------------- | ----------------------------------------------------------------- |
+| `authorized_roles`    | (deprecated, ignored) | Authorization is now via the repo-permission API for the actor    |
+| `mention_trigger`     | `@claude`             | Text that triggers the workflow                                   |
+| `concurrency_cancel`  | `true`                | Cancel in-progress runs on new mention                            |
+| `allowed_tools`       | (unrestricted)        | Claude Code `--allowed-tools` argument                            |
+| `custom_prompt`       | (empty)               | Override default behavior with custom prompt                      |
+| `plugin_marketplaces` | (empty)               | Space-separated extra marketplaces to register (`owner/repo`)     |
+| `extra_plugins`       | (empty)               | Space-separated plugins to install beyond `.claude/settings.json` |
 
 ### claude-code-review.yml Inputs
 
-| Input                 | Default                               | Description                                                       |
-| --------------------- | ------------------------------------- | ----------------------------------------------------------------- |
-| `authorized_roles`    | `["OWNER", "MEMBER", "COLLABORATOR"]` | JSON array of GitHub author associations allowed                  |
-| `concurrency_cancel`  | `false`                               | Cancel in-progress reviews on new PR update                       |
-| `allowed_tools`       | (gh read/comment only)                | Claude Code `--allowed-tools` argument                            |
-| `custom_prompt`       | (default review prompt)               | Custom review instructions                                        |
-| `plugin_marketplaces` | (empty)                               | Space-separated extra marketplaces to register (`owner/repo`)     |
-| `extra_plugins`       | (empty)                               | Space-separated plugins to install beyond `.claude/settings.json` |
+| Input                 | Default                 | Description                                                        |
+| --------------------- | ----------------------- | ------------------------------------------------------------------ |
+| `authorized_roles`    | (deprecated, ignored)   | Authorization is now via the repo-permission API for the PR author |
+| `concurrency_cancel`  | `false`                 | Cancel in-progress reviews on new PR update                        |
+| `allowed_tools`       | (gh read/comment only)  | Claude Code `--allowed-tools` argument                             |
+| `custom_prompt`       | (default review prompt) | Custom review instructions                                         |
+| `plugin_marketplaces` | (empty)                 | Space-separated extra marketplaces to register (`owner/repo`)      |
+| `extra_plugins`       | (empty)                 | Space-separated plugins to install beyond `.claude/settings.json`  |
 
 ## Project marketplace declarations
 
@@ -127,25 +124,13 @@ The reusable workflows derive the action's `plugins` and `plugin_marketplaces` i
 
 Caller-supplied `plugin_marketplaces` and `extra_plugins` workflow inputs append to the derived lists — useful for CI-only additions without touching the project file.
 
-## Common gotchas
+## Authorization
 
-Three non-obvious behaviors surfaced during real installs. Knowing about them in advance saves debugging time.
+Each reusable workflow's first step queries `repos/{owner}/{repo}/collaborators/{actor}/permission` and accepts the run only when the actor's effective permission is `admin`, `maintain`, or `write`. Permission flows through team and org membership, so trusted org members are authorized without extra configuration. External contributors (including PRs from forks) come back as `none` (or 404) and the workflow exits with a clear error.
 
-### `pull_request.author_association: NONE` for forked-repo PRs
+The earlier `author_association` gating relied on the webhook field of the same name, which sometimes reported `NONE` or `CONTRIBUTOR` for legitimately-trusted org members and forced callers to expand the allowlist in unsafe ways. The `authorized_roles` input is now ignored; remove it from caller `with:` blocks at your convenience (a deprecation warning fires when the input is set).
 
-When a PR is opened from a branch in a **forked** repository (the kind GitHub creates with the "Fork" button), the `pull_request` event payload reports `author_association: NONE` for users who are not trusted on the target repository. This is expected, but it can surprise maintainers who expected `COLLABORATOR` or `MEMBER` based on organization context.
-
-After an external contributor has a PR merged, later PRs can report `CONTRIBUTOR`. Consider whether previous contributors should have the same access as collaborators before adding that role.
-
-The reusable workflow's `if:` gate is:
-
-```yaml
-if: contains(fromJSON(inputs.authorized_roles), github.event.pull_request.author_association)
-```
-
-If `NONE` isn't in your `authorized_roles`, the auto-review job skips silently. The job appears in Actions with `conclusion: skipped` and no log lines.
-
-**Safer workaround:** keep forked PRs from external contributors out of automatic `pull_request` review. Trigger those reviews from a trusted maintainer path instead, such as `workflow_dispatch`, an `issue_comment` trigger that checks the comment author, or a `pull_request_review` trigger that checks the reviewer. For example, a caller can route manual review comments through the mention workflow:
+If you need to allow specific external accounts, gate at the caller side: route mentions through the mention workflow with an `if:` that lists trusted usernames, or use a separate manual trigger.
 
 ```yaml
 on:
@@ -154,7 +139,7 @@ on:
 
 jobs:
   claude:
-    # Replace alice and bob with trusted maintainer accounts.
+    # Replace alice and bob with trusted accounts not on the repo's collaborators list.
     if: github.event.issue.pull_request && contains(fromJSON('["alice", "bob"]'), github.actor)
     uses: outcomeeng/gh-actions/.github/workflows/claude.yml@main
     secrets:
@@ -164,14 +149,9 @@ jobs:
       custom_prompt: "Review this pull request."
 ```
 
-**Quick workaround:** add `NONE` to the explicit `authorized_roles` in the caller workflow, accepting that any PR opener can trigger the bot:
+## Common gotchas
 
-```yaml
-with:
-  authorized_roles: '["OWNER", "MEMBER", "COLLABORATOR", "NONE"]'
-```
-
-Avoid this shortcut in production unless another gate limits who can trigger the workflow, such as an environment requiring approval or a separate manual trigger.
+Two non-obvious behaviors that still surface during real installs.
 
 ### Workflow file at PR head must match the default branch
 

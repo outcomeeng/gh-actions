@@ -18,9 +18,9 @@ on:
   workflow_call:
     inputs:
       authorized_roles:
-        description: 'JSON array of GitHub author associations allowed to trigger (e.g., ["OWNER", "MEMBER"])'
+        description: "(Deprecated, ignored.) Authorization is now determined by querying the repo-permission API for the PR author."
         type: string
-        default: '["OWNER", "MEMBER", "COLLABORATOR"]'
+        default: ""
       concurrency_cancel:
         description: "Cancel in-progress reviews when PR is updated"
         type: boolean
@@ -51,8 +51,6 @@ jobs:
     concurrency:
       group: claude-review-${{ github.event.pull_request.number }}
       cancel-in-progress: ${{ inputs.concurrency_cancel }}
-    if: |
-      contains(fromJSON(inputs.authorized_roles), github.event.pull_request.author_association)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,6 +59,32 @@ jobs:
       id-token: write
 
     steps:
+      - name: Authorize PR author
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+          DEPRECATED_ROLES: ${{ inputs.authorized_roles }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$DEPRECATED_ROLES" ]]; then
+            echo "::warning::The 'authorized_roles' input is deprecated and ignored. Authorization now uses the repo-permission API."
+          fi
+          if [[ -z "$PR_AUTHOR" ]]; then
+            echo "::error::No PR author in the event payload"
+            exit 1
+          fi
+          perm=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission' 2>/dev/null || echo "none")
+          case "$perm" in
+            admin|maintain|write)
+              echo "PR author '$PR_AUTHOR' has '$perm' permission on $REPO — review authorized"
+              ;;
+            *)
+              echo "::error::PR author '$PR_AUTHOR' has '$perm' permission on $REPO; review requires admin, maintain, or write"
+              exit 1
+              ;;
+          esac
+
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
