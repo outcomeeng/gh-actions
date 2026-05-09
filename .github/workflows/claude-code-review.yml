@@ -83,9 +83,56 @@ jobs:
               ;;
           esac
 
+  validate-workflow:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matches: ${{ steps.check.outputs.matches }}
+    steps:
+      - name: Compare caller workflow file to default branch
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # github.workflow_ref is "<owner>/<repo>/<path>@<ref>".
+          prefix="$REPO/"
+          path="${WORKFLOW_REF#$prefix}"
+          path="${path%@*}"
+          echo "Caller workflow file: $path"
+
+          default_branch=$(gh api "repos/$REPO" --jq '.default_branch')
+          head_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" --jq '.sha' 2>/dev/null || echo "")
+          default_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$default_branch" --jq '.sha' 2>/dev/null || echo "")
+
+          if [[ -z "$default_sha_blob" ]]; then
+            echo "::notice::Workflow file '$path' is not on $default_branch yet. The Anthropic action requires the caller workflow file to exist on the default branch with identical content. Merge this PR (or a workflow-only PR that lands the file first) into $default_branch, then subsequent PRs will be reviewed automatically."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ -z "$head_sha_blob" ]]; then
+            echo "::notice::Workflow file '$path' is not present at the PR head; nothing to review here."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$head_sha_blob" != "$default_sha_blob" ]]; then
+            echo "::notice::Workflow file '$path' at PR head differs from $default_branch. The Anthropic action requires identical content for security. Land the workflow change on $default_branch first (a workflow-only PR is the typical approach), then this PR will be reviewed automatically."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Workflow file at PR head matches $default_branch — review can proceed"
+          echo "matches=true" >> "$GITHUB_OUTPUT"
+
   claude-review:
-    needs: authorize
-    if: needs.authorize.outputs.authorized == 'true'
+    needs: [authorize, validate-workflow]
+    if: needs.authorize.outputs.authorized == 'true' && needs.validate-workflow.outputs.matches == 'true'
     concurrency:
       group: claude-review-${{ github.event.pull_request.number }}
       cancel-in-progress: ${{ inputs.concurrency_cancel }}

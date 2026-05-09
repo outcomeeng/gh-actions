@@ -130,6 +130,8 @@ Each reusable workflow has a small `authorize` job that queries `repos/{owner}/{
 
 If you (an admin/maintainer) want Claude to review a PR opened by a non-collaborator, comment `@claude` on the PR. That triggers `claude.yml` from the `issue_comment` event with you as the actor; the API check sees your write permission and the action runs with the PR context.
 
+`claude-code-review.yml` also has a `validate-workflow` job that compares the caller workflow file at the PR head to the default branch and skips the review with a clear notice if they differ. This pre-empts the Anthropic action's `Workflow validation failed` error in the two common cases — first installs where the workflow file isn't on the default branch yet, and PRs that modify a `.github/workflows/claude*.yml` file. Merge the workflow change to the default branch first, then later PRs are reviewed automatically.
+
 The earlier `author_association` gating relied on the webhook field of the same name, which sometimes reported `NONE` or `CONTRIBUTOR` for legitimately-trusted org members and forced callers to expand the allowlist in unsafe ways. The `authorized_roles` input is now ignored; remove it from caller `with:` blocks at your convenience (a deprecation warning fires when the input is set).
 
 If you need to allow specific external accounts, gate at the caller side: route mentions through the mention workflow with an `if:` that lists trusted usernames, or use a separate manual trigger.
@@ -153,16 +155,7 @@ jobs:
 
 ## Common gotchas
 
-Two non-obvious behaviors that still surface during real installs.
-
-### Workflow file at PR head must match the default branch
-
-The Anthropic action (`anthropics/claude-code-action`) validates that the workflow file running on the PR exists on the repo's default branch with matching content. This is a security check: without it, a PR could modify the workflow and abuse the bot.
-
-In practice this means:
-
-- **Adding the workflow files for the first time:** the first PR that contains the workflow files starts the job, but the action logs `Skipping action due to workflow validation: ...` with `Workflow validation failed` and exits without posting a review. Expand the **Run anthropics/claude-code-action** step and search for `Workflow validation`. This is normal: the file isn't on the default branch yet, so there's nothing to compare against. Merge that workflow-only PR first; subsequent PRs review correctly.
-- **Updating the workflow:** any PR that modifies `.github/workflows/claude*.yml` will fail the same check until the change is on the default branch. It's safest to land workflow changes in a dedicated PR so reviews of unrelated code aren't blocked.
+One non-obvious behavior still surfaces during real installs.
 
 ### Same-repo branches created before the workflow existed won't trigger it
 
