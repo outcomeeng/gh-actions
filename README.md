@@ -126,7 +126,9 @@ Caller-supplied `plugin_marketplaces` and `extra_plugins` workflow inputs append
 
 ## Authorization
 
-Each reusable workflow's first step queries `repos/{owner}/{repo}/collaborators/{actor}/permission` and accepts the run only when the actor's effective permission is `admin`, `maintain`, or `write`. Permission flows through team and org membership, so trusted org members are authorized without extra configuration. External contributors (including PRs from forks) come back as `none` (or 404) and the workflow exits with a clear error.
+Each reusable workflow has a small `authorize` job that queries `repos/{owner}/{repo}/collaborators/{actor}/permission` and the `claude-review` / `claude` job runs only when the actor's effective permission is `admin`, `maintain`, or `write`. Permission flows through team and org membership, so trusted org members are authorized without extra configuration. External contributors (including PRs from forks) come back as `none` (or 404), and the review job is `skipped` (gray check on the PR), not failed — so an unauthorized PR doesn't show a red X.
+
+If you (an admin/maintainer) want Claude to review a PR opened by a non-collaborator, comment `@claude` on the PR. That triggers `claude.yml` from the `issue_comment` event with you as the actor; the API check sees your write permission and the action runs with the PR context.
 
 The earlier `author_association` gating relied on the webhook field of the same name, which sometimes reported `NONE` or `CONTRIBUTOR` for legitimately-trusted org members and forced callers to expand the allowlist in unsafe ways. The `authorized_roles` input is now ignored; remove it from caller `with:` blocks at your convenience (a deprecation warning fires when the input is set).
 

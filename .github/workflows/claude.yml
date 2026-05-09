@@ -57,10 +57,7 @@ on:
         required: true
 
 jobs:
-  claude:
-    concurrency:
-      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
-      cancel-in-progress: ${{ inputs.concurrency_cancel }}
+  authorize:
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, inputs.mention_trigger)) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, inputs.mention_trigger)) ||
@@ -69,12 +66,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
-      id-token: write
-      actions: read
+    outputs:
+      authorized: ${{ steps.check.outputs.authorized }}
     steps:
-      - name: Authorize actor
+      - name: Check actor permission
+        id: check
         env:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
@@ -86,20 +82,36 @@ jobs:
             echo "::warning::The 'authorized_roles' input is deprecated and ignored. Authorization now uses the repo-permission API."
           fi
           if [[ -z "$ACTOR" ]]; then
-            echo "::error::No actor in the event payload"
-            exit 1
+            echo "::notice::No actor in the event payload; skipping mention"
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           perm=$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq '.permission' 2>/dev/null || echo "none")
           case "$perm" in
             admin|maintain|write)
               echo "Actor '$ACTOR' has '$perm' permission on $REPO — mention authorized"
+              echo "authorized=true" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              echo "::error::Actor '$ACTOR' has '$perm' permission on $REPO; @claude requires admin, maintain, or write"
-              exit 1
+              echo "::notice::Actor '$ACTOR' has '$perm' permission on $REPO; skipping mention (@claude requires admin, maintain, or write)"
+              echo "authorized=false" >> "$GITHUB_OUTPUT"
               ;;
           esac
 
+  claude:
+    needs: authorize
+    if: needs.authorize.outputs.authorized == 'true'
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: ${{ inputs.concurrency_cancel }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+      actions: read
+    steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
