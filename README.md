@@ -86,9 +86,8 @@ jobs:
 | `concurrency_cancel`  | `true`                                | Cancel in-progress runs on new mention                            |
 | `allowed_tools`       | (unrestricted)                        | Claude Code `--allowed-tools` argument                            |
 | `custom_prompt`       | (empty)                               | Override default behavior with custom prompt                      |
-| `plugin_marketplaces` | `outcomeeng/plugins@main`             | Space-separated marketplaces to register (`owner/repo[@ref]`)     |
+| `plugin_marketplaces` | (empty)                               | Space-separated extra marketplaces to register (`owner/repo`)     |
 | `extra_plugins`       | (empty)                               | Space-separated plugins to install beyond `.claude/settings.json` |
-| `skip_plugin_install` | `false`                               | Set `true` for repos that don't use the plugin marketplace        |
 
 ### claude-code-review.yml Inputs
 
@@ -98,33 +97,35 @@ jobs:
 | `concurrency_cancel`  | `false`                               | Cancel in-progress reviews on new PR update                       |
 | `allowed_tools`       | (gh read/comment only)                | Claude Code `--allowed-tools` argument                            |
 | `custom_prompt`       | (default review prompt)               | Custom review instructions                                        |
-| `plugin_marketplaces` | `outcomeeng/plugins@main`             | Space-separated marketplaces to register (`owner/repo[@ref]`)     |
+| `plugin_marketplaces` | (empty)                               | Space-separated extra marketplaces to register (`owner/repo`)     |
 | `extra_plugins`       | (empty)                               | Space-separated plugins to install beyond `.claude/settings.json` |
-| `skip_plugin_install` | `false`                               | Set `true` for repos that don't use the plugin marketplace        |
 
 ## Project marketplace declarations
 
-The reusable workflows install plugins listed in `.claude/settings.json` (`enabledPlugins`). Plugin keys use the form `name@marketplace-alias`, where the alias is what the marketplace publishes in its own manifest. For the install to succeed, that alias must already be registered.
+The reusable workflows install the plugins listed in `.claude/settings.json` under `enabledPlugins`. Plugin keys use the form `name@marketplace-alias`; for the install to succeed, the alias must resolve to a marketplace source.
 
-Two ways to register marketplaces, listed in order of preference:
+The canonical place to declare the alias → source mapping is `extraKnownMarketplaces` inside `.claude/settings.json` itself — this is a Claude Code feature, so the same file drives both local development and CI:
 
-1. **Sidecar file `.claude/marketplaces.json` (recommended).** Commit a project-level mapping from alias to source. Anyone running the workflow on the project gets the right marketplaces without changing the caller workflow.
+```json
+{
+  "enabledPlugins": {
+    "github@claude-plugins-official": true,
+    "rust@outcomeeng": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": { "source": "github", "repo": "anthropics/claude-plugins-official" }
+    },
+    "outcomeeng": {
+      "source": { "source": "github", "repo": "outcomeeng/plugins", "ref": "main" }
+    }
+  }
+}
+```
 
-   ```json
-   {
-     "marketplaces": {
-       "outcomeeng": "outcomeeng/plugins@main",
-       "claude-plugins-official": "anthropics/claude-plugins-official",
-       "taches-cc-resources": "glittercowboy/taches-cc-resources"
-     }
-   }
-   ```
+The reusable workflows derive the action's `plugins` and `plugin_marketplaces` inputs from this file at runtime: `enabledPlugins` keys flow into `plugins`, and each `extraKnownMarketplaces` entry's `source.repo` becomes a `https://github.com/<repo>.git` URL passed as `plugin_marketplaces`. Today only `source.source: "github"` entries are emitted; pin a ref via `source.ref` (Claude Code reads it during install).
 
-   The key documents the alias the marketplace publishes (must match what `enabledPlugins` references). The value is anything `claude plugin marketplace add` accepts: `owner/repo`, `owner/repo@ref`, etc.
-
-2. **`plugin_marketplaces` workflow input.** Pass a space-separated list at the call site. Useful for one-off CI marketplaces or for overriding the sidecar from a specific caller.
-
-Both register additively. If a project's `.claude/settings.json` references an alias that isn't covered by either source, `claude plugin install` fails on that plugin and the setup step exits.
+Caller-supplied `plugin_marketplaces` and `extra_plugins` workflow inputs append to the derived lists — useful for CI-only additions without touching the project file.
 
 ## Common gotchas
 
