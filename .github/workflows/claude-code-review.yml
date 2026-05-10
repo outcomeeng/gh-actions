@@ -247,7 +247,7 @@ jobs:
           #   - if a caller really needs to override the allowlist, they can pass
           #     a later --allowed-tools that takes precedence per the action's
           #     last-flag-wins semantics
-          args='--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+          args='--allowed-tools "Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
           if [[ -n "$MODEL" ]]; then
             args="$args --model $MODEL"
           fi
