@@ -41,7 +41,14 @@ on:
         type: string
         default: ""
       claude_args:
-        description: "Extra CLI arguments passed to Claude Code (e.g. '--max-turns 20 --allowed-tools \"Bash(gh pr comment:*)\"')."
+        description: |
+          Extra CLI arguments appended after the wrapper's baked-in defaults.
+          The wrapper always passes a baseline --allowed-tools that lets Claude
+          read PR context and post its review comment via gh; whatever you put
+          here extends or overrides that. Examples:
+            --max-turns 20
+            --allowed-tools "Bash(make test:*)"   # adds to the allowlist
+            --debug
         type: string
         default: ""
       trigger_phrase:
@@ -231,12 +238,21 @@ jobs:
           EXTRA_ARGS: ${{ inputs.claude_args }}
         run: |
           set -euo pipefail
-          args=""
+          # Baked-in default: allow exactly the gh subcommands the review needs
+          # to read PR context and post its review comment. Callers stay
+          # argument-free in the common case. A caller's claude_args is appended
+          # after the default, so:
+          #   - extending the allowlist works by adding more --allowed-tools args
+          #     (the action treats repeated flags additively)
+          #   - if a caller really needs to override the allowlist, they can pass
+          #     a later --allowed-tools that takes precedence per the action's
+          #     last-flag-wins semantics
+          args='--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
           if [[ -n "$MODEL" ]]; then
-            args="--model $MODEL"
+            args="$args --model $MODEL"
           fi
           if [[ -n "$EXTRA_ARGS" ]]; then
-            args="${args:+$args }$EXTRA_ARGS"
+            args="$args $EXTRA_ARGS"
           fi
           delim="ARGS_$(cat /proc/sys/kernel/random/uuid)"
           {
