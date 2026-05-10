@@ -238,8 +238,15 @@ jobs:
           if [[ -n "$EXTRA_ARGS" ]]; then
             args="${args:+$args }$EXTRA_ARGS"
           fi
-          echo "args=$args" >> "$GITHUB_OUTPUT"
-          echo "Composed claude_args: $args"
+          delim="ARGS_$(cat /proc/sys/kernel/random/uuid)"
+          {
+            printf '%s<<%s\n' "args" "$delim"
+            printf '%s\n' "$args"
+            printf '%s\n' "$delim"
+          } >> "$GITHUB_OUTPUT"
+          echo "::group::Composed claude_args"
+          printf '%s\n' "$args"
+          echo "::endgroup::"
 
       - name: Apply additional env
         env:
@@ -252,7 +259,24 @@ jobs:
           fi
           # Validate JSON object before exporting; reject non-objects.
           echo "$ADDITIONAL_ENV" | jq -e 'type == "object"' >/dev/null
-          echo "$ADDITIONAL_ENV" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+          # Emit each key as a heredoc-delimited GITHUB_ENV record so multiline
+          # values (JSON, cert material, etc.) survive unmangled. Reject keys
+          # that aren't valid POSIX env var names so a malformed input can't
+          # silently inject garbage.
+          while IFS= read -r entry; do
+            key=$(printf '%s' "$entry" | jq -r '.key')
+            if ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+              echo "::error::additional_env key '$key' is not a valid env var name"
+              exit 1
+            fi
+            value=$(printf '%s' "$entry" | jq -r '.value | tostring')
+            delim="ENV_$(cat /proc/sys/kernel/random/uuid)"
+            {
+              printf '%s<<%s\n' "$key" "$delim"
+              printf '%s\n' "$value"
+              printf '%s\n' "$delim"
+            } >> "$GITHUB_ENV"
+          done < <(echo "$ADDITIONAL_ENV" | jq -c 'to_entries[]')
           echo "::group::Applied additional env keys"
           echo "$ADDITIONAL_ENV" | jq -r 'keys[]'
           echo "::endgroup::"
