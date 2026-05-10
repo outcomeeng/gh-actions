@@ -17,53 +17,76 @@
 #       uses: outcomeeng/gh-actions/.github/workflows/claude.yml@main
 #       secrets:
 #         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+#
+# Optional inputs cover model selection, full claude_args passthrough,
+# Bedrock/Vertex routing, a custom mention trigger, and a runner override.
 
 name: Claude Code
 
 on:
   workflow_call:
     inputs:
-      authorized_roles:
-        description: "(Deprecated, ignored.) Authorization is now determined by querying the repo-permission API for the actor."
+      runner:
+        description: |
+          Runner selection as a JSON value, applied to all jobs.
+          Single label: '"ubuntu-slim"' (note the embedded JSON quotes).
+          Multi-label set: '["self-hosted","laptop"]'.
+          Security: self-hosted runners must not be used from public repos or repos that accept PRs/comments from untrusted contributors. Only set a self-hosted runner here when every authorized contributor is trusted (typical for private org repos).
         type: string
-        default: ""
-      mention_trigger:
-        description: "Text that triggers the workflow"
+        default: '"ubuntu-slim"'
+      trigger_phrase:
+        description: "Text that triggers the workflow (also passed to the action). Defaults to @claude."
         type: string
         default: "@claude"
       concurrency_cancel:
-        description: "Cancel in-progress runs when new mention arrives"
+        description: "Cancel in-progress runs when a new mention arrives."
         type: boolean
         default: true
-      allowed_tools:
-        description: "Claude Code --allowed-tools argument (empty = unrestricted)"
-        type: string
-        default: ""
       custom_prompt:
-        description: "Custom prompt to override default behavior"
+        description: "Custom prompt to override default behavior."
         type: string
         default: ""
+      model:
+        description: "Claude model to use, e.g. claude-opus-4-7. Folded into claude_args as --model. Empty means use the action's default."
+        type: string
+        default: ""
+      claude_args:
+        description: "Extra CLI arguments passed to Claude Code (e.g. '--max-turns 20 --allowed-tools \"Bash(gh pr comment:*)\"')."
+        type: string
+        default: ""
+      use_bedrock:
+        description: "Route Claude through Amazon Bedrock instead of the Claude API. Caller is responsible for AWS auth and for setting AWS_REGION via additional_env."
+        type: boolean
+        default: false
+      use_vertex:
+        description: "Route Claude through Google Vertex AI instead of the Claude API. Caller is responsible for GCP auth and for setting ANTHROPIC_VERTEX_PROJECT_ID / CLOUD_ML_REGION / VERTEX_REGION_* via additional_env."
+        type: boolean
+        default: false
+      additional_env:
+        description: "JSON object string of env vars to set on the claude-code-action step. Used to pass cloud-provider config without changing the action invocation."
+        type: string
+        default: "{}"
       plugin_marketplaces:
-        description: "Space-separated list of extra marketplaces to register beyond `.claude/settings.json`'s `extraKnownMarketplaces` (owner/repo, ref ignored — pin via settings.json)"
+        description: "Space-separated list of extra marketplaces to register beyond `.claude/settings.json`'s `extraKnownMarketplaces` (owner/repo, ref ignored — pin via settings.json)."
         type: string
         default: ""
       extra_plugins:
-        description: "Space-separated extra plugins to install beyond `.claude/settings.json`'s `enabledPlugins`"
+        description: "Space-separated extra plugins to install beyond `.claude/settings.json`'s `enabledPlugins`."
         type: string
         default: ""
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
-        description: "Claude Code OAuth token"
-        required: true
+        description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true (cloud credentials provide auth in those cases)."
+        required: false
 
 jobs:
   authorize:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, inputs.mention_trigger)) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, inputs.mention_trigger)) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, inputs.mention_trigger)) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, inputs.mention_trigger) || contains(github.event.issue.title, inputs.mention_trigger)))
-    runs-on: ubuntu-slim
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, inputs.trigger_phrase)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, inputs.trigger_phrase)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, inputs.trigger_phrase)) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, inputs.trigger_phrase) || contains(github.event.issue.title, inputs.trigger_phrase)))
+    runs-on: ${{ fromJSON(inputs.runner) }}
     permissions:
       contents: read
     outputs:
@@ -75,12 +98,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
           REPO: ${{ github.repository }}
-          DEPRECATED_ROLES: ${{ inputs.authorized_roles }}
         run: |
           set -euo pipefail
-          if [[ -n "$DEPRECATED_ROLES" ]]; then
-            echo "::warning::The 'authorized_roles' input is deprecated and ignored. Authorization now uses the repo-permission API."
-          fi
           if [[ -z "$ACTOR" ]]; then
             echo "::notice::No actor in the event payload; skipping mention"
             echo "authorized=false" >> "$GITHUB_OUTPUT"
@@ -93,7 +112,7 @@ jobs:
               echo "authorized=true" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              echo "::notice::Actor '$ACTOR' has '$perm' permission on $REPO; skipping mention (@claude requires admin, maintain, or write)"
+              echo "::notice::Actor '$ACTOR' has '$perm' permission on $REPO; skipping mention (trigger requires admin, maintain, or write)"
               echo "authorized=false" >> "$GITHUB_OUTPUT"
               ;;
           esac
@@ -104,7 +123,7 @@ jobs:
     concurrency:
       group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
       cancel-in-progress: ${{ inputs.concurrency_cancel }}
-    runs-on: ubuntu-slim
+    runs-on: ${{ fromJSON(inputs.runner) }}
     permissions:
       contents: read
       pull-requests: write
@@ -169,6 +188,38 @@ jobs:
           echo "$marketplaces"
           echo "::endgroup::"
 
+      - name: Compose claude_args
+        id: claude-args
+        env:
+          MODEL: ${{ inputs.model }}
+          EXTRA_ARGS: ${{ inputs.claude_args }}
+        run: |
+          set -euo pipefail
+          args=""
+          if [[ -n "$MODEL" ]]; then
+            args="--model $MODEL"
+          fi
+          if [[ -n "$EXTRA_ARGS" ]]; then
+            args="${args:+$args }$EXTRA_ARGS"
+          fi
+          echo "args=$args" >> "$GITHUB_OUTPUT"
+          echo "Composed claude_args: $args"
+
+      - name: Apply additional env
+        env:
+          ADDITIONAL_ENV: ${{ inputs.additional_env }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$ADDITIONAL_ENV" || "$ADDITIONAL_ENV" == "{}" ]]; then
+            echo "No additional env to apply"
+            exit 0
+          fi
+          echo "$ADDITIONAL_ENV" | jq -e 'type == "object"' >/dev/null
+          echo "$ADDITIONAL_ENV" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+          echo "::group::Applied additional env keys"
+          echo "$ADDITIONAL_ENV" | jq -r 'keys[]'
+          echo "::endgroup::"
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa # v1.0.111
@@ -177,6 +228,9 @@ jobs:
           additional_permissions: |
             actions: read
           prompt: ${{ inputs.custom_prompt }}
-          claude_args: ${{ inputs.allowed_tools }}
+          claude_args: ${{ steps.claude-args.outputs.args }}
+          trigger_phrase: ${{ inputs.trigger_phrase }}
+          use_bedrock: ${{ inputs.use_bedrock }}
+          use_vertex: ${{ inputs.use_vertex }}
           plugins: ${{ steps.plugins.outputs.plugins }}
           plugin_marketplaces: ${{ steps.plugins.outputs.marketplaces }}
