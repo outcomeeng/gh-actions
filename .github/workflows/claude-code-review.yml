@@ -22,12 +22,13 @@ on:
     inputs:
       runner:
         description: |
-          Runner selection as a JSON value, applied to all three jobs.
-          Single label: '"ubuntu-slim"' (note the embedded JSON quotes).
-          Multi-label set: '["self-hosted","laptop"]'.
+          Runner selection for all three jobs. Accepts either:
+          - A single label: 'ubuntu-slim', 'ubuntu-latest', 'self-hosted'
+          - A JSON array of labels: '["self-hosted","laptop"]'
+          The wrapper detects which form was passed and dispatches correctly.
           Security: self-hosted runners must not be used from public repos or repos that accept PRs from untrusted forks. The reusable-workflow validate-workflow gate restricts what untrusted PRs can change, but the runner host itself is shared across runs. Only set a self-hosted runner here when every PR contributor is trusted (typical for private org repos).
         type: string
-        default: '"ubuntu-slim"'
+        default: ubuntu-slim
       concurrency_cancel:
         description: "Cancel in-progress reviews when PR is updated."
         type: boolean
@@ -96,7 +97,7 @@ on:
 
 jobs:
   authorize:
-    runs-on: ${{ fromJSON(inputs.runner) }}
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
       contents: read
     outputs:
@@ -128,7 +129,7 @@ jobs:
           esac
 
   validate-workflow:
-    runs-on: ${{ fromJSON(inputs.runner) }}
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
       contents: read
     outputs:
@@ -180,7 +181,7 @@ jobs:
     concurrency:
       group: claude-review-${{ github.event.pull_request.number }}
       cancel-in-progress: ${{ inputs.concurrency_cancel }}
-    runs-on: ${{ fromJSON(inputs.runner) }}
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
       contents: read
       pull-requests: write
