@@ -43,14 +43,25 @@ on:
       claude_args:
         description: |
           Extra CLI arguments appended after the wrapper's baked-in defaults.
-          The wrapper always passes a baseline --allowed-tools that lets Claude
-          read PR context and post its review comment via gh; whatever you put
-          here extends or overrides that. Examples:
+          The wrapper passes a baseline --allowed-tools that lets Claude read
+          PR context and post its review comment via gh. The action merges
+          repeated --allowed-tools flags additively (new Set semantics), so
+          claude_args here can only EXTEND the allowlist — it cannot remove or
+          narrow it. To narrow, set disable_default_allowlist: true and pass
+          your own --allowed-tools. Examples:
             --max-turns 20
             --allowed-tools "Bash(make test:*)"   # adds to the allowlist
             --debug
         type: string
         default: ""
+      disable_default_allowlist:
+        description: |
+          Skip the wrapper's baked-in --allowed-tools default. When true, the
+          composed claude_args contains only what the caller passes (plus
+          --model if set). Use when you need a strictly narrower allowlist than
+          the bake-in provides; otherwise leave false.
+        type: boolean
+        default: false
       trigger_phrase:
         description: "Trigger phrase for @-mention activation. Defaults to @claude."
         type: string
@@ -236,23 +247,29 @@ jobs:
         env:
           MODEL: ${{ inputs.model }}
           EXTRA_ARGS: ${{ inputs.claude_args }}
+          DISABLE_DEFAULT_ALLOWLIST: ${{ inputs.disable_default_allowlist }}
         run: |
           set -euo pipefail
           # Baked-in default: allow exactly the gh subcommands the review needs
           # to read PR context and post its review comment. Callers stay
-          # argument-free in the common case. A caller's claude_args is appended
-          # after the default, so:
-          #   - extending the allowlist works by adding more --allowed-tools args
-          #     (the action treats repeated flags additively)
-          #   - if a caller really needs to override the allowlist, they can pass
-          #     a later --allowed-tools that takes precedence per the action's
-          #     last-flag-wins semantics
-          args='--allowed-tools "Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+          # argument-free in the common case.
+          #
+          # The action merges repeated --allowed-tools flags additively
+          # (new Set semantics in base-action/src/parse-sdk-options.ts), so a
+          # caller's claude_args can EXTEND the allowlist with extra
+          # --allowed-tools entries but cannot remove the baseline. Callers
+          # that need a strictly narrower allowlist must set
+          # disable_default_allowlist: true and pass their own --allowed-tools.
+          if [[ "$DISABLE_DEFAULT_ALLOWLIST" == "true" ]]; then
+            args=""
+          else
+            args='--allowed-tools "Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+          fi
           if [[ -n "$MODEL" ]]; then
-            args="$args --model $MODEL"
+            args="${args:+$args }--model $MODEL"
           fi
           if [[ -n "$EXTRA_ARGS" ]]; then
-            args="$args $EXTRA_ARGS"
+            args="${args:+$args }$EXTRA_ARGS"
           fi
           delim="ARGS_$(cat /proc/sys/kernel/random/uuid)"
           {
