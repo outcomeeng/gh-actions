@@ -254,9 +254,12 @@ jobs:
           OVERRIDE_ALLOW_LIST: ${{ inputs.override_allow_list }}
         run: |
           set -euo pipefail
-          # Baseline allowlist: exactly the gh subcommands the review needs to
-          # read PR context and post its review comment. Repo-scoped (no
-          # `gh search`, which would let Claude search arbitrary repos).
+          # Trim leading/trailing whitespace so a caller passing " " (or a
+          # YAML block with trailing newline) doesn't append a stray empty
+          # pattern that Claude Code would silently drop or reject.
+          trim() { local s=${1#"${1%%[![:space:]]*}"}; printf '%s' "${s%"${s##*[![:space:]]}"}"; }
+          OVERRIDE_ALLOW_LIST=$(trim "$OVERRIDE_ALLOW_LIST")
+          APPEND_ALLOW_LIST=$(trim "$APPEND_ALLOW_LIST")
           baseline='Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)'
           if [[ -n "$OVERRIDE_ALLOW_LIST" ]]; then
             allowlist="$OVERRIDE_ALLOW_LIST"
@@ -273,6 +276,11 @@ jobs:
             args="$args --model $MODEL"
           fi
           if [[ -n "$EXTRA_ARGS" ]]; then
+            # Help callers spot the design mismatch — they should be using
+            # append_allow_list / override_allow_list for tool restrictions.
+            if [[ "$EXTRA_ARGS" == *--allowed-tools* || "$EXTRA_ARGS" == *--allowedTools* ]]; then
+              echo "::warning::claude_args contains --allowed-tools; this will merge additively with the wrapper's allowlist (the action treats repeated flags as a Set). To narrow the allowlist, use override_allow_list; to extend, use append_allow_list."
+            fi
             args="$args $EXTRA_ARGS"
           fi
           delim="ARGS_$(cat /proc/sys/kernel/random/uuid)"
