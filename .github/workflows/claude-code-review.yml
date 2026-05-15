@@ -102,7 +102,7 @@ on:
         default: false
       timeout_minutes:
         description: |
-          Wall-clock budget for the Run Claude Code Review step. When exceeded, GitHub cancels the step with a clear timeout message; the post-action cleanup steps (token revocation, buffered inline comments, workspace cleanup) still run, so the runner is left in a clean state. Default 15 covers a typical review with headroom. Lower it (e.g. to 5) to fail fast when a run hangs, or raise it for repositories where reviews legitimately take longer. Applies only to the Claude Code Action step; the authorize and validate-workflow jobs are short-lived and not gated by this input.
+          Wall-clock budget for the Run Claude Code Review step. When exceeded, GitHub cancels the step with a clear timeout message; the post-action cleanup steps (token revocation, buffered inline comments, workspace cleanup) still run, so the runner is left in a clean state. Default 15 covers a typical review with headroom. Lower it (e.g. to 5) to fail fast when a run hangs, or raise it for repositories where reviews legitimately take longer. Minimum meaningful value is 1; GitHub Actions silently rejects `timeout-minutes: 0` at runtime. Applies only to the Claude Code Action step; the authorize and validate-workflow jobs are short-lived and not gated by this input.
         type: number
         default: 15
     secrets:
