@@ -76,32 +76,45 @@ jobs:
 
 ### claude.yml Inputs
 
-| Input                 | Default               | Description                                                       |
-| --------------------- | --------------------- | ----------------------------------------------------------------- |
-| `authorized_roles`    | (deprecated, ignored) | Authorization is now via the repo-permission API for the actor    |
-| `mention_trigger`     | `@claude`             | Text that triggers the workflow                                   |
-| `concurrency_cancel`  | `true`                | Cancel in-progress runs on new mention                            |
-| `allowed_tools`       | (unrestricted)        | Claude Code `--allowed-tools` argument                            |
-| `custom_prompt`       | (empty)               | Override default behavior with custom prompt                      |
-| `plugin_marketplaces` | (empty)               | Space-separated extra marketplaces to register (`owner/repo`)     |
-| `extra_plugins`       | (empty)               | Space-separated plugins to install beyond `.claude/settings.json` |
+| Input                 | Default               | Description                                                                                    |
+| --------------------- | --------------------- | ---------------------------------------------------------------------------------------------- |
+| `authorized_roles`    | (deprecated, ignored) | Authorization is now via the repo-permission API for the actor                                 |
+| `mention_trigger`     | `@claude`             | Text that triggers the workflow                                                                |
+| `concurrency_cancel`  | `true`                | Cancel in-progress runs on new mention                                                         |
+| `allowed_tools`       | (unrestricted)        | Claude Code `--allowed-tools` argument                                                         |
+| `custom_prompt`       | (empty)               | Override default behavior with custom prompt                                                   |
+| `use_project_plugins` | `false`               | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below) |
+| `plugin_marketplaces` | (empty)               | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in |
+| `extra_plugins`       | (empty)               | Space-separated plugins to install; appends to project list when opted in                      |
 
 ### claude-code-review.yml Inputs
 
-| Input                 | Default                 | Description                                                        |
-| --------------------- | ----------------------- | ------------------------------------------------------------------ |
-| `authorized_roles`    | (deprecated, ignored)   | Authorization is now via the repo-permission API for the PR author |
-| `concurrency_cancel`  | `false`                 | Cancel in-progress reviews on new PR update                        |
-| `allowed_tools`       | (gh read/comment only)  | Claude Code `--allowed-tools` argument                             |
-| `custom_prompt`       | (default review prompt) | Custom review instructions                                         |
-| `plugin_marketplaces` | (empty)                 | Space-separated extra marketplaces to register (`owner/repo`)      |
-| `extra_plugins`       | (empty)                 | Space-separated plugins to install beyond `.claude/settings.json`  |
+| Input                 | Default                 | Description                                                                                    |
+| --------------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `authorized_roles`    | (deprecated, ignored)   | Authorization is now via the repo-permission API for the PR author                             |
+| `concurrency_cancel`  | `false`                 | Cancel in-progress reviews on new PR update                                                    |
+| `allowed_tools`       | (gh read/comment only)  | Claude Code `--allowed-tools` argument                                                         |
+| `custom_prompt`       | (default review prompt) | Custom review instructions                                                                     |
+| `use_project_plugins` | `false`                 | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below) |
+| `plugin_marketplaces` | (empty)                 | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in |
+| `extra_plugins`       | (empty)                 | Space-separated plugins to install; appends to project list when opted in                      |
 
-## Project marketplace declarations
+## Plugins and marketplaces
 
-The reusable workflows install the plugins listed in `.claude/settings.json` under `enabledPlugins`. Plugin keys use the form `name@marketplace-alias`; for the install to succeed, the alias must resolve to a marketplace source.
+The reusable workflows install plugins from two possible sources:
 
-The canonical place to declare the alias → source mapping is `extraKnownMarketplaces` inside `.claude/settings.json` itself — this is a Claude Code feature, so the same file drives both local development and CI:
+1. **Caller workflow inputs** (`extra_plugins`, `plugin_marketplaces`) — always applied.
+2. **The caller repository's `.claude/settings.json`** (`enabledPlugins`, `extraKnownMarketplaces`) — only when `use_project_plugins: true`.
+
+### Default: project plugins are NOT installed
+
+`use_project_plugins` defaults to `false`. The review job and the mention job run with no project plugins. The reason is plugin skills: most non-trivial plugins ship skills with `ALWAYS invoke this skill before X` mandates that pull Claude into tools (`Read`, `Grep`, `Glob`, `Bash(git ...)`) that aren't on the wrapper's baked-in `gh`-only allowlist. The result is a run that spends turns on permission denials and never posts a review comment.
+
+If the caller's `.claude/settings.json` exists while `use_project_plugins` is false, the workflow emits a `::notice::` saying the file is being ignored and how to opt in. To install specific plugins without enabling the whole `.claude/settings.json` set, list them in `extra_plugins` and their marketplaces in `plugin_marketplaces`.
+
+### Opting in to project plugins
+
+Set `use_project_plugins: true` in the caller workflow. Plugin keys in `enabledPlugins` use the form `name@marketplace-alias`; the alias must resolve to a marketplace source. The canonical place to declare the alias → source mapping is `extraKnownMarketplaces` inside the same `.claude/settings.json`, so the same file drives both local development and CI:
 
 ```json
 {
@@ -120,9 +133,11 @@ The canonical place to declare the alias → source mapping is `extraKnownMarket
 }
 ```
 
-The reusable workflows derive the action's `plugins` and `plugin_marketplaces` inputs from this file at runtime: `enabledPlugins` keys flow into `plugins`, and each `extraKnownMarketplaces` entry's `source.repo` becomes a `https://github.com/<repo>.git` URL passed as `plugin_marketplaces`. Today only `source.source: "github"` entries are emitted; pin a ref via `source.ref` (Claude Code reads it during install).
+When opted in, `enabledPlugins` keys flow into the action's `plugins` input and each `extraKnownMarketplaces` entry's `source.repo` becomes a `https://github.com/<repo>.git` URL passed as `plugin_marketplaces`. Only `source.source: "github"` entries are emitted; pin a ref via `source.ref` (Claude Code reads it during install).
 
-Caller-supplied `plugin_marketplaces` and `extra_plugins` workflow inputs append to the derived lists — useful for CI-only additions without touching the project file.
+Caller-supplied `extra_plugins` and `plugin_marketplaces` inputs append to the project-declared lists when opted in, and are the sole source when opted out — useful for CI-only additions without touching the project file.
+
+Whenever you widen the plugin set for review or mention runs, widen the allowlist to match via `append_allow_list` (on the review workflow) or `claude_args` (on the mention workflow). Otherwise the same permission-denial spiral that motivated the opt-in default will surface again.
 
 ## Authorization
 
@@ -184,13 +199,14 @@ git rebase origin/main
 
 ## Security
 
-Both workflows include authorization checks. Only users with matching `author_association` can trigger Claude workflows.
+Both workflows include authorization checks. The `authorize` job queries `repos/{owner}/{repo}/collaborators/{actor}/permission` and the downstream Claude job runs only when the actor's effective permission is `admin`, `maintain`, or `write` — see [Authorization](#authorization) for the full mechanism and the rationale for replacing the earlier `author_association` gate.
 
 **Best practices:**
 
-- Never allow `CONTRIBUTOR` or `FIRST_TIME_CONTRIBUTOR` in production
-- Restrict `allowed_tools` to minimum required
-- Rotate tokens if compromise is suspected
+- Keep `use_project_plugins` off (the default) unless the project plugins are appropriate for review or mention runs, and widen the allowlist (`append_allow_list` / `override_allow_list` on review, `claude_args` on mention) to match the tools those plugins' skills demand
+- Narrow `allowed_tools` (or `append_allow_list`) to the minimum the workflow needs; the review wrapper's baked-in allowlist covers `gh issue`/`gh pr` read and `gh pr comment`
+- Never set `self-hosted` runner labels on public repos or repos that accept PRs from untrusted forks (the runner host is shared across runs)
+- Rotate `CLAUDE_CODE_OAUTH_TOKEN` if compromise is suspected
 
 ## OpenAI Cloud Code Review
 

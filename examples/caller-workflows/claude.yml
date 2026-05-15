@@ -37,11 +37,13 @@ jobs:
     #   concurrency_cancel: false
     #   allowed_tools: '--allowed-tools "Read,Grep,Glob,Bash(gh pr:*)"'
     #
-    # Plugins are read from .claude/settings.json (`enabledPlugins`) and marketplaces
-    # from `extraKnownMarketplaces` in the same file. Both flow into the underlying
-    # action's `plugins` / `plugin_marketplaces` inputs at runtime. See README
-    # "Project marketplace declarations".
+    # Plugins from .claude/settings.json are NOT installed by default. Plugin
+    # skills with auto-invocation directives can pull mention runs into long
+    # detours that aren't part of the original intent. To opt in:
+    #   use_project_plugins: true
     #
-    # Optional CI-only overlays (appended to whatever settings.json declares):
-    #   plugin_marketplaces: "acme-corp/plugins"  # extra marketplace owner/repo entries
-    #   extra_plugins: "internal-style@acme-corp" # extra plugins beyond enabledPlugins
+    # To install specific plugins without enabling all of settings.json:
+    #   plugin_marketplaces: "acme-corp/plugins"  # marketplace owner/repo entries
+    #   extra_plugins: "internal-style@acme-corp" # plugins to install
+    #
+    # See README "Plugins and marketplaces" for the full rationale.
