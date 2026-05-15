@@ -95,6 +95,11 @@ on:
         description: "Space-separated list of plugins to install. Appends to the project's `enabledPlugins` when use_project_plugins is true; sole source when false."
         type: string
         default: ""
+      show_full_output:
+        description: |
+          Stream the full per-turn JSON output from Claude Code to the job log instead of the default redacted summary. Useful when the review run takes longer than expected and you want visibility into what Claude is doing turn-by-turn. WARNING (per the upstream action): the full output includes ALL tool execution results, which may contain secrets, API keys, or other sensitive material from the repo. GitHub Actions job logs are visible to anyone with read access to the repository (and to the public for public repos). Only enable when debugging in a non-sensitive context.
+        type: boolean
+        default: false
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true (cloud credentials provide auth in those cases)."
@@ -381,3 +386,4 @@ jobs:
           use_vertex: ${{ inputs.use_vertex }}
           plugins: ${{ steps.plugins.outputs.plugins }}
           plugin_marketplaces: ${{ steps.plugins.outputs.marketplaces }}
+          show_full_output: ${{ inputs.show_full_output }}
