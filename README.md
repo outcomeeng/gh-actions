@@ -87,6 +87,7 @@ jobs:
 | `plugin_marketplaces` | (empty)               | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in   |
 | `extra_plugins`       | (empty)               | Space-separated plugins to install; appends to project list when opted in                        |
 | `show_full_output`    | `false`               | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output) |
+| `timeout_minutes`     | `15`                  | Wall-clock budget for the Run Claude Code step; cancels the step when exceeded                   |
 
 ### claude-code-review.yml Inputs
 
@@ -100,6 +101,7 @@ jobs:
 | `plugin_marketplaces` | (empty)                 | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in   |
 | `extra_plugins`       | (empty)                 | Space-separated plugins to install; appends to project list when opted in                        |
 | `show_full_output`    | `false`                 | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output) |
+| `timeout_minutes`     | `15`                    | Wall-clock budget for the Run Claude Code Review step; cancels the step when exceeded            |
 
 ## Plugins and marketplaces
 
