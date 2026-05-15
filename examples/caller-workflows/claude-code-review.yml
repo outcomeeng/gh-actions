@@ -38,11 +38,15 @@ jobs:
     #     Focus your review on TypeScript type safety and test coverage.
     #     Use `gh pr comment` to post your review.
     #
-    # Plugins are read from .claude/settings.json (`enabledPlugins`) and marketplaces
-    # from `extraKnownMarketplaces` in the same file. Both flow into the underlying
-    # action's `plugins` / `plugin_marketplaces` inputs at runtime. See README
-    # "Project marketplace declarations".
+    # Plugins from .claude/settings.json are NOT installed by default. Most plugin
+    # skills demand tools (Read, Grep, Glob, git) that aren't on the wrapper's
+    # gh-only allowlist, which produces long runs that never post a comment. To
+    # opt in:
+    #   use_project_plugins: true
+    #   append_allow_list: "Read,Grep,Glob,Bash(git:*)"  # widen the allowlist to match
     #
-    # Optional CI-only overlays (appended to whatever settings.json declares):
-    #   plugin_marketplaces: "acme-corp/plugins"  # extra marketplace owner/repo entries
-    #   extra_plugins: "internal-style@acme-corp" # extra plugins beyond enabledPlugins
+    # To install specific plugins without enabling all of settings.json:
+    #   plugin_marketplaces: "acme-corp/plugins"  # marketplace owner/repo entries
+    #   extra_plugins: "internal-style@acme-corp" # plugins to install
+    #
+    # See README "Plugins and marketplaces" for the full rationale.
