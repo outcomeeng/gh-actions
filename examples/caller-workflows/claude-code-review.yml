@@ -38,6 +38,15 @@ jobs:
     #     Focus your review on TypeScript type safety and test coverage.
     #     Use `gh pr comment` to post your review.
     #
+    # Wall-clock budget for the Run Claude Code Review step (default 15 in
+    # the reusable workflow). Set to a tighter value when running on
+    # self-hosted runners so a hung run frees the slot quickly:
+    #   timeout_minutes: 5
+    # Or gate it on a repo variable so you can adjust without editing this
+    # file (Settings → Secrets and variables → Actions → Variables):
+    #   timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || 15 }}
+    # Minimum 1; GitHub Actions silently rejects `0` at runtime.
+    #
     # Plugins from .claude/settings.json are NOT installed by default. Most plugin
     # skills demand tools (Read, Grep, Glob, git) that aren't on the wrapper's
     # gh-only allowlist, which produces long runs that never post a comment. To
