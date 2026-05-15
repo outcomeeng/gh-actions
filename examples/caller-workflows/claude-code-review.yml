@@ -43,8 +43,10 @@ jobs:
     # self-hosted runners so a hung run frees the slot quickly:
     #   timeout_minutes: 5
     # Or gate it on a repo variable so you can adjust without editing this
-    # file (Settings → Secrets and variables → Actions → Variables):
-    #   timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || 15 }}
+    # file (Settings → Secrets and variables → Actions → Variables). GitHub
+    # variables are strings, so wrap with fromJSON to feed the reusable
+    # workflow's numeric input:
+    #   timeout_minutes: ${{ fromJSON(vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || '15') }}
     # Minimum 1; GitHub Actions silently rejects `0` at runtime.
     #
     # Plugins from .claude/settings.json are NOT installed by default. Most plugin

@@ -24,4 +24,6 @@ jobs:
       # CLAUDE_REVIEW_TIMEOUT_MINUTES repo variable (Settings → Secrets and
       # variables → Actions → Variables) to e.g. '5' to fail fast when a
       # run hangs. Minimum 1; '0' is silently rejected by GitHub Actions.
-      timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || 15 }}
+      # GitHub variables are strings, so parse the variable before passing
+      # it to the reusable workflow's numeric input.
+      timeout_minutes: ${{ fromJSON(vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || '15') }}
