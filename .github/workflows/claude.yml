@@ -85,6 +85,11 @@ on:
           Stream the full per-turn JSON output from Claude Code to the job log instead of the default redacted summary. Useful when a mention run takes longer than expected and you want visibility into what Claude is doing turn-by-turn. WARNING (per the upstream action): the full output includes ALL tool execution results, which may contain secrets, API keys, or other sensitive material from the repo. GitHub Actions job logs are visible to anyone with read access to the repository (and to the public for public repos). Only enable when debugging in a non-sensitive context.
         type: boolean
         default: false
+      timeout_minutes:
+        description: |
+          Wall-clock budget for the Run Claude Code step. When exceeded, GitHub cancels the step with a clear timeout message; the post-action cleanup steps still run, so the runner is left in a clean state. Default 15 covers a typical mention task with headroom. Lower it (e.g. to 5) to fail fast when a run hangs, or raise it for tasks that legitimately take longer.
+        type: number
+        default: 15
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true (cloud credentials provide auth in those cases)."
@@ -262,6 +267,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
+        timeout-minutes: ${{ inputs.timeout_minutes }}
         uses: anthropics/claude-code-action@51ea8ea73a139f2a74ff649e3092c25a904aed7e # v1.0.123
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
