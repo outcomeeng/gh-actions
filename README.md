@@ -76,28 +76,30 @@ jobs:
 
 ### claude.yml Inputs
 
-| Input                 | Default               | Description                                                                                    |
-| --------------------- | --------------------- | ---------------------------------------------------------------------------------------------- |
-| `authorized_roles`    | (deprecated, ignored) | Authorization is now via the repo-permission API for the actor                                 |
-| `mention_trigger`     | `@claude`             | Text that triggers the workflow                                                                |
-| `concurrency_cancel`  | `true`                | Cancel in-progress runs on new mention                                                         |
-| `allowed_tools`       | (unrestricted)        | Claude Code `--allowed-tools` argument                                                         |
-| `custom_prompt`       | (empty)               | Override default behavior with custom prompt                                                   |
-| `use_project_plugins` | `false`               | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below) |
-| `plugin_marketplaces` | (empty)               | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in |
-| `extra_plugins`       | (empty)               | Space-separated plugins to install; appends to project list when opted in                      |
+| Input                 | Default               | Description                                                                                      |
+| --------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
+| `authorized_roles`    | (deprecated, ignored) | Authorization is now via the repo-permission API for the actor                                   |
+| `mention_trigger`     | `@claude`             | Text that triggers the workflow                                                                  |
+| `concurrency_cancel`  | `true`                | Cancel in-progress runs on new mention                                                           |
+| `allowed_tools`       | (unrestricted)        | Claude Code `--allowed-tools` argument                                                           |
+| `custom_prompt`       | (empty)               | Override default behavior with custom prompt                                                     |
+| `use_project_plugins` | `false`               | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below)   |
+| `plugin_marketplaces` | (empty)               | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in   |
+| `extra_plugins`       | (empty)               | Space-separated plugins to install; appends to project list when opted in                        |
+| `show_full_output`    | `false`               | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output) |
 
 ### claude-code-review.yml Inputs
 
-| Input                 | Default                 | Description                                                                                    |
-| --------------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
-| `authorized_roles`    | (deprecated, ignored)   | Authorization is now via the repo-permission API for the PR author                             |
-| `concurrency_cancel`  | `false`                 | Cancel in-progress reviews on new PR update                                                    |
-| `allowed_tools`       | (gh read/comment only)  | Claude Code `--allowed-tools` argument                                                         |
-| `custom_prompt`       | (default review prompt) | Custom review instructions                                                                     |
-| `use_project_plugins` | `false`                 | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below) |
-| `plugin_marketplaces` | (empty)                 | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in |
-| `extra_plugins`       | (empty)                 | Space-separated plugins to install; appends to project list when opted in                      |
+| Input                 | Default                 | Description                                                                                      |
+| --------------------- | ----------------------- | ------------------------------------------------------------------------------------------------ |
+| `authorized_roles`    | (deprecated, ignored)   | Authorization is now via the repo-permission API for the PR author                               |
+| `concurrency_cancel`  | `false`                 | Cancel in-progress reviews on new PR update                                                      |
+| `allowed_tools`       | (gh read/comment only)  | Claude Code `--allowed-tools` argument                                                           |
+| `custom_prompt`       | (default review prompt) | Custom review instructions                                                                       |
+| `use_project_plugins` | `false`                 | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below)   |
+| `plugin_marketplaces` | (empty)                 | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in   |
+| `extra_plugins`       | (empty)                 | Space-separated plugins to install; appends to project list when opted in                        |
+| `show_full_output`    | `false`                 | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output) |
 
 ## Plugins and marketplaces
 
