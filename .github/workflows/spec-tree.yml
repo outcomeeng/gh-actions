@@ -1,0 +1,118 @@
+# Reusable Claude Code Spec Tree mention workflow.
+#
+# Wraps `claude.yml` with spec-tree-specific defaults:
+#
+# 1. `use_project_plugins: true` — read the consumer's `.claude/settings.json`
+#    and install the plugins it declares. Spec-tree consumers expect the
+#    methodology skills (/contextualizing, /authoring, /decomposing, ...)
+#    to be available when an @claude mention asks about spec work.
+#
+# 2. Otherwise identical to `claude.yml`. Consumers that want a non-plugin
+#    mention experience should call `claude.yml` directly.
+#
+# Usage in caller workflow:
+#
+#   on:
+#     issue_comment:
+#       types: [created, edited]
+#     pull_request_review_comment:
+#       types: [created, edited]
+#     issues:
+#       types: [opened, assigned]
+#     pull_request_review:
+#       types: [submitted]
+#
+#   jobs:
+#     spec-tree:
+#       uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@main
+#       secrets:
+#         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+name: Claude Code Spec Tree
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: "Runner selection — see claude.yml for full semantics."
+        type: string
+        default: ubuntu-slim
+      trigger_phrase:
+        description: "Text that triggers the workflow."
+        type: string
+        default: "@claude"
+      concurrency_cancel:
+        description: "Cancel in-progress runs when a new mention arrives."
+        type: boolean
+        default: true
+      custom_prompt:
+        description: "Custom prompt to override default behavior."
+        type: string
+        default: ""
+      model:
+        description: "Claude model to use. Empty means defer to the action's default."
+        type: string
+        default: ""
+      claude_args:
+        description: "Extra Claude Code CLI args."
+        type: string
+        default: ""
+      use_bedrock:
+        description: "Route Claude through Amazon Bedrock."
+        type: boolean
+        default: false
+      use_vertex:
+        description: "Route Claude through Google Vertex AI."
+        type: boolean
+        default: false
+      additional_env:
+        description: "JSON object string of env vars to set on the claude-code-action step."
+        type: string
+        default: "{}"
+      use_project_plugins:
+        description: |
+          Install plugins declared in the consumer's .claude/settings.json.
+          Defaults to TRUE for spec-tree mentions, unlike the generic claude.yml,
+          because spec-tree consumers expect methodology skills to be available.
+        type: boolean
+        default: true
+      plugin_marketplaces:
+        description: "Space-separated additional marketplaces."
+        type: string
+        default: ""
+      extra_plugins:
+        description: "Space-separated additional plugins."
+        type: string
+        default: ""
+      show_full_output:
+        description: "Stream the full per-turn JSON output to the job log (may include sensitive content)."
+        type: boolean
+        default: false
+      timeout_minutes:
+        description: "Wall-clock budget for the Run Claude Code step."
+        type: number
+        default: 15
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true."
+        required: false
+
+jobs:
+  spec-tree:
+    uses: ./.github/workflows/claude.yml
+    secrets: inherit
+    with:
+      runner: ${{ inputs.runner }}
+      trigger_phrase: ${{ inputs.trigger_phrase }}
+      concurrency_cancel: ${{ inputs.concurrency_cancel }}
+      custom_prompt: ${{ inputs.custom_prompt }}
+      model: ${{ inputs.model }}
+      claude_args: ${{ inputs.claude_args }}
+      use_bedrock: ${{ inputs.use_bedrock }}
+      use_vertex: ${{ inputs.use_vertex }}
+      additional_env: ${{ inputs.additional_env }}
+      use_project_plugins: ${{ inputs.use_project_plugins }}
+      plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
+      extra_plugins: ${{ inputs.extra_plugins }}
+      show_full_output: ${{ inputs.show_full_output }}
+      timeout_minutes: ${{ inputs.timeout_minutes }}
