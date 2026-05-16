@@ -1,0 +1,35 @@
+# Run the spec-tree mention reusable on this repository as a self-test.
+
+name: Claude Code Spec Tree Repo
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  spec-tree:
+    uses: ./.github/workflows/spec-tree.yml
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    with:
+      # Override at runtime via the CLAUDE_TIMEOUT_MINUTES repo variable
+      # (Settings → Secrets and variables → Actions → Variables). GitHub
+      # variables are strings; wrap with fromJSON so the typed numeric input
+      # receives a real number rather than relying on implicit coercion.
+      timeout_minutes: ${{ fromJSON(vars.CLAUDE_TIMEOUT_MINUTES || '15') }}
+      # gh-actions itself does not enable any spec-tree plugins in
+      # .claude/settings.json, so use_project_plugins defaults to true but
+      # finds nothing to install. That is the expected self-test state.
