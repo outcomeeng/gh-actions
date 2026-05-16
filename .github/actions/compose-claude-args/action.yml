@@ -1,0 +1,120 @@
+# Compose the `claude_args` string that the Claude Code Action receives.
+#
+# Two modes, distinguished by whether `baseline_allow_list` is provided:
+#
+# - Mention mode (no baseline): just `--model <MODEL>` and the caller's
+#   extra args. No `--allowed-tools` is added; the action's defaults apply.
+#
+# - Review mode (baseline present): an `--allowed-tools` flag is composed
+#   from the baseline plus `append_allow_list`, or replaced by
+#   `override_allow_list` when set. Mention callers never pass a baseline,
+#   so they never compose an allowlist.
+#
+# When the caller's `claude_args` already contains `--allowed-tools` (or
+# `--allowedTools`), a warning is emitted because the upstream action merges
+# repeated flags as a set, which is rarely what the caller intended. Use the
+# allow-list inputs to extend or replace the baseline cleanly.
+
+name: Compose claude_args
+description: |
+  Build the `claude_args` string passed to `anthropics/claude-code-action`,
+  merging model selection, caller-supplied extra args, and (in review mode) a
+  composed `--allowed-tools` flag.
+
+inputs:
+  model:
+    description: "Claude model to fold in as `--model <MODEL>`. Empty means defer to the action's default."
+    required: false
+    default: ""
+  extra_args:
+    description: "Caller-supplied extra args appended verbatim (e.g. `--max-turns 20 --debug`)."
+    required: false
+    default: ""
+  baseline_allow_list:
+    description: |
+      Comma-separated allowlist patterns that form the baseline. Empty disables
+      the allowlist composition entirely (mention mode); non-empty enables it
+      (review mode).
+    required: false
+    default: ""
+  append_allow_list:
+    description: |
+      Comma-separated patterns to append to the baseline. Ignored when
+      `override_allow_list` is set or when `baseline_allow_list` is empty.
+    required: false
+    default: ""
+  override_allow_list:
+    description: |
+      Comma-separated patterns that REPLACE the baseline. When set,
+      `append_allow_list` is ignored (with a warning).
+    required: false
+    default: ""
+
+outputs:
+  args:
+    description: "Composed claude_args string."
+    value: ${{ steps.compose.outputs.args }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compose claude_args
+      id: compose
+      shell: bash
+      env:
+        MODEL: ${{ inputs.model }}
+        EXTRA_ARGS: ${{ inputs.extra_args }}
+        BASELINE: ${{ inputs.baseline_allow_list }}
+        APPEND_ALLOW_LIST: ${{ inputs.append_allow_list }}
+        OVERRIDE_ALLOW_LIST: ${{ inputs.override_allow_list }}
+      run: |
+        set -euo pipefail
+        # Trim leading/trailing whitespace so a caller passing " " (or a
+        # YAML block with trailing newline) doesn't append a stray empty
+        # pattern that Claude Code would silently drop or reject.
+        trim() { local s=${1#"${1%%[![:space:]]*}"}; printf '%s' "${s%"${s##*[![:space:]]}"}"; }
+        OVERRIDE_ALLOW_LIST=$(trim "$OVERRIDE_ALLOW_LIST")
+        APPEND_ALLOW_LIST=$(trim "$APPEND_ALLOW_LIST")
+        BASELINE=$(trim "$BASELINE")
+
+        args=""
+
+        # Compose --allowed-tools only when a baseline is provided. Mention
+        # callers never set a baseline, so the action's default allowlist
+        # applies untouched.
+        if [[ -n "$BASELINE" ]]; then
+          if [[ -n "$OVERRIDE_ALLOW_LIST" ]]; then
+            allowlist="$OVERRIDE_ALLOW_LIST"
+            if [[ -n "$APPEND_ALLOW_LIST" ]]; then
+              echo "::warning::append_allow_list is ignored because override_allow_list is set."
+            fi
+          elif [[ -n "$APPEND_ALLOW_LIST" ]]; then
+            allowlist="$BASELINE,$APPEND_ALLOW_LIST"
+          else
+            allowlist="$BASELINE"
+          fi
+          args="--allowed-tools \"$allowlist\""
+        fi
+
+        if [[ -n "$MODEL" ]]; then
+          args="${args:+$args }--model $MODEL"
+        fi
+
+        if [[ -n "$EXTRA_ARGS" ]]; then
+          # Help callers spot the design mismatch — they should be using
+          # the allow-list inputs for tool restrictions.
+          if [[ "$EXTRA_ARGS" == *--allowed-tools* || "$EXTRA_ARGS" == *--allowedTools* ]]; then
+            echo "::warning::extra_args contains --allowed-tools; this will merge additively with the composed allowlist (the action treats repeated flags as a Set). To narrow the allowlist, use override_allow_list; to extend, use append_allow_list."
+          fi
+          args="${args:+$args }$EXTRA_ARGS"
+        fi
+
+        delim="ARGS_$(cat /proc/sys/kernel/random/uuid)"
+        {
+          printf '%s<<%s\n' "args" "$delim"
+          printf '%s\n' "$args"
+          printf '%s\n' "$delim"
+        } >> "$GITHUB_OUTPUT"
+        echo "::group::Composed claude_args"
+        printf '%s\n' "$args"
+        echo "::endgroup::"
