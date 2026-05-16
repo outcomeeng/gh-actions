@@ -20,6 +20,13 @@
 #
 # Optional inputs cover model selection, full claude_args passthrough,
 # Bedrock/Vertex routing, a custom mention trigger, and a runner override.
+#
+# Bootstrap steps (plugin derivation, claude_args composition, additional env
+# application) are factored into composite actions under .github/actions/.
+# This workflow checks out gh-actions at its OWN ref into a `.gh-actions/`
+# subdirectory so the composite actions are pinned to the same commit as
+# the workflow file the consumer pinned. The composite ref tracks the
+# workflow ref automatically — no separate pin to maintain.
 
 name: Claude Code
 
@@ -147,123 +154,47 @@ jobs:
       id-token: write
       actions: read
     steps:
-      - name: Checkout repository
+      - name: Checkout caller repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
 
-      - name: Derive plugin and marketplace inputs
-        id: plugins
-        shell: bash
+      - name: Resolve workflow ref
+        id: workflow-ref
         env:
-          PLUGIN_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
-          EXTRA_PLUGINS: ${{ inputs.extra_plugins }}
-          USE_PROJECT_PLUGINS: ${{ inputs.use_project_plugins }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           set -euo pipefail
-          plugins=""
-          marketplaces=""
+          # github.workflow_ref is "<owner>/<repo>/<path>@<ref>". Extract <ref>.
+          echo "ref=${WORKFLOW_REF##*@}" >> "$GITHUB_OUTPUT"
 
-          if [[ "$USE_PROJECT_PLUGINS" == "true" ]]; then
-            if [[ -f .claude/settings.json ]]; then
-              jq empty .claude/settings.json
-              plugins=$(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' .claude/settings.json)
-              marketplaces=$(jq -r '
-                .extraKnownMarketplaces // {} | to_entries[]
-                | select(.value.source.source == "github")
-                | "https://github.com/" + .value.source.repo + ".git"
-              ' .claude/settings.json)
-            fi
-          elif [[ -f .claude/settings.json ]]; then
-            echo "::notice::.claude/settings.json found but use_project_plugins is false; its enabledPlugins and extraKnownMarketplaces are ignored. Set use_project_plugins: true to opt in, or list specific plugins via extra_plugins and marketplaces via plugin_marketplaces."
-          fi
+      - name: Checkout gh-actions for composite actions
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: outcomeeng/gh-actions
+          ref: ${{ steps.workflow-ref.outputs.ref }}
+          path: .gh-actions
 
-          for p in $EXTRA_PLUGINS; do
-            [[ -z "$p" ]] && continue
-            plugins=$(printf '%s\n%s' "$plugins" "$p")
-          done
-
-          for m in $PLUGIN_MARKETPLACES; do
-            [[ -z "$m" ]] && continue
-            repo=${m%@*}
-            marketplaces=$(printf '%s\n%s' "$marketplaces" "https://github.com/${repo}.git")
-          done
-
-          plugins=$(echo "$plugins" | sed '/^$/d')
-          marketplaces=$(echo "$marketplaces" | sed '/^$/d')
-
-          delim="MULTILINE_$(cat /proc/sys/kernel/random/uuid)"
-          {
-            echo "plugins<<${delim}"
-            echo "$plugins"
-            echo "${delim}"
-            echo "marketplaces<<${delim}"
-            echo "$marketplaces"
-            echo "${delim}"
-          } >> "$GITHUB_OUTPUT"
-
-          echo "::group::Derived plugin install inputs"
-          echo "plugins:"
-          echo "$plugins"
-          echo "marketplaces:"
-          echo "$marketplaces"
-          echo "::endgroup::"
+      - name: Derive Claude plugins and marketplaces
+        id: plugins
+        uses: ./.gh-actions/.github/actions/derive-claude-plugins
+        with:
+          use_project_plugins: ${{ inputs.use_project_plugins }}
+          plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
+          extra_plugins: ${{ inputs.extra_plugins }}
 
       - name: Compose claude_args
         id: claude-args
-        env:
-          MODEL: ${{ inputs.model }}
-          EXTRA_ARGS: ${{ inputs.claude_args }}
-        run: |
-          set -euo pipefail
-          args=""
-          if [[ -n "$MODEL" ]]; then
-            args="--model $MODEL"
-          fi
-          if [[ -n "$EXTRA_ARGS" ]]; then
-            args="${args:+$args }$EXTRA_ARGS"
-          fi
-          delim="ARGS_$(cat /proc/sys/kernel/random/uuid)"
-          {
-            printf '%s<<%s\n' "args" "$delim"
-            printf '%s\n' "$args"
-            printf '%s\n' "$delim"
-          } >> "$GITHUB_OUTPUT"
-          echo "::group::Composed claude_args"
-          printf '%s\n' "$args"
-          echo "::endgroup::"
+        uses: ./.gh-actions/.github/actions/compose-claude-args
+        with:
+          model: ${{ inputs.model }}
+          extra_args: ${{ inputs.claude_args }}
+          # No baseline allowlist for mentions — the action's default applies.
 
       - name: Apply additional env
-        env:
-          ADDITIONAL_ENV: ${{ inputs.additional_env }}
-        run: |
-          set -euo pipefail
-          if [[ -z "$ADDITIONAL_ENV" || "$ADDITIONAL_ENV" == "{}" ]]; then
-            echo "No additional env to apply"
-            exit 0
-          fi
-          echo "$ADDITIONAL_ENV" | jq -e 'type == "object"' >/dev/null
-          # Emit each key as a heredoc-delimited GITHUB_ENV record so multiline
-          # values (JSON, cert material, etc.) survive unmangled. Reject keys
-          # that aren't valid POSIX env var names so a malformed input can't
-          # silently inject garbage.
-          while IFS= read -r entry; do
-            key=$(printf '%s' "$entry" | jq -r '.key')
-            if ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-              echo "::error::additional_env key '$key' is not a valid env var name"
-              exit 1
-            fi
-            value=$(printf '%s' "$entry" | jq -r '.value | tostring')
-            delim="ENV_$(cat /proc/sys/kernel/random/uuid)"
-            {
-              printf '%s<<%s\n' "$key" "$delim"
-              printf '%s\n' "$value"
-              printf '%s\n' "$delim"
-            } >> "$GITHUB_ENV"
-          done < <(echo "$ADDITIONAL_ENV" | jq -c 'to_entries[]')
-          echo "::group::Applied additional env keys"
-          echo "$ADDITIONAL_ENV" | jq -r 'keys[]'
-          echo "::endgroup::"
+        uses: ./.gh-actions/.github/actions/apply-additional-env
+        with:
+          additional_env: ${{ inputs.additional_env }}
 
       - name: Run Claude Code
         id: claude
