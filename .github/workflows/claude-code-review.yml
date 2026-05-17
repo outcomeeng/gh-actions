@@ -270,13 +270,23 @@ jobs:
 
       - name: Set review prompt
         id: set-prompt
+        env:
+          # Pass `custom_prompt` via env (not via inline ${{ }} interpolation
+          # in the run block) so any backticks, `$(...)`, embedded heredocs,
+          # or unquoted metacharacters in the prompt body are treated as
+          # opaque text by bash. Inline ${{ inputs.custom_prompt }} inside
+          # `echo "..."` lets bash re-parse the substituted content, which
+          # broke when the spec-tree-review wrapper added a documentation
+          # table whose cell contained `<<'EOF' … EOF` — bash opened a
+          # command substitution at the backtick and never found EOF.
+          CUSTOM_PROMPT: ${{ inputs.custom_prompt }}
         run: |
           set -euo pipefail
           delimiter="CLAUDE_PROMPT_$(cat /proc/sys/kernel/random/uuid)"
-          if [ -n "${{ inputs.custom_prompt }}" ]; then
+          if [ -n "$CUSTOM_PROMPT" ]; then
             {
               echo "prompt<<$delimiter"
-              echo "${{ inputs.custom_prompt }}"
+              printf '%s\n' "$CUSTOM_PROMPT"
               echo "$delimiter"
             } >> "$GITHUB_OUTPUT"
           else
