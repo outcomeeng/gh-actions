@@ -33,9 +33,9 @@ jobs:
     #
     # Uncomment and modify to customize:
     # with:
-    #   mention_trigger: '@bot'
+    #   trigger_phrase: '@bot'
     #   concurrency_cancel: false
-    #   allowed_tools: '--allowed-tools "Read,Grep,Glob,Bash(gh pr:*)"'
+    #   claude_args: '--allowed-tools "Read,Grep,Glob,Bash(gh pr:*)"'
     #
     # Wall-clock budget for the Run Claude Code step (default 15 in the
     # reusable workflow). Set to a tighter value when running on self-hosted
