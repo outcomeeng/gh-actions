@@ -1,4 +1,8 @@
 # Run the reusable Claude Code Review workflow on this repository.
+#
+# `ready_for_review` is omitted from the trigger types deliberately: the
+# event always fires on a SHA that the previous opened/synchronize already
+# reviewed, so subscribing to it would duplicate every promotion review.
 
 name: Claude Code Review Repo
 

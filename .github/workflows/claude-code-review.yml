@@ -221,6 +221,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      # `github.workflow_ref` resolves to "<this repo>/<workflow path>@<ref>" —
+      # the ref the CALLER pinned this workflow at. We check out the same ref
+      # of outcomeeng/gh-actions into `.gh-actions/` so the composite actions
+      # run at the same SHA as this workflow file, with no separate pin for
+      # consumers to maintain. Caveat: when a consumer pins by a moving tag
+      # (e.g. `@v1`) and the tag is moved while a run is in flight, the
+      # composite checkout sees the new tag's SHA. Pin by full commit SHA or
+      # by an immutable release tag to lock composites in lockstep.
       - name: Resolve workflow ref
         id: workflow-ref
         env:

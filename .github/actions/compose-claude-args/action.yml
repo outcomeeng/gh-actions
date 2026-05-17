@@ -93,6 +93,12 @@ runs:
           else
             allowlist="$BASELINE"
           fi
+          # Literal double-quotes around the allowlist are required: baseline
+          # patterns like `Bash(gh issue view:*)` contain whitespace, and
+          # claude-code-action shlex-splits `claude_args` before forwarding to
+          # the CLI. Without the quotes, the embedded spaces would split the
+          # value across argv positions and `--allowed-tools` would receive
+          # only the first token.
           args="--allowed-tools \"$allowlist\""
         fi
 

@@ -74,6 +74,12 @@ on:
           Install plugins declared in the consumer's .claude/settings.json.
           Defaults to TRUE for spec-tree mentions, unlike the generic claude.yml,
           because spec-tree consumers expect methodology skills to be available.
+          The consumer's .claude/settings.json should list the required plugins
+          under `enabledPlugins` AND register their hosting marketplaces under
+          `extraKnownMarketplaces` (entries with `source.source == "github"`).
+          The marketplace registration is what claude-code-action uses to
+          resolve each `<plugin>@<owner>` spec at install time; without it the
+          plugin list is forwarded but cannot be installed.
         type: boolean
         default: true
       plugin_marketplaces:

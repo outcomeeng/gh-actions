@@ -81,12 +81,18 @@ runs:
           echo "::notice::.claude/settings.json found but use_project_plugins is false; its enabledPlugins and extraKnownMarketplaces are ignored. Set use_project_plugins: true to opt in, or list specific plugins via extra_plugins and marketplaces via plugin_marketplaces."
         fi
 
-        for p in $EXTRA_PLUGINS; do
+        # Quoted array expansion so the documented space-separated inputs
+        # are tokenised without pathname expansion or word-splitting surprises
+        # (a stray `*` or unintended IFS character in the input would otherwise
+        # glob against the workspace).
+        read -ra extras <<< "$EXTRA_PLUGINS"
+        for p in "${extras[@]}"; do
           [[ -z "$p" ]] && continue
           plugins=$(printf '%s\n%s' "$plugins" "$p")
         done
 
-        for m in $PLUGIN_MARKETPLACES; do
+        read -ra markets <<< "$PLUGIN_MARKETPLACES"
+        for m in "${markets[@]}"; do
           [[ -z "$m" ]] && continue
           repo=${m%@*}
           marketplaces=$(printf '%s\n%s' "$marketplaces" "https://github.com/${repo}.git")
