@@ -30,6 +30,9 @@ jobs:
       # reusable input is typed as string so `vars.*` (always a string) and
       # the quoted fallback both pass through unchanged.
       timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '15' }}
-      # gh-actions itself does not enable any spec-tree plugins in
-      # .claude/settings.json, so use_project_plugins defaults to true but
-      # finds nothing to install. That is the expected self-test state.
+      # gh-actions's own .claude/settings.json enables prose@outcomeeng and
+      # spec-tree@outcomeeng, so use_project_plugins (defaults to true) will
+      # list both for installation. No `extraKnownMarketplaces` is declared,
+      # however, so the marketplace list passed to claude-code-action is
+      # empty — this self-test exercises the workflow plumbing rather than
+      # asserting a successful plugin install.
