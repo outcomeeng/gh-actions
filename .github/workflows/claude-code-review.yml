@@ -271,8 +271,9 @@ jobs:
       - name: Set review prompt
         id: set-prompt
         run: |
+          set -euo pipefail
+          delimiter="CLAUDE_PROMPT_$(cat /proc/sys/kernel/random/uuid)"
           if [ -n "${{ inputs.custom_prompt }}" ]; then
-            delimiter="CLAUDE_PROMPT_$(cat /proc/sys/kernel/random/uuid)"
             {
               echo "prompt<<$delimiter"
               echo "${{ inputs.custom_prompt }}"
@@ -280,7 +281,7 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           else
             {
-              echo "prompt<<EOF"
+              echo "prompt<<$delimiter"
               cat <<'PROMPT_EOF'
           REPO: ${{ github.repository }}
           PR NUMBER: ${{ github.event.pull_request.number }}
@@ -296,7 +297,7 @@ jobs:
 
           Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
           PROMPT_EOF
-              echo "EOF"
+              echo "$delimiter"
             } >> "$GITHUB_OUTPUT"
           fi
 
