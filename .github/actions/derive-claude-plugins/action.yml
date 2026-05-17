@@ -29,6 +29,9 @@ inputs:
       When true, read `.claude/settings.json` from the working directory and
       include its `enabledPlugins` and GitHub-hosted `extraKnownMarketplaces`.
       When false, ignore the file and use only the explicit inputs below.
+      `enabledPlugins` must be a JSON object of the form
+      `{"<plugin>@<owner>": true}` (Claude Code's own settings-schema shape);
+      arrays or scalars are rejected with a `::warning::` and skipped.
     required: false
     default: "false"
   plugin_marketplaces:
@@ -70,7 +73,15 @@ runs:
         if [[ "$USE_PROJECT_PLUGINS" == "true" ]]; then
           if [[ -f .claude/settings.json ]]; then
             jq empty .claude/settings.json
-            plugins=$(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' .claude/settings.json)
+            # `enabledPlugins` must be an object of the form
+            # `{"<plugin>@<owner>": true}` — Claude Code's own
+            # settings-schema shape. Arrays or scalars would parse silently
+            # to an empty install list with no warning, so reject them here.
+            if ! jq -e '(.enabledPlugins // {}) | type == "object"' .claude/settings.json >/dev/null; then
+              echo "::warning::.claude/settings.json has enabledPlugins that is not a JSON object; expected the {\"<plugin>@<owner>\": true} shape. Ignoring it." >&2
+            else
+              plugins=$(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' .claude/settings.json)
+            fi
             marketplaces=$(jq -r '
               .extraKnownMarketplaces // {} | to_entries[]
               | select(.value.source.source == "github")
