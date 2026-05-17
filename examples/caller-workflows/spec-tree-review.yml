@@ -2,8 +2,8 @@
 #
 # Required setup:
 # 1. Add CLAUDE_CODE_OAUTH_TOKEN to repository secrets
-# 2. Optionally provide a `REVIEW.template.md` at the repository root.
-#    The spec-tree-review wrapper's prompt reads it as the finding-classification
+# 2. Optionally provide a `REVIEW.md` at the repository root. The
+#    spec-tree-review wrapper's prompt reads it as the finding-classification
 #    taxonomy and comment shape; absent the file, the embedded
 #    BLOCKING/DEBT/FOLLOW-UP taxonomy is used.
 
@@ -11,7 +11,7 @@ name: Claude Code Spec Tree Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
@@ -39,12 +39,10 @@ jobs:
     # Wall-clock budget for the Run Claude Code Review step (default 15 in
     # the reusable workflow). Set to a tighter value when running on
     # self-hosted runners so a hung run frees the slot quickly:
-    #   timeout_minutes: '5'
+    #   timeout_minutes: 5
     # Or gate it on a repo variable so you can adjust without editing this
-    # file (Settings → Secrets and variables → Actions → Variables). GitHub
-    # variables are strings and the reusable input is typed as string, so
-    # pass them directly without fromJSON:
-    #   timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || '15' }}
+    # file (Settings → Secrets and variables → Actions → Variables):
+    #   timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || 15 }}
     # Minimum 1; GitHub Actions silently rejects `0` at runtime.
     #
     # The spec-tree-review wrapper extends the base review allowlist with
