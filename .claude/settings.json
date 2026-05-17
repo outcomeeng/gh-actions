@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "prose@outcomeeng": true,
+    "spec-tree@outcomeeng": true
+  }
+}
