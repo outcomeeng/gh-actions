@@ -8,4 +8,8 @@
 *.swo
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/settings.json
+
+# Temporary spec-tree plugin files
+.spx/*
