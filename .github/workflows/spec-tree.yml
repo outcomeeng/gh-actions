@@ -89,9 +89,9 @@ on:
         type: boolean
         default: false
       timeout_minutes:
-        description: "Wall-clock budget for the Run Claude Code step."
-        type: number
-        default: 15
+        description: "Wall-clock budget (in minutes) for the Run Claude Code step. See claude.yml for the full contract; declared as a string so callers can forward a `vars.*` repo variable directly."
+        type: string
+        default: "15"
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true."
