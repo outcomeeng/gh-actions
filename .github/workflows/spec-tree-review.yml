@@ -3,11 +3,13 @@
 # Wraps `claude-code-review.yml` with spec-tree-specific defaults:
 #
 # 1. A `REVIEW.md`-aware review prompt that loads the consumer repository's
-#    `REVIEW.md` (if present) for finding-classification taxonomy and comment
-#    shape, falling back to a `BLOCKING`/`NEEDS-ANSWER`/`FOLLOW-UP` default.
-#    The prompt also documents runner constraints (filesystem allowlist,
-#    backslash-newline continuations as multiple operations, etc.) that
-#    have cost prior runs many wasted tool calls.
+#    `REVIEW.md` (if present) for finding-classification taxonomy, falling
+#    back to a `BLOCKING`/`DEBT`/`FOLLOW-UP` default over six categories
+#    grouped into three axes: what the code does (consistency, security,
+#    performance), how we know it does so (evidence), and how it does so
+#    (standards, architecture). The prompt also documents runner constraints (filesystem
+#    allowlist, backslash-newline continuations as multiple operations, etc.)
+#    that have cost prior runs many wasted tool calls.
 #
 # 2. An extended allowlist (`Bash(sed:*),Bash(grep:*),Bash(head:*)`) on top
 #    of the base review allowlist, so the diff-chunking and comment-composing
@@ -50,11 +52,22 @@ on:
         description: "Extra Claude Code CLI args OTHER than --allowed-tools."
         type: string
         default: ""
-      additional_allow_list:
+      append_allow_list:
         description: |
-          Extra allowlist patterns to append AFTER the spec-tree defaults
-          (`Bash(sed:*),Bash(grep:*),Bash(head:*)`). Use when the consumer
-          repository needs additional safe tools beyond the spec-tree set.
+          Comma-separated tool patterns appended AFTER the spec-tree defaults
+          (`Bash(sed:*),Bash(grep:*),Bash(head:*)`) AND the underlying
+          claude-code-review baseline (`Bash(gh ...)`). Use Claude Code's
+          --allowed-tools pattern syntax. Example: 'Bash(make test:*)'.
+          Ignored when override_allow_list is set.
+        type: string
+        default: ""
+      override_allow_list:
+        description: |
+          Comma-separated tool patterns that replace the wrapper's entire
+          allowlist (the claude-code-review baseline AND the spec-tree
+          defaults). Use Claude Code's --allowed-tools pattern syntax.
+          Example: 'Bash(gh pr view:*),Bash(gh pr comment:*)'. Use when
+          you need a strictly different allowlist than the bake-in.
         type: string
         default: ""
       trigger_phrase:
@@ -74,7 +87,17 @@ on:
         type: string
         default: "{}"
       use_project_plugins:
-        description: "Install plugins declared in the consumer's .claude/settings.json."
+        description: |
+          Install plugins declared in the consumer's .claude/settings.json.
+          Defaults to FALSE for spec-tree reviews because the wrapper's
+          allowlist is narrow; opting in requires widening it via
+          `append_allow_list` (or replacing it via `override_allow_list`)
+          to match the tools the project plugins rely on. The consumer's .claude/settings.json should list the
+          required plugins under `enabledPlugins` AND register their
+          hosting marketplaces under `extraKnownMarketplaces` (entries
+          with `source.source == "github"`); the marketplace registration
+          is what claude-code-action uses to resolve each
+          `<plugin>@<owner>` spec at install time.
         type: boolean
         default: false
       plugin_marketplaces:
@@ -107,8 +130,15 @@ jobs:
       concurrency_cancel: ${{ inputs.concurrency_cancel }}
       model: ${{ inputs.model }}
       claude_args: ${{ inputs.claude_args }}
-      # Spec-tree-specific allowlist defaults, optionally extended by the caller.
-      append_allow_list: ${{ inputs.additional_allow_list && format('Bash(sed:*),Bash(grep:*),Bash(head:*),{0}', inputs.additional_allow_list) || 'Bash(sed:*),Bash(grep:*),Bash(head:*)' }}
+      # Spec-tree-specific allowlist defaults (sed/grep/head) combined with
+      # the consumer's append_allow_list. claude-code-review.yml resolves
+      # precedence: when override_allow_list is set, this entire append
+      # value is ignored (with a warning) and the override replaces the
+      # baseline outright — so a consumer passing override_allow_list also
+      # drops the spec-tree defaults, which is the intended "I know what I
+      # want" escape hatch.
+      append_allow_list: ${{ inputs.append_allow_list && format('Bash(sed:*),Bash(grep:*),Bash(head:*),{0}', inputs.append_allow_list) || 'Bash(sed:*),Bash(grep:*),Bash(head:*)' }}
+      override_allow_list: ${{ inputs.override_allow_list }}
       trigger_phrase: ${{ inputs.trigger_phrase }}
       use_bedrock: ${{ inputs.use_bedrock }}
       use_vertex: ${{ inputs.use_vertex }}
@@ -126,7 +156,7 @@ jobs:
 
         ## Steps
 
-        1. **Load repository conventions.** Read `REVIEW.md` from the repository root if present. Resolve the finding-classification taxonomy and comment shape in this order: (a) `REVIEW.md` if present, (b) a taxonomy defined in `CLAUDE.md` if `REVIEW.md` is absent, (c) the defaults in the "Review shape" section below if neither file specifies one. Always read `CLAUDE.md` for project conventions independent of where the taxonomy comes from.
+        1. **Load repository conventions.** Read `REVIEW.md` from the repository root if present. Resolve the finding-classification taxonomy in this order: (a) `REVIEW.md` if present, (b) a taxonomy defined in `CLAUDE.md` if `REVIEW.md` is absent, (c) the defaults in the "Spec Tree Review Workflow" section below if neither file specifies one. Always read `CLAUDE.md` for project conventions independent of where the taxonomy comes from.
 
         2. **Gather PR context.** Run:
 
@@ -142,7 +172,7 @@ jobs:
         4. **Post the review with one command, using `printf` and stdin.** The entire `printf … | gh pr comment …` pipeline MUST be one physical shell line. Do not split with `\`-newline continuations — the runner's command parser treats continued lines as separate operations and denies the fragments as unapproved invocations.
 
            ```bash
-           printf '%s\n' '## Spec Tree Review [PR #${{ github.event.pull_request.number }}]: <PR title>' '' '**Summary.** <one or two sentences>' '' '### BLOCKING [correctness]: path/to/file.py:42' 'Evidence: <quote the diff and explain the failure mode>.' 'Required before merge: <concrete change>.' '' '---' '' '## Findings out of scope for merge' '' '### FOLLOW-UP [test-evidence]: path/to/test.py' 'Evidence: <what is missing>.' 'Track under: <issues file or tracker>.' | gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file /dev/stdin
+           printf '%s\n' '### BLOCKING [consistency]: path/to/file.py:42' 'Reference: <quote the standard from CLAUDE.md, a skill, or governance doc (PDR/ADR/spec)>.' 'Evidence: <quote the diff and explain the disagreement between layers>.' 'Required: <concrete change>.' '' '### FOLLOW-UP [evidence]: path/to/test.py' 'Reference: <quote the standard or assertion>.' 'Issue: <what is missing>.' 'Track under: <issues file or tracker>.' | gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file /dev/stdin
            ```
 
            Quoting rule: wrap literal text in single quotes so `$`, backticks, and backslashes pass through unchanged. Each argument to `printf '%s\n'` is one line of output. Blank lines are `''`. The example above wraps visually in your view, but it is a single physical line — preserve that when you compose your own invocation.
@@ -168,38 +198,74 @@ jobs:
         | Helper scripts written to disk to assemble the body | Same write blockage; also adds turns for nothing the `printf` form does not already do. |
         | Backslash-newline (`\`) continuations in shell commands | The runner's parser flags continued lines as multiple operations and gates the fragments separately, even when every binary in the pipeline is approved. Keep `printf … \| gh pr comment …` on one physical line. |
 
-        ## Review shape
+        ## Spec Tree Review Workflow
 
-        Cover, in this order: correctness, project conventions (from `CLAUDE.md`), potential bugs, performance, security, test coverage.
+        These categories and severities apply when the repository has no `REVIEW.md`; when `REVIEW.md` defines its own taxonomy, follow that instead.
 
-        Classify every finding by required receiver action. When `REVIEW.md` is present, it overrides this default taxonomy.
+        Inspect the changeset under review and the checked out working tree. Emit findings only when they exist. Provide no praise or commentary that is neither a finding nor a tracking commitment. Never modify any file in the working tree; classification is the only output.
 
-        | Class | Receiver action | Use when |
-        | --- | --- | --- |
-        | `BLOCKING` | Fix in this PR before merge | Correctness bug, security risk, data-loss risk, broken required validation, policy violation |
-        | `NEEDS-ANSWER` | Answer before merge | A required fact is missing and the answer can clear the concern or upgrade it to `BLOCKING` |
-        | `FOLLOW-UP` | Track outside this PR | Justified concern, gap or material improvement, but addressing it would widen the PR or does not affect merge safety |
+        **ALWAYS:** report findings. When the changeset omits a fact a finding depends on, frame the finding as worst-case or conditional. Example: "Evidence: cannot verify X from the changeset; if assumption Y holds, this breaks Z because …"
 
-        Do not use `P0`/`P1`/`P2`/`P3` or `critical`/`high`/`medium`/`low`/`minor`/`nit` as finding headings.
+        **NEVER:** emit open questions or speculative commentary that does not constitute a finding. Questions add CI roundtrips this single-pass review cannot recover from.
 
-        Finding shape:
+        Every finding has two dimensions: **category** and **severity**. Use only these 6 categories and 3 severities.
+
+        ## **Category:** Classify all your findings into one of 6 categories, grouped by three axes
+
+        **What the code does vs. what it is supposed to do**
+
+        - **Consistency:** equivalence across the layers — what the decisions (PDRs and ADRs) govern, what the spec asserts, what tests and evals verify, and what the implementation does. A finding is a consistency one when a lower layer does not match a higher one. The reviewer surfaces the disagreement; they do not judge which side is right.
+        - **Security:** confidentiality, integrity, availability.
+        - **Performance:** unbounded loops, hot-path allocations, O(n^2) traversals where O(n) suffices, synchronous I/O on async paths, and similar pessimisations that change the changeset's runtime characteristics under realistic load.
+
+        **How we know it does what it is supposed to do**
+
+        - **Evidence:** inadequate coverage of declared assertions by tests or evals; unmaintainable tests (literals, magic numbers, test-owned constants, duplication); evals that no longer exercise the assertions they claim to.
+
+        **How it does what it is supposed to do**
+
+        - **Standards:** adherence to `CLAUDE.md` and the rules declared in standardizing-* skills (naming conventions, command tokens, file structure, language idioms).
+        - **Architecture:** violation of structural principles declared by ADRs or PDRs — layer boundaries, separation of concerns, dependency directions, module-shape rules. A finding is an architecture one when the structure itself is at odds with a governance principle, even if every layer is internally consistent.
+
+        ## **Severity:** triage each finding to one of 3 levels
+
+        | Severity    | Use when                                                                                                                                                                                         |
+        | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+        | `BLOCKING`  | Merge-safety defect: If deployed, the changeset would create a deterministic issue or pose a risk.                                                                                               |
+        | `DEBT`      | Must-fix-eventually defect: the finding does **not** jeopardize the product if shipped but accumulates technical debt.                                                                           |
+        | `FOLLOW-UP` | Out-of-scope finding: the finding does **not** jeopardize the product if shipped and addressing it requires wider refactoring or additional scope that would extend the blast-radius of this PR. |
+
+        ## **Reporting:** Return your findings exactly as below
+
+        The bracket after the severity names the category: one of `consistency`, `security`, `performance`, `evidence`, `standards`, `architecture`.
+
+        Label asymmetry by severity is intentional: `BLOCKING` and `DEBT` require an action in this PR and use `Reference:` + `Evidence:` + `Required:`; `FOLLOW-UP` requires only a tracking commitment elsewhere and uses `Reference:` + `Issue:` + `Track under:`.
 
         ```text
-        ### BLOCKING [correctness]: path/to/file.py:42
-        Evidence: <quote the diff or behavior and explain the failure mode>.
-        Required before merge: <concrete change>.
+        ### BLOCKING [consistency]: path/to/file.py:42
+        Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
+        Evidence: <quote the diff or behavior and explain the disagreement between layers>.
+        Required: <concrete change>.
         ```
 
         ```text
-        ### NEEDS-ANSWER [test-harness]: path/to/spec-file.md:97
-        Reference: <quote the spec, test or implementation code and justify why the question needs to be answered before merge>.
-        Question: <concrete question to answer before merge: >.
+        ### DEBT [standards]: path/to/file.py:97
+        Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
+        Evidence: <quote the diff or behavior and explain how it violates the standard>.
+        Required: <concrete change>.
         ```
 
         ```text
-        ### FOLLOW-UP [test-evidence]: `path/to/foo.compliance.test.ts`
+        ### FOLLOW-UP [architecture]: `path/to/foo.compliance.test.ts`
+        Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
         Issue: <what is missing or worthy of improvement>.
         Track under: <ISSUES.md file or product-specific issue tracker>.
         ```
 
-        If the diff has no `BLOCKING` or `NEEDS-ANSWER` findings, say so directly in the comment. Do not invent lower-priority findings to prove the review happened.
+        ## **Completeness:** Aim for *first-time right*
+
+        Each review pass is independent and self-contained — there is no cross-pass continuity, and CI replays the prompt from scratch on every `pull_request` event. Surface every finding the changeset exhibits in the **first** pass against that changeset; a finding missed on pass 1 has no second chance unless the diff itself changes. Read the diff once, methodically, across all categories before composing the comment.
+
+        ## **No findings:** say so directly
+
+        When the changeset has no `BLOCKING` or `DEBT` findings, post a one-line comment saying so. NEVER invent lower-priority findings to prove the review happened.
