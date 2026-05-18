@@ -256,16 +256,26 @@ jobs:
           WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           set -euo pipefail
-          # The `|| sha=""` suffix is load-bearing: `set -e` would otherwise
-          # abort the step if `gh api` returns non-zero (e.g. a 403 when the
-          # caller workflow's permissions block omits `actions: read`), and
-          # the fallback `if [ -z ... ]` block would never run.
-          sha=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}" \
-            --jq '.referenced_workflows[]? | select(.path | startswith("outcomeeng/gh-actions/")) | .sha' \
-            | head -n 1) || sha=""
+          # Resolve the consumer-pinned SHA via the GitHub REST API. We use
+          # `curl` + `python3` rather than `gh` because the ubuntu-slim Docker
+          # image (the default runner) ships without the `gh` CLI; curl and
+          # python3 are part of the base image. The `|| sha=""` suffix on the
+          # assignment prevents `set -e` from aborting the step when the API
+          # call returns non-zero (for example a 403 when the caller workflow
+          # omits the `actions: read` grant), so the empty-string fallback
+          # below can fire instead.
+          sha=$(
+            curl --silent --show-error --fail \
+              --header "Authorization: Bearer ${GH_TOKEN}" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}" \
+            | python3 -c "import json, sys; d = json.load(sys.stdin); print(next((w['sha'] for w in d.get('referenced_workflows', []) if w.get('path', '').startswith('outcomeeng/gh-actions/')), ''))"
+          ) || sha=""
           if [ -z "${sha}" ]; then
-            # Belt-and-braces fallback for edge cases the API doesn't list or
-            # for callers that haven't granted actions: read.
+            # Fallback for callers that did not grant `actions: read`, for
+            # manual-dispatch edge cases the API does not list, or for runner
+            # images that lack curl/python3.
             sha="${WORKFLOW_REF##*@}"
             echo "::warning::Could not resolve outcomeeng/gh-actions SHA via referenced_workflows; falling back to caller ref ${sha}"
           fi
