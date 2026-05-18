@@ -31,7 +31,7 @@ jobs:
     # Pin to a full-length commit SHA per GitHub's hardening guidance — never @main or @v1.
     # Renovate keeps this SHA current; the trailing `# main` comment is the branch
     # Renovate tracks. See README "Security" for the full rationale.
-    uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@762dbe20ebd46f46a5868e1b0a2f20f4ea53c1ab # main
+    uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@eedf66bdd69dbe899a746374419d5a3cfbecfd25 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     # Authorization is automatic: the workflow accepts any actor with admin,
@@ -39,8 +39,7 @@ jobs:
     # API). External contributors are rejected with a clear error.
     #
     # Uncomment and modify to customize. The reusable defaults
-    # `trigger_phrase` to `@spec-tree` (not `@claude`) so that callers who also
-    # install the generic `claude.yml` workflow route mentions correctly.
+    # `trigger_phrase` to `@spec-tree`.
     # with:
     #   trigger_phrase: '@your-phrase'
     #   concurrency_cancel: false
@@ -55,10 +54,9 @@ jobs:
     #   timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '15' }}
     # Minimum 1; GitHub Actions silently rejects `0` at runtime.
     #
-    # Plugins from .claude/settings.json are NOT installed by default — same
-    # as the generic `claude.yml` reusable. Plugin skills with auto-invocation
-    # directives can pull mention runs into long detours that aren't part of
-    # the original intent. To opt in:
+    # Plugins from .claude/settings.json are NOT installed by default.
+    # Plugin skills with auto-invocation directives can pull mention runs
+    # into long detours that aren't part of the original intent. To opt in:
     #   use_project_plugins: true
     #
     # To install specific plugins on top of (or instead of) the project's

@@ -1,14 +1,11 @@
 # Reusable Spec Tree mention workflow.
 #
-# Forwards every input through to `claude.yml`. Today there is no spec-tree-
-# specific default that differs from the generic mention workflow — including
-# `use_project_plugins`, which defaults to `false` here for the same reasons
-# documented on `claude.yml` (plugin skills' ALWAYS-invoke mandates pull
-# mention runs off-task into tools that aren't part of the original intent).
-# The wrapper exists as a stable name for spec-tree consumers; consumers that
-# want methodology skills available in mention runs should opt in by setting
-# `use_project_plugins: true` AND registering the relevant marketplaces under
-# `extraKnownMarketplaces` in their `.claude/settings.json`.
+# Listens for @spec-tree mentions on issues, PRs, and reviews and runs
+# anthropics/claude-code-action with spec-tree-friendly defaults. Bootstrap
+# steps (plugin derivation, claude_args composition, additional env
+# application) are inlined here rather than factored into composite actions
+# so the workflow file the consumer pins is fully self-contained — no
+# second checkout of outcomeeng/gh-actions is required at runtime.
 #
 # Usage in caller workflow:
 #
@@ -34,15 +31,18 @@ on:
   workflow_call:
     inputs:
       runner:
-        description: "Runner selection — see claude.yml for full semantics."
+        description: |
+          Runner selection for all jobs. Accepts either:
+          - A single label: 'ubuntu-slim', 'ubuntu-latest', 'self-hosted'
+          - A JSON array of labels: '["self-hosted","laptop"]'
+          The workflow detects which form was passed and dispatches correctly.
+          Security: self-hosted runners must not be used from public repos or repos that accept PRs/comments from untrusted contributors. Only set a self-hosted runner here when every authorized contributor is trusted (typical for private org repos).
         type: string
         default: ubuntu-slim
       trigger_phrase:
         description: |
-          Text that triggers the workflow. Defaults to `@spec-tree` so a repo
-          that also installs the generic `claude.yml` caller (which defaults to
-          `@claude`) routes mentions to the right workflow — same `@claude`
-          mention would otherwise fire both callers.
+          Text that triggers the workflow (also passed to the action).
+          Defaults to `@spec-tree`.
         type: string
         default: "@spec-tree"
       concurrency_cancel:
@@ -54,82 +54,279 @@ on:
         type: string
         default: ""
       model:
-        description: "Claude model to use. Empty means defer to the action's default."
+        description: "Claude model to use, e.g. claude-opus-4-7. Folded into claude_args as --model. Empty means defer to the action's default."
         type: string
         default: ""
       claude_args:
-        description: "Extra Claude Code CLI args."
+        description: "Extra CLI arguments passed to Claude Code (e.g. '--max-turns 20 --allowed-tools \"Bash(gh pr comment:*)\"')."
         type: string
         default: ""
       use_bedrock:
-        description: "Route Claude through Amazon Bedrock."
+        description: "Route Claude through Amazon Bedrock instead of the Claude API. Caller is responsible for AWS auth and for setting AWS_REGION via additional_env."
         type: boolean
         default: false
       use_vertex:
-        description: "Route Claude through Google Vertex AI."
+        description: "Route Claude through Google Vertex AI instead of the Claude API. Caller is responsible for GCP auth and for setting ANTHROPIC_VERTEX_PROJECT_ID / CLOUD_ML_REGION / VERTEX_REGION_* via additional_env."
         type: boolean
         default: false
       additional_env:
-        description: "JSON object string of env vars to set on the claude-code-action step."
+        description: "JSON object string of env vars to set on the claude-code-action step. Used to pass cloud-provider config without changing the action invocation."
         type: string
         default: "{}"
       use_project_plugins:
         description: |
-          Install plugins declared in the consumer's .claude/settings.json.
-          Defaults to `false` to match `claude.yml`: plugin skills with
-          ALWAYS-invoke mandates can pull a mention run into long detours
-          through tools that aren't part of the mention's intent. Opt in by
-          setting this to `true` AND registering the plugins' hosting
-          marketplaces under `extraKnownMarketplaces` in your
-          `.claude/settings.json` (entries with `source.source == "github"`);
-          the marketplace registration is what claude-code-action uses to
-          resolve each `<plugin>@<owner>` spec at install time, without it
-          the plugin list is forwarded but cannot be installed.
+          When true, read `.claude/settings.json` from the caller repository and install the plugins it declares under `enabledPlugins` plus the marketplaces under `extraKnownMarketplaces`. Default false so the mention job runs with no project plugins — many plugins ship skills with "ALWAYS invoke before X" mandates that can pull Claude into long detours through tools that aren't part of the mention's intent. Set true only when the project plugins are appropriate for ad hoc mentions.
         type: boolean
         default: false
       plugin_marketplaces:
-        description: "Space-separated additional marketplaces."
+        description: "Space-separated list of marketplaces to register (`owner/repo`, ref ignored — pin via the marketplace repo). Appends to the project's `extraKnownMarketplaces` when use_project_plugins is true; sole source when false."
         type: string
         default: ""
       extra_plugins:
-        description: "Space-separated additional plugins."
+        description: "Space-separated list of plugins to install. Appends to the project's `enabledPlugins` when use_project_plugins is true; sole source when false."
         type: string
         default: ""
       show_full_output:
-        description: "Stream the full per-turn JSON output to the job log (may include sensitive content)."
+        description: |
+          Stream the full per-turn JSON output from Claude Code to the job log instead of the default redacted summary. WARNING (per the upstream action): the full output includes ALL tool execution results, which may contain secrets, API keys, or other sensitive material from the repo. GitHub Actions job logs are visible to anyone with read access to the repository (and to the public for public repos). Only enable when debugging in a non-sensitive context.
         type: boolean
         default: false
       timeout_minutes:
-        description: "Wall-clock budget (in minutes) for the Run Claude Code step. See claude.yml for the full contract; declared as a string so callers can forward a `vars.*` repo variable directly."
+        description: |
+          Wall-clock budget (in minutes) for the Run Claude Code step. When exceeded, GitHub cancels the step with a clear timeout message; the post-action cleanup steps still run, so the runner is left in a clean state. Default 15 covers a typical mention task with headroom. Lower it (e.g. to '5') to fail fast when a run hangs, or raise it for tasks that legitimately take longer. Minimum meaningful value is 1; GitHub Actions silently rejects `timeout-minutes: 0` at runtime. Declared as a string so callers can forward a `vars.*` repo variable directly (`vars.*` always reads as a string); numeric literals like `15` are also accepted because GitHub Actions coerces them to strings on input.
         type: string
         default: "15"
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
-        description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true."
+        description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true (cloud credentials provide auth in those cases)."
         required: false
 
-# No top-level `permissions:` on this wrapper. Setting it to `{}` would zero
-# the permission chain for the called workflow (claude.yml), causing every
-# downstream job's permission request to be denied at startup. The called
-# workflow declares its own per-job permissions; the caller workflow's
-# `permissions:` block sets the maximum.
+# Deny-all default at the workflow level. Each job below explicitly grants
+# the narrow permissions it needs (subject to the caller workflow's maximum
+# grant). This guards against future jobs accidentally inheriting broad
+# permissions; see https://docs.github.com/en/actions/security-guides/automatic-token-authentication.
+permissions: {}
 
 jobs:
+  authorize:
+    # `github.event.sender.type != 'Bot'` suppresses self-triggering: when a
+    # bot posts a comment containing the trigger phrase (e.g. when a review
+    # workflow quotes the prompt's instructions), the comment fires
+    # `issue_comment.created`. Without this guard the mention workflow would
+    # re-enter on every bot comment that happens to contain the trigger
+    # phrase, polluting the runs list with skipped runs and risking actual
+    # re-entry loops.
+    if: |
+      github.event.sender.type != 'Bot' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, inputs.trigger_phrase)) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, inputs.trigger_phrase)) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, inputs.trigger_phrase)) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, inputs.trigger_phrase) || contains(github.event.issue.title, inputs.trigger_phrase)))
+      )
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
+    permissions:
+      contents: read
+    outputs:
+      authorized: ${{ steps.check.outputs.authorized }}
+    steps:
+      - name: Check actor permission
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$ACTOR" ]]; then
+            echo "::notice::No actor in the event payload; skipping mention"
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          perm=$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq '.permission' 2>/dev/null || echo "none")
+          case "$perm" in
+            admin|maintain|write)
+              echo "Actor '$ACTOR' has '$perm' permission on $REPO — mention authorized"
+              echo "authorized=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::notice::Actor '$ACTOR' has '$perm' permission on $REPO; skipping mention (trigger requires admin, maintain, or write)"
+              echo "authorized=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
   spec-tree:
-    uses: ./.github/workflows/claude.yml
-    secrets: inherit
-    with:
-      runner: ${{ inputs.runner }}
-      trigger_phrase: ${{ inputs.trigger_phrase }}
-      concurrency_cancel: ${{ inputs.concurrency_cancel }}
-      custom_prompt: ${{ inputs.custom_prompt }}
-      model: ${{ inputs.model }}
-      claude_args: ${{ inputs.claude_args }}
-      use_bedrock: ${{ inputs.use_bedrock }}
-      use_vertex: ${{ inputs.use_vertex }}
-      additional_env: ${{ inputs.additional_env }}
-      use_project_plugins: ${{ inputs.use_project_plugins }}
-      plugin_marketplaces: ${{ inputs.plugin_marketplaces }}
-      extra_plugins: ${{ inputs.extra_plugins }}
-      show_full_output: ${{ inputs.show_full_output }}
-      timeout_minutes: ${{ inputs.timeout_minutes }}
+    needs: authorize
+    if: needs.authorize.outputs.authorized == 'true'
+    concurrency:
+      group: spec-tree-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: ${{ inputs.concurrency_cancel }}
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Derive Claude plugins and marketplaces
+        id: plugins
+        env:
+          USE_PROJECT_PLUGINS: ${{ inputs.use_project_plugins }}
+          PLUGIN_MARKETPLACES: ${{ inputs.plugin_marketplaces }}
+          EXTRA_PLUGINS: ${{ inputs.extra_plugins }}
+        run: |
+          set -euo pipefail
+          plugins=""
+          marketplaces=""
+
+          if [[ "$USE_PROJECT_PLUGINS" == "true" ]]; then
+            if [[ -f .claude/settings.json ]]; then
+              jq empty .claude/settings.json
+              # `enabledPlugins` must be an object of the form
+              # `{"<plugin>@<owner>": true}` — Claude Code's own
+              # settings-schema shape. Arrays or scalars would parse silently
+              # to an empty install list with no warning, so reject them here.
+              if ! jq -e '(.enabledPlugins // {}) | type == "object"' .claude/settings.json >/dev/null; then
+                echo "::warning::.claude/settings.json has enabledPlugins that is not a JSON object; expected the {\"<plugin>@<owner>\": true} shape. Ignoring it." >&2
+              else
+                plugins=$(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' .claude/settings.json)
+              fi
+              marketplaces=$(jq -r '
+                .extraKnownMarketplaces // {} | to_entries[]
+                | select(.value.source.source == "github")
+                | "https://github.com/" + .value.source.repo + ".git"
+              ' .claude/settings.json)
+            fi
+          fi
+
+          # Quoted array expansion so the documented space-separated inputs
+          # are tokenised without pathname expansion or word-splitting surprises
+          # (a stray `*` or unintended IFS character in the input would otherwise
+          # glob against the workspace).
+          read -ra extras <<< "$EXTRA_PLUGINS"
+          for p in "${extras[@]}"; do
+            [[ -z "$p" ]] && continue
+            plugins=$(printf '%s\n%s' "$plugins" "$p")
+          done
+
+          read -ra markets <<< "$PLUGIN_MARKETPLACES"
+          for m in "${markets[@]}"; do
+            [[ -z "$m" ]] && continue
+            repo=${m%@*}
+            marketplaces=$(printf '%s\n%s' "$marketplaces" "https://github.com/${repo}.git")
+          done
+
+          plugins=$(echo "$plugins" | sed '/^$/d')
+          marketplaces=$(echo "$marketplaces" | sed '/^$/d')
+
+          delim="MULTILINE_$(cat /proc/sys/kernel/random/uuid)"
+          {
+            echo "plugins<<${delim}"
+            echo "$plugins"
+            echo "${delim}"
+            echo "marketplaces<<${delim}"
+            echo "$marketplaces"
+            echo "${delim}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "::group::Derived plugin install inputs"
+          echo "plugins:"
+          echo "$plugins"
+          echo "marketplaces:"
+          echo "$marketplaces"
+          echo "::endgroup::"
+
+      - name: Compose claude_args
+        id: claude-args
+        env:
+          MODEL: ${{ inputs.model }}
+          EXTRA_ARGS: ${{ inputs.claude_args }}
+        run: |
+          set -euo pipefail
+          # Trim leading/trailing whitespace so a caller passing " " (or a
+          # YAML block with trailing newline) doesn't append a stray empty
+          # token that Claude Code would silently drop or reject.
+          trim() { local s=${1#"${1%%[![:space:]]*}"}; printf '%s' "${s%"${s##*[![:space:]]}"}"; }
+          MODEL=$(trim "$MODEL")
+          EXTRA_ARGS=$(trim "$EXTRA_ARGS")
+
+          args=""
+          if [[ -n "$MODEL" ]]; then
+            args="--model $MODEL"
+          fi
+          if [[ -n "$EXTRA_ARGS" ]]; then
+            args="${args:+$args }$EXTRA_ARGS"
+          fi
+
+          delim="ARGS_$(cat /proc/sys/kernel/random/uuid)"
+          {
+            printf '%s<<%s\n' "args" "$delim"
+            printf '%s\n' "$args"
+            printf '%s\n' "$delim"
+          } >> "$GITHUB_OUTPUT"
+          echo "::group::Composed claude_args"
+          printf '%s\n' "$args"
+          echo "::endgroup::"
+
+      - name: Apply additional env
+        env:
+          ADDITIONAL_ENV: ${{ inputs.additional_env }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$ADDITIONAL_ENV" || "$ADDITIONAL_ENV" == "{}" ]]; then
+            echo "No additional env to apply"
+            exit 0
+          fi
+          # Validate JSON object before exporting; reject non-objects.
+          echo "$ADDITIONAL_ENV" | jq -e 'type == "object"' >/dev/null
+          # Emit each key as a heredoc-delimited GITHUB_ENV record so multiline
+          # values (JSON, cert material, etc.) survive unmangled. Reject keys
+          # that aren't valid POSIX env var names so a malformed input can't
+          # silently inject garbage.
+          while IFS= read -r entry; do
+            key=$(printf '%s' "$entry" | jq -r '.key')
+            if ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+              echo "::error::additional_env key '$key' is not a valid env var name"
+              exit 1
+            fi
+            value=$(printf '%s' "$entry" | jq -r '.value | tostring')
+            delim="ENV_$(cat /proc/sys/kernel/random/uuid)"
+            {
+              printf '%s<<%s\n' "$key" "$delim"
+              printf '%s\n' "$value"
+              printf '%s\n' "$delim"
+            } >> "$GITHUB_ENV"
+          done < <(echo "$ADDITIONAL_ENV" | jq -c 'to_entries[]')
+          echo "::group::Applied additional env keys"
+          echo "$ADDITIONAL_ENV" | jq -r 'keys[]'
+          echo "::endgroup::"
+
+      - name: Run Claude Code
+        id: claude
+        # `inputs.timeout_minutes` is declared as a string (so callers can
+        # forward a `vars.*` value directly), but step-level `timeout-minutes:`
+        # rejects string values outright. fromJSON() parses "15" back to the
+        # integer 15 that the field expects. The `|| '15'` fallback covers
+        # the edge case where a caller passes `timeout_minutes: ""`
+        # explicitly (which overrides the input default) — without it,
+        # fromJSON("") would throw an opaque workflow error.
+        timeout-minutes: ${{ fromJSON(inputs.timeout_minutes || '15') }}
+        uses: anthropics/claude-code-action@51ea8ea73a139f2a74ff649e3092c25a904aed7e # v1.0.123
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          prompt: ${{ inputs.custom_prompt }}
+          claude_args: ${{ steps.claude-args.outputs.args }}
+          trigger_phrase: ${{ inputs.trigger_phrase }}
+          use_bedrock: ${{ inputs.use_bedrock }}
+          use_vertex: ${{ inputs.use_vertex }}
+          plugins: ${{ steps.plugins.outputs.plugins }}
+          plugin_marketplaces: ${{ steps.plugins.outputs.marketplaces }}
+          show_full_output: ${{ inputs.show_full_output }}
