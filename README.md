@@ -117,6 +117,23 @@ For complete copy-paste templates with every override documented inline, see `ex
 | `show_full_output`    | `false`       | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                    |
 | `timeout_minutes`     | `"15"`        | Wall-clock budget (minutes) for the Run Claude Code Review step (minimum 1)                                         |
 
+### Per-environment overrides via repo variables
+
+Several inputs are commonly tuned per-environment (one repo runs on `self-hosted`, another on `ubuntu-latest`; one tolerates 15-minute reviews, another caps at 5; one opts in to project plugins, another doesn't). The example caller templates wire these inputs through GitHub Actions repository variables (`vars.*`) so you can flip them in repo Settings → Secrets and variables → Actions → Variables without editing the workflow file.
+
+| Repo variable                          | Maps to               | Default if unset | Notes                                                                                          |
+| -------------------------------------- | --------------------- | ---------------- | ---------------------------------------------------------------------------------------------- |
+| `SPEC_TREE_RUNNER`                     | `runner` (mention)    | `ubuntu-slim`    | Single label or JSON-array string. `'["self-hosted","laptop"]'` is one literal string.         |
+| `SPEC_TREE_REVIEW_RUNNER`              | `runner` (review)     | `ubuntu-slim`    | Same.                                                                                          |
+| `SPEC_TREE_CONCURRENCY_CANCEL`         | `concurrency_cancel`  | `true`           | Set the string `'false'` to opt out of cancel-on-new. Anything else preserves cancel behavior. |
+| `SPEC_TREE_REVIEW_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Same, review side.                                                                             |
+| `SPEC_TREE_TIMEOUT_MINUTES`            | `timeout_minutes`     | `'15'`           | Wall-clock budget in minutes (quoted string).                                                  |
+| `SPEC_TREE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Same.                                                                                          |
+| `SPEC_TREE_USE_PROJECT_PLUGINS`        | `use_project_plugins` | `false`          | Set the string `'true'` to opt in. Anything else (including unset) keeps the default off.      |
+| `SPEC_TREE_REVIEW_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Same; usually combined with widening `append_allow_list` to match the plugin's tool needs.     |
+
+Inputs **not** gated via `vars.*` in the example: `trigger_phrase` (security-adjacent — explicit edit reviewed by maintainers is safer), `custom_prompt` (multi-line), `additional_env` (structured JSON), `use_bedrock` / `use_vertex` (only meaningful when paired with `additional_env` for cloud auth), and the plugin / allow-list lists (rarely change per-environment). Nothing prevents you from wiring those to `vars.*` too in your caller — the example just omits them to keep the template tight.
+
 ## Plugins and marketplaces
 
 The reusable workflows install plugins from two possible sources:
