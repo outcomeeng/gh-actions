@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "timezone": "UTC",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 10,
+  "packageRules": [
+    {
+      "description": "Group GitHub Actions and reusable-workflow updates. Digest pinning itself is already enforced by the helpers:pinGitHubActionDigests preset above; this rule only adds the grouping.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "Self-references to outcomeeng/gh-actions in the example caller workflows track the main branch; Renovate keeps the SHA current.",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["outcomeeng/gh-actions"],
+      "groupName": "outcomeeng/gh-actions self-reference"
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "Track the actionlint release version pinned in ci.yml's Install actionlint step. The SHA256 verification reads checksums.txt from the same release at install time, so only the version needs Renovate management.",
+      "customType": "regex",
+      "fileMatch": ["^\\.github/workflows/ci\\.yml$"],
+      "matchStrings": [
+        "ACTIONLINT_VERSION: \"(?<currentValue>[^\"]+)\" # renovate: datasource=(?<datasource>[^ ]+) depName=(?<depName>[^ \\n]+)"
+      ]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  }
+}

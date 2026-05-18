@@ -8,7 +8,7 @@
 #
 #   jobs:
 #     review:
-#       uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@main
+#       uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@<full-commit-sha> # main
 #       secrets:
 #         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 #
@@ -122,6 +122,12 @@ on:
         description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true (cloud credentials provide auth in those cases)."
         required: false
 
+# Deny-all default at the workflow level. Each job below explicitly grants
+# the narrow permissions it needs (subject to the caller workflow's maximum
+# grant). This guards against future jobs accidentally inheriting broad
+# permissions; see https://docs.github.com/en/actions/security-guides/automatic-token-authentication.
+permissions: {}
+
 jobs:
   authorize:
     runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
@@ -173,7 +179,7 @@ jobs:
           set -euo pipefail
           # github.workflow_ref is "<owner>/<repo>/<path>@<ref>".
           prefix="$REPO/"
-          path="${WORKFLOW_REF#$prefix}"
+          path="${WORKFLOW_REF#"$prefix"}"
           path="${path%@*}"
           echo "Caller workflow file: $path"
 
@@ -214,6 +220,7 @@ jobs:
       pull-requests: write
       issues: write
       id-token: write
+      actions: read # so the Resolve gh-actions SHA step can read referenced_workflows
 
     steps:
       - name: Checkout caller repository
@@ -221,22 +228,41 @@ jobs:
         with:
           fetch-depth: 1
 
-      # `github.workflow_ref` resolves to "<this repo>/<workflow path>@<ref>" —
-      # the ref the CALLER pinned this workflow at. We check out the same ref
-      # of outcomeeng/gh-actions into `.gh-actions/` so the composite actions
-      # run at the same SHA as this workflow file, with no separate pin for
-      # consumers to maintain. Caveat: when a consumer pins by a moving tag
-      # (e.g. `@v1`) and the tag is moved while a run is in flight, the
-      # composite checkout sees the new tag's SHA. Pin by full commit SHA or
-      # by an immutable release tag to lock composites in lockstep.
-      - name: Resolve workflow ref
+      # Determine the SHA at which the CALLER pinned this reusable workflow,
+      # so the next step checks out the composite actions at that same SHA.
+      # `github.workflow_ref` is NOT usable here: in a reusable workflow it
+      # refers to the caller's workflow file at the caller's ref (typically
+      # `refs/pull/N/merge` on a consumer PR), which does not exist in
+      # outcomeeng/gh-actions. Instead we read the run's `referenced_workflows`
+      # field, which resolves every `uses:` reference (cross-repo and relative)
+      # to an absolute `<owner>/<repo>/<path>@<sha>` form, and pull the SHA of
+      # the first outcomeeng/gh-actions entry. This works for direct consumer
+      # callers, for callers via the spec-tree wrappers (relative `uses:` from
+      # spec-tree-review.yml resolves to outcomeeng/gh-actions/...@same-sha),
+      # and for this repo's own self-tests.
+      - name: Resolve gh-actions SHA
         id: workflow-ref
         env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           set -euo pipefail
-          # github.workflow_ref is "<owner>/<repo>/<path>@<ref>". Extract <ref>.
-          echo "ref=${WORKFLOW_REF##*@}" >> "$GITHUB_OUTPUT"
+          # The `|| sha=""` suffix is load-bearing: `set -e` would otherwise
+          # abort the step if `gh api` returns non-zero (e.g. a 403 when the
+          # caller workflow's permissions block omits `actions: read`), and
+          # the fallback `if [ -z ... ]` block would never run.
+          sha=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}" \
+            --jq '.referenced_workflows[]? | select(.path | startswith("outcomeeng/gh-actions/")) | .sha' \
+            | head -n 1) || sha=""
+          if [ -z "${sha}" ]; then
+            # Belt-and-braces fallback for edge cases the API doesn't list or
+            # for callers that haven't granted actions: read.
+            sha="${WORKFLOW_REF##*@}"
+            echo "::warning::Could not resolve outcomeeng/gh-actions SHA via referenced_workflows; falling back to caller ref ${sha}"
+          fi
+          echo "ref=${sha}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout gh-actions for composite actions
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -244,6 +270,9 @@ jobs:
           repository: outcomeeng/gh-actions
           ref: ${{ steps.workflow-ref.outputs.ref }}
           path: .gh-actions
+          # No push back to outcomeeng/gh-actions from this step — drop the
+          # default token persistence so a later step can't reuse it.
+          persist-credentials: false
 
       - name: Derive Claude plugins and marketplaces
         id: plugins

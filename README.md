@@ -47,7 +47,8 @@ permissions:
 
 jobs:
   claude:
-    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@main
+    # Pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@d73bd5470607baa91959ad57691895669f3fe615 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -66,10 +67,12 @@ permissions:
   pull-requests: write
   issues: write
   id-token: write
+  actions: read # so the reusable can read referenced_workflows to resolve the gh-actions SHA
 
 jobs:
   review:
-    uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@main
+    # Pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@d73bd5470607baa91959ad57691895669f3fe615 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -118,7 +121,7 @@ jobs:
 | `show_full_output`    | `false`                 | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                    |
 | `timeout_minutes`     | `"15"`                  | Wall-clock budget (minutes) for the Run Claude Code Review step (minimum 1)                                         |
 
-`spec-tree.yml` is a transparent pass-through to `claude.yml` — every input default is identical, and the wrapper exists only to give spec-tree consumers a stable name that won't drift if the generic mention defaults change. `spec-tree-review.yml` is behaviorally distinct from `claude-code-review.yml`: it bakes in a `REVIEW.md`-aware review prompt (so `custom_prompt` is not exposed as an input) and extends the baseline allowlist with `Bash(sed:*),Bash(grep:*),Bash(head:*)`. Every other shared input forwards through with the base's default.
+`spec-tree.yml` forwards all inputs to `claude.yml` and matches every default except one: `trigger_phrase` defaults to `@spec-tree` (vs `@claude` on the base) so a repo with both callers installed routes mentions to the right workflow — the same `@claude` mention would otherwise fire both. The wrapper otherwise exists to give spec-tree consumers a stable name that won't drift if the generic mention defaults change. `spec-tree-review.yml` is behaviorally distinct from `claude-code-review.yml`: it bakes in a `REVIEW.md`-aware review prompt (so `custom_prompt` is not exposed as an input), extends the baseline allowlist with `Bash(sed:*),Bash(grep:*),Bash(head:*)`, and defaults `trigger_phrase` to `@spec-tree` for consistency with the mention wrapper (the review wrapper does not gate on the phrase but forwards it to the action).
 
 ## Plugins and marketplaces
 
@@ -181,7 +184,8 @@ jobs:
   claude:
     # Replace alice and bob with trusted accounts not on the repo's collaborators list.
     if: github.event.issue.pull_request && contains(fromJSON('["alice", "bob"]'), github.actor)
-    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@main
+    # Pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@d73bd5470607baa91959ad57691895669f3fe615 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
@@ -220,14 +224,76 @@ git rebase origin/main
 
 ## Security
 
-Both workflows include authorization checks. The `authorize` job queries `repos/{owner}/{repo}/collaborators/{actor}/permission` and the downstream Claude job runs only when the actor's effective permission is `admin`, `maintain`, or `write` — see [Authorization](#authorization) for the full mechanism and the rationale for replacing the earlier `author_association` gate.
+This repository follows [GitHub's hardening guide for GitHub Actions](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) and the OpenSSF baseline. The rules below apply to **both** this repository and any caller workflow that consumes one of its reusables.
 
-**Best practices:**
+### Pin everything by full-length commit SHA
 
-- Keep `use_project_plugins` off (the default) unless the project plugins are appropriate for review or mention runs, and widen the allowlist (`append_allow_list` / `override_allow_list` on review, `claude_args` on mention) to match the tools those plugins' skills demand
-- Narrow `claude_args` (mention) or `append_allow_list` / `override_allow_list` (review) to the minimum the workflow needs; the review wrapper's baked-in allowlist covers `gh issue`/`gh pr` read and `gh pr comment`
-- Never set `self-hosted` runner labels on public repos or repos that accept PRs from untrusted forks (the runner host is shared across runs)
-- Rotate `CLAUDE_CODE_OAUTH_TOKEN` if compromise is suspected
+Every `uses:` reference — actions and reusable workflows alike — is pinned by a full-length 40-character commit SHA. Tags (`@v1`, `@v1.2.3`) and branches (`@main`) are mutable references; an attacker who gains write access to the publishing repo can move them after release. A SHA is the only reference that cannot be redirected after the fact.
+
+```yaml
+# Correct
+uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@d73bd5470607baa91959ad57691895669f3fe615 # main
+
+# Forbidden
+uses: actions/checkout@v6
+uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@main
+```
+
+The trailing `# v6.0.2` / `# main` comment names the tag or branch the SHA tracks. Renovate uses that comment to know which upstream reference to follow when advancing the pin.
+
+### Renovate keeps pins fresh
+
+[Renovate](https://docs.renovatebot.com/) is the recommended update mechanism — Dependabot also supports SHA pinning, but Renovate's `helpers:pinGitHubActionDigests` preset handles both the SHA and the trailing comment in one pass and groups action updates intelligently. This repository's `renovate.json` is configured for the recommended baseline (`config:recommended` + the digest helper). Enable Renovate on your caller repo by installing the [Renovate GitHub App](https://github.com/apps/renovate) and copying a similar config:
+
+```json
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "vulnerabilityAlerts": { "enabled": true }
+}
+```
+
+Running both Renovate and Dependabot against the same files produces conflicting PRs — pick one.
+
+### Least-privilege `permissions:`
+
+Leaf reusables (`claude.yml`, `claude-code-review.yml`) and `ci.yml` declare top-level `permissions: {}` and then grant per-job permissions explicitly. The wrapper workflows (`spec-tree.yml`, `spec-tree-review.yml`) deliberately omit a top-level `permissions:` block: workflow_call's permission model is an intersection, so `permissions: {}` on a wrapper zeros the chain and the called workflow's job requests fail at startup.
+
+Caller workflows should declare top-level `permissions:` with the maximum the reusable needs. The quick-start examples list the exact permissions each reusable expects.
+
+Grants visible in this repo's quick-start examples are the maximum a caller should declare; tighten further if your project doesn't need a given grant.
+
+### Never leak secrets through `run:` blocks
+
+Pass secrets via `with:` inputs (to the action) or via `env:` (when needed in a shell). Never `${{ secrets.X }}` directly inside a `run:` script — interpolation happens before the shell sees the line, which means a maliciously-crafted secret can break out of quoting. The same rule applies to user-controlled inputs (`github.event.*`, `inputs.*`).
+
+### `actionlint` + `shellcheck` enforce these patterns
+
+Both linters run on every push and PR via [`.github/workflows/ci.yml`](.github/workflows/ci.yml). They also run locally:
+
+```bash
+brew install just actionlint shellcheck   # macOS
+# (Linux: apt-get install shellcheck; install actionlint per its release notes)
+
+just check
+```
+
+`actionlint` flags unpinned actions, deprecated inputs, and shell-injection-prone interpolation; `shellcheck` audits inline `run:` scripts (and standalone shell files under `scripts/`).
+
+### Authorization (this repo's reusables)
+
+The `authorize` job in each reusable queries `repos/{owner}/{repo}/collaborators/{actor}/permission` and the downstream Claude job runs only when the actor's effective permission is `admin`, `maintain`, or `write` — see [Authorization](#authorization) for the full mechanism and the rationale for replacing the earlier `author_association` gate.
+
+### Operational best practices
+
+- Keep `use_project_plugins` off (the default) unless the project plugins are appropriate for review or mention runs, and widen the allowlist (`append_allow_list` / `override_allow_list` on review, `claude_args` on mention) to match the tools those plugins' skills demand.
+- Narrow `claude_args` (mention) or `append_allow_list` / `override_allow_list` (review) to the minimum the workflow needs; the review wrapper's baked-in allowlist covers `gh issue` / `gh pr` read and `gh pr comment`.
+- Never set `self-hosted` runner labels on public repos or repos that accept PRs from untrusted forks — the runner host is shared across runs.
+- Rotate `CLAUDE_CODE_OAUTH_TOKEN` if compromise is suspected.
 
 ## OpenAI Cloud Code Review
 

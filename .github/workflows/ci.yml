@@ -1,0 +1,61 @@
+# Lint workflows (actionlint) and shell scripts (shellcheck) on every push
+# and pull request. Mirrors what `just check` runs locally.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Deny-all default; the lint job grants itself the bare minimum.
+permissions: {}
+
+jobs:
+  lint:
+    name: Lint workflows and shell scripts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      # Install actionlint by downloading the release archive AND the official
+      # checksums manifest from the same release, then verifying with sha256sum.
+      # Renovate tracks ACTIONLINT_VERSION via the customManagers rule in
+      # renovate.json; the SHA256 is read from the release's checksums.txt at
+      # install time, so no hardcoded digest needs to advance with each bump.
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: "1.7.12" # renovate: datasource=github-releases depName=rhysd/actionlint
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          checksums="actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          base="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"
+          curl --silent --show-error --fail --location --output "${archive}"   "${base}/${archive}"
+          curl --silent --show-error --fail --location --output "${checksums}" "${base}/${checksums}"
+          sha256sum --check --ignore-missing --strict "${checksums}"
+          tar -xzf "${archive}" actionlint
+          install -m 0755 actionlint /usr/local/bin/actionlint
+          actionlint -version
+
+      - name: Run actionlint
+        run: actionlint -color
+
+      # Inline `run:` blocks inside workflow YAML are already linted by the
+      # actionlint step above (actionlint invokes shellcheck on each block).
+      # This step covers only standalone shell scripts under scripts/.
+      - name: Run shellcheck on standalone shell scripts
+        run: |
+          set -euo pipefail
+          if find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print -quit 2>/dev/null | grep -q .; then
+            find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 shellcheck --color=always
+          else
+            echo "No shell scripts under scripts/ — skipping shellcheck."
+          fi
