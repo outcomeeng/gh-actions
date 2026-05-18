@@ -13,14 +13,14 @@ gh-actions/
 │   │   └── derive-claude-plugins/        # Resolve plugins from settings.json + inputs
 │   └── workflows/
 │       ├── ci.yml                        # actionlint + shellcheck on every push and PR
-│       ├── claude.yml                    # Reusable @claude mention handler
-│       ├── claude-code-review.yml        # Reusable automatic PR review
-│       ├── spec-tree.yml                 # Reusable mention wrapper with spec-tree defaults
-│       ├── spec-tree-review.yml          # Reusable review wrapper with REVIEW.md-aware prompt
-│       ├── claude-repo.yml               # Self-test caller (mention)
-│       ├── claude-code-review-repo.yml   # Self-test caller (review)
+│       ├── spec-tree.yml                 # PRIMARY: @spec-tree mention handler (recommended for new repos)
+│       ├── spec-tree-review.yml          # PRIMARY: PR review with REVIEW.md-aware prompt
+│       ├── claude.yml                    # Compatibility-only: generic @claude mention handler
+│       ├── claude-code-review.yml        # Compatibility-only: generic PR review (caller supplies prompt)
 │       ├── spec-tree-repo.yml            # Self-test caller (spec-tree mention)
-│       └── spec-tree-review-repo.yml     # Self-test caller (spec-tree review)
+│       ├── spec-tree-review-repo.yml     # Self-test caller (spec-tree review)
+│       ├── claude-repo.yml               # Self-test caller (generic mention)
+│       └── claude-code-review-repo.yml   # Self-test caller (generic review)
 ├── examples/
 │   └── caller-workflows/                 # Copy-paste templates for downstream repos
 ├── AGENTS.md                             # Cloud review guidance

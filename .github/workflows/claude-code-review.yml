@@ -1,5 +1,12 @@
 # Reusable Claude Code Review workflow for automatic PR reviews
 #
+# Status: COMPATIBILITY-ONLY. New repositories should use spec-tree-review.yml
+# instead — it bakes in a REVIEW.md-aware review prompt and extends the
+# baseline allowlist for the diff-chunking workflow. This generic workflow
+# stays supported for callers that need to supply a fully custom prompt via
+# the `custom_prompt` input (which spec-tree-review.yml deliberately does
+# not expose).
+#
 # Usage in caller workflow:
 #
 #   on:
