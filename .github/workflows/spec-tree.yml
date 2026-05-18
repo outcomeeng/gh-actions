@@ -158,7 +158,7 @@ jobs:
     needs: authorize
     if: needs.authorize.outputs.authorized == 'true'
     concurrency:
-      group: spec-tree-${{ github.event.issue.number || github.event.pull_request.number }}
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
       cancel-in-progress: ${{ inputs.concurrency_cancel }}
     runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
@@ -320,6 +320,12 @@ jobs:
         uses: anthropics/claude-code-action@51ea8ea73a139f2a74ff649e3092c25a904aed7e # v1.0.123
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Grant Claude the `actions: read` capability for the duration of
+          # the run. Mention runs are open-ended — a user may ask "why did
+          # CI fail" — so the model needs to query workflow run state via
+          # `gh api repos/.../actions/runs/...`. The review workflow does
+          # not set `additional_permissions:` because its prompt is narrowly
+          # scoped to posting one comment and never introspects runs.
           additional_permissions: |
             actions: read
           prompt: ${{ inputs.custom_prompt }}
