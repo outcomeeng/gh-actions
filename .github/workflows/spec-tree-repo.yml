@@ -1,6 +1,6 @@
 # Run the spec-tree mention reusable on this repository as a self-test.
 
-name: Claude Code Spec Tree Repo
+name: Spec Tree
 
 on:
   issue_comment:

@@ -1,6 +1,6 @@
 # Run the reusable Claude Code mention workflow on this repository.
 
-name: Claude Code Repo
+name: Claude Code
 
 on:
   issue_comment:
