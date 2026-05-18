@@ -7,16 +7,25 @@ Reusable GitHub Actions workflows for Claude Code integration.
 ```
 gh-actions/
 ├── .github/
+│   ├── actions/
+│   │   ├── apply-additional-env/         # Compose additional env JSON onto the action step
+│   │   ├── compose-claude-args/          # Build the action's claude_args + allowlist
+│   │   └── derive-claude-plugins/        # Resolve plugins from settings.json + inputs
+│   ├── dependabot.yml                    # github-actions ecosystem updates
 │   └── workflows/
-│       ├── claude.yml                     # Reusable @claude mention handler
-│       ├── claude-code-review.yml         # Reusable automatic PR review
-│       ├── claude-repo.yml                # Repo-local mention caller
-│       └── claude-code-review-repo.yml    # Repo-local PR review caller
+│       ├── claude.yml                    # Reusable @claude mention handler
+│       ├── claude-code-review.yml        # Reusable automatic PR review
+│       ├── spec-tree.yml                 # Reusable mention wrapper with spec-tree defaults
+│       ├── spec-tree-review.yml          # Reusable review wrapper with REVIEW.md-aware prompt
+│       ├── claude-repo.yml               # Self-test caller (mention)
+│       ├── claude-code-review-repo.yml   # Self-test caller (review)
+│       ├── spec-tree-repo.yml            # Self-test caller (spec-tree mention)
+│       └── spec-tree-review-repo.yml     # Self-test caller (spec-tree review)
 ├── examples/
-│   └── caller-workflows/           # Example workflows for consuming repos
-├── AGENTS.md                       # Cloud review guidance
-├── CLAUDE.md                       # This file
-└── README.md                       # User documentation
+│   └── caller-workflows/                 # Copy-paste templates for downstream repos
+├── AGENTS.md                             # Cloud review guidance
+├── CLAUDE.md                             # This file
+└── README.md                             # User documentation
 ```
 
 ## Workflow Design Principles
@@ -30,8 +39,10 @@ gh-actions/
 
 ### Testing Changes
 
+The `*-repo.yml` workflows in `.github/workflows/` are an in-repo self-test harness: each uses `uses: ./.github/workflows/<name>.yml` so a branch push exercises the reusables against this repository's own issues, comments, and PRs. Use this for fast-feedback testing; use an external test repo (steps below) to validate the `@<ref>` consumption path.
+
 1. Push changes to a branch
-2. Update a test repo to use `@branch-name` instead of `@main`
+2. Either (a) mention `@claude` on an issue or PR in this repo / open a PR (the `*-repo.yml` callers fire the reusables locally), or (b) update an external test repo to use `@branch-name` instead of `@main`
 3. Trigger the workflow and verify behavior
 4. Merge to main when satisfied
 

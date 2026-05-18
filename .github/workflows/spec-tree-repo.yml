@@ -31,8 +31,9 @@ jobs:
       # the quoted fallback both pass through unchanged.
       timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '15' }}
       # gh-actions's own .claude/settings.json enables prose@outcomeeng and
-      # spec-tree@outcomeeng, so use_project_plugins (defaults to true) will
-      # list both for installation. No `extraKnownMarketplaces` is declared,
-      # however, so the marketplace list passed to claude-code-action is
-      # empty — this self-test exercises the workflow plumbing rather than
-      # asserting a successful plugin install.
+      # spec-tree@outcomeeng, but `use_project_plugins` defaults to false on
+      # both `spec-tree.yml` and `claude.yml`, so this self-test exercises
+      # the trigger/auth plumbing without installing project plugins. To
+      # exercise the plugin-install path end-to-end, set
+      # `use_project_plugins: true` below AND register marketplaces under
+      # `extraKnownMarketplaces` in `.claude/settings.json`.
