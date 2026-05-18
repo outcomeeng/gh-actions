@@ -4,7 +4,7 @@
 # event always fires on a SHA that the previous opened/synchronize already
 # reviewed, so subscribing to it would duplicate every promotion review.
 
-name: Claude Code Review Repo
+name: Claude Code Review
 
 on:
   pull_request:
