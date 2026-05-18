@@ -313,7 +313,11 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        timeout-minutes: ${{ inputs.timeout_minutes }}
+        # `inputs.timeout_minutes` is declared as a string (so callers can
+        # forward a `vars.*` value directly), but step-level `timeout-minutes:`
+        # rejects string values outright. fromJSON() parses "15" back to the
+        # integer 15 that the field expects.
+        timeout-minutes: ${{ fromJSON(inputs.timeout_minutes) }}
         uses: anthropics/claude-code-action@51ea8ea73a139f2a74ff649e3092c25a904aed7e # v1.0.123
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

@@ -104,11 +104,20 @@ on:
 
 jobs:
   authorize:
+    # `github.event.sender.type != 'Bot'` suppresses self-triggering: when
+    # claude-code-review posts a comment containing the trigger phrase (e.g.
+    # quoting another comment, or rendering the prompt's instructions), the
+    # comment fires `issue_comment.created`. Without this guard the mention
+    # workflow would re-enter on every bot comment that happens to contain
+    # `@claude`, polluting the runs list with 2-second skipped runs and
+    # risking actual re-entry loops.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, inputs.trigger_phrase)) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, inputs.trigger_phrase)) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, inputs.trigger_phrase)) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, inputs.trigger_phrase) || contains(github.event.issue.title, inputs.trigger_phrase)))
+      github.event.sender.type != 'Bot' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, inputs.trigger_phrase)) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, inputs.trigger_phrase)) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, inputs.trigger_phrase)) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, inputs.trigger_phrase) || contains(github.event.issue.title, inputs.trigger_phrase)))
+      )
     runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
       contents: read
@@ -206,7 +215,11 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        timeout-minutes: ${{ inputs.timeout_minutes }}
+        # `inputs.timeout_minutes` is declared as a string (so callers can
+        # forward a `vars.*` value directly), but step-level `timeout-minutes:`
+        # rejects string values outright. fromJSON() parses "15" back to the
+        # integer 15 that the field expects.
+        timeout-minutes: ${{ fromJSON(inputs.timeout_minutes) }}
         uses: anthropics/claude-code-action@51ea8ea73a139f2a74ff649e3092c25a904aed7e # v1.0.123
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
