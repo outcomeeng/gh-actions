@@ -44,7 +44,7 @@ on:
       concurrency_cancel:
         description: "Cancel in-progress reviews when PR is updated."
         type: boolean
-        default: false
+        default: true
       custom_prompt:
         description: "Custom review prompt (replaces the default review prompt)."
         type: string

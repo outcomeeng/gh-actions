@@ -31,9 +31,11 @@ jobs:
     # admin, maintain, or write permission on this repository (queried via the
     # GitHub API). External contributors are rejected with a clear error.
     #
-    # Uncomment and modify to customize:
+    # Uncomment and modify to customize. The reusable defaults
+    # `concurrency_cancel` to `true`; set it to `false` to let in-flight
+    # reviews complete on push.
     # with:
-    #   concurrency_cancel: true
+    #   concurrency_cancel: false
     #   custom_prompt: |
     #     REPO: ${{ github.repository }}
     #     PR NUMBER: ${{ github.event.pull_request.number }}

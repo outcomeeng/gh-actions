@@ -1,4 +1,4 @@
-# Reusable Claude Code Spec Tree Review workflow.
+# Reusable Spec Tree Review workflow.
 #
 # Wraps `claude-code-review.yml` with spec-tree-specific defaults:
 #
@@ -31,7 +31,7 @@
 # should call `claude-code-review.yml` directly instead — this wrapper is
 # opinionated about both.
 
-name: Claude Code Spec Tree Review
+name: Spec Tree Review
 
 on:
   workflow_call:

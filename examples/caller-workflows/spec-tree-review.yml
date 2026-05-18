@@ -7,7 +7,7 @@
 #    taxonomy and comment shape; absent the file, the embedded
 #    BLOCKING/DEBT/FOLLOW-UP taxonomy is used.
 
-name: Claude Code Spec Tree Review
+name: Spec Tree Review
 
 on:
   pull_request:
@@ -32,9 +32,11 @@ jobs:
     # admin, maintain, or write permission on this repository (queried via the
     # GitHub API). External contributors are rejected with a clear error.
     #
-    # Uncomment and modify to customize:
+    # Uncomment and modify to customize. The reusable defaults
+    # `concurrency_cancel` to `true`; set it to `false` to let in-flight
+    # reviews complete on push.
     # with:
-    #   concurrency_cancel: true
+    #   concurrency_cancel: false
     #
     # Wall-clock budget for the Run Claude Code Review step (default 15 in
     # the reusable workflow). Set to a tighter value when running on
