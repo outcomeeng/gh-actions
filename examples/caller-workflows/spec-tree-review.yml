@@ -29,6 +29,10 @@ jobs:
     # Pin to a full-length commit SHA per GitHub's hardening guidance — never @main or @v1.
     # Renovate keeps this SHA current; the trailing `# main` comment is the branch
     # Renovate tracks. See README "Security" for the full rationale.
+    #
+    # Beta-tester consumers (internal repos deliberately tracking-latest) MAY
+    # swap this for `@main` with a `# BETA TESTER:` marker comment — see the
+    # documented exception in README "Security → Documented exception".
     uses: outcomeeng/gh-actions/.github/workflows/spec-tree-review.yml@1f897fc3ec53452b83f7bb789636a0ff2b591c69 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
