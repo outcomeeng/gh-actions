@@ -36,7 +36,7 @@ jobs:
     #
     # Uncomment and modify to customize:
     # with:
-    #   trigger_phrase: '@bot'
+    #   trigger_phrase: '@claude'
     #   concurrency_cancel: false
     #
     # Wall-clock budget for the Run Claude Code step (default 15 in the
