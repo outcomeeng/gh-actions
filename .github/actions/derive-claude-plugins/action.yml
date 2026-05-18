@@ -88,8 +88,6 @@ runs:
               | "https://github.com/" + .value.source.repo + ".git"
             ' .claude/settings.json)
           fi
-        elif [[ -f .claude/settings.json ]]; then
-          echo "::notice::.claude/settings.json found but use_project_plugins is false; its enabledPlugins and extraKnownMarketplaces are ignored. Set use_project_plugins: true to opt in, or list specific plugins via extra_plugins and marketplaces via plugin_marketplaces."
         fi
 
         # Quoted array expansion so the documented space-separated inputs
