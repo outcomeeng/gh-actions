@@ -15,6 +15,7 @@ permissions:
   pull-requests: write
   issues: write
   id-token: write
+  actions: read # so the reusable can read referenced_workflows to resolve the gh-actions SHA
 
 jobs:
   spec-tree-review:

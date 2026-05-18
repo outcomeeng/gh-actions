@@ -23,7 +23,7 @@
 #
 #   jobs:
 #     spec-tree-review:
-#       uses: outcomeeng/gh-actions/.github/workflows/spec-tree-review.yml@main
+#       uses: outcomeeng/gh-actions/.github/workflows/spec-tree-review.yml@<full-commit-sha> # main
 #       secrets:
 #         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 #
@@ -71,9 +71,13 @@ on:
         type: string
         default: ""
       trigger_phrase:
-        description: "Trigger phrase for @-mention activation."
+        description: |
+          Trigger phrase forwarded to the action. The review wrapper does not
+          use this to gate the run (review fires on every pull_request event),
+          but the phrase is passed to the action for content-matching. Defaults
+          to `@spec-tree` for consistency with the mention wrapper.
         type: string
-        default: "@claude"
+        default: "@spec-tree"
       use_bedrock:
         description: "Route Claude through Amazon Bedrock."
         type: boolean
@@ -120,6 +124,12 @@ on:
       CLAUDE_CODE_OAUTH_TOKEN:
         description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true."
         required: false
+
+# No top-level `permissions:` on this wrapper. Setting it to `{}` would zero
+# the permission chain for the called workflow (claude-code-review.yml),
+# causing every downstream job's permission request to be denied at startup.
+# The called workflow declares its own per-job permissions; the caller
+# workflow's `permissions:` block sets the maximum.
 
 jobs:
   spec-tree-review:

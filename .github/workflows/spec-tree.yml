@@ -24,7 +24,7 @@
 #
 #   jobs:
 #     spec-tree:
-#       uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@main
+#       uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@<full-commit-sha> # main
 #       secrets:
 #         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
@@ -38,9 +38,13 @@ on:
         type: string
         default: ubuntu-slim
       trigger_phrase:
-        description: "Text that triggers the workflow."
+        description: |
+          Text that triggers the workflow. Defaults to `@spec-tree` so a repo
+          that also installs the generic `claude.yml` caller (which defaults to
+          `@claude`) routes mentions to the right workflow — same `@claude`
+          mention would otherwise fire both callers.
         type: string
-        default: "@claude"
+        default: "@spec-tree"
       concurrency_cancel:
         description: "Cancel in-progress runs when a new mention arrives."
         type: boolean
@@ -103,6 +107,12 @@ on:
       CLAUDE_CODE_OAUTH_TOKEN:
         description: "Claude Code OAuth token. Not required when use_bedrock or use_vertex is true."
         required: false
+
+# No top-level `permissions:` on this wrapper. Setting it to `{}` would zero
+# the permission chain for the called workflow (claude.yml), causing every
+# downstream job's permission request to be denied at startup. The called
+# workflow declares its own per-job permissions; the caller workflow's
+# `permissions:` block sets the maximum.
 
 jobs:
   spec-tree:
