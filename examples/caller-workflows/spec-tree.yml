@@ -31,7 +31,7 @@ jobs:
     # Pin to a full-length commit SHA per GitHub's hardening guidance — never @main or @v1.
     # Renovate keeps this SHA current; the trailing `# main` comment is the branch
     # Renovate tracks. See README "Security" for the full rationale.
-    uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@d73bd5470607baa91959ad57691895669f3fe615 # main
+    uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@762dbe20ebd46f46a5868e1b0a2f20f4ea53c1ab # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     # Authorization is automatic: the workflow accepts any actor with admin,

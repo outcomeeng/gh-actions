@@ -1,5 +1,11 @@
 # Reusable Claude Code workflow for @claude mentions
 #
+# Status: COMPATIBILITY-ONLY. New repositories should use spec-tree.yml
+# instead — it triggers on `@spec-tree`, doesn't collide with this workflow
+# if both are installed, and is the recommended path for spec-tree
+# methodology consumers. This generic workflow stays supported for callers
+# that need `@claude` as their mention trigger phrase.
+#
 # Usage in caller workflow:
 #
 #   on:
