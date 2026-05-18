@@ -33,7 +33,7 @@ jobs:
     #
     # Uncomment and modify to customize:
     # with:
-    #   trigger_phrase: '@bot'
+    #   trigger_phrase: '@claude'
     #   concurrency_cancel: false
     #   claude_args: '--allowed-tools "Read,Grep,Glob,Bash(gh pr:*)"'
     #
