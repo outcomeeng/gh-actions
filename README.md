@@ -251,6 +251,27 @@ uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@main
 
 The trailing `# v6.0.2` / `# main` comment names the tag or branch the SHA tracks. Renovate uses that comment to know which upstream reference to follow when advancing the pin.
 
+#### Documented exception: beta-tester consumers
+
+Repositories that are deliberately tracking-latest against `outcomeeng/gh-actions` — typically internal repos under the same trust boundary as the reusables, used to surface upstream changes early before they go out to production consumers — MAY pin to `@main` instead of a SHA. This is an opt-out from rule 1 above, not a blanket weakening of it. The opt-out requires:
+
+1. The consumer repo is under the same organizational trust boundary as `outcomeeng/gh-actions` (i.e. you, or someone you'd already trust with write access to the reusable repo, controls both).
+2. The caller workflow carries an explicit `# BETA TESTER:` marker comment naming the trade-off, so a future reader can tell the relaxed pin is intentional rather than a regression.
+3. The repo accepts that a compromise of the publishing branch propagates immediately, with no Renovate PR or human review intervening. For repos that hold production secrets or customer data, this is the wrong trade-off — SHA-pin.
+
+Recommended template:
+
+```yaml
+# BETA TESTER: deliberately tracks outcomeeng/gh-actions @main to surface
+# upstream changes early without a per-release follow-up PR. Production
+# callers must SHA-pin per the gh-actions README "Security" section.
+# Renovate cannot advance this reference; that is the point — pin it back
+# to a SHA when this repo graduates to production usage.
+uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@main
+```
+
+The example caller templates in this repository (`examples/caller-workflows/`) ship SHA-pinned by default — they target the production-consumer path. Beta-tester consumers should copy the template, then change the pin to `@main` with the marker comment above.
+
 ### Renovate keeps pins fresh
 
 [Renovate](https://docs.renovatebot.com/) is the recommended update mechanism — Dependabot also supports SHA pinning, but Renovate's `helpers:pinGitHubActionDigests` preset handles both the SHA and the trailing comment in one pass and groups action updates intelligently. This repository's `renovate.json` is configured for the recommended baseline (`config:recommended` + the digest helper). Enable Renovate on your caller repo by installing the [Renovate GitHub App](https://github.com/apps/renovate) and copying a similar config:
