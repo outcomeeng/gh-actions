@@ -40,10 +40,11 @@ jobs:
     # Wall-clock budget for the Run Claude Code step (default 15 in the
     # reusable workflow). Set to a tighter value when running on self-hosted
     # runners so a hung mention frees the slot quickly:
-    #   timeout_minutes: 5
+    #   timeout_minutes: '5'
     # Or gate it on a repo variable so you can adjust without editing this
-    # file (Settings → Secrets and variables → Actions → Variables):
-    #   timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || 15 }}
+    # file (Settings → Secrets and variables → Actions → Variables). The
+    # input is typed `string` so quoted forms pass through unchanged:
+    #   timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '15' }}
     # Minimum 1; GitHub Actions silently rejects `0` at runtime.
     #
     # Plugins from .claude/settings.json are NOT installed by default. Plugin
