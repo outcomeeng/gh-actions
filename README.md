@@ -119,20 +119,41 @@ For complete copy-paste templates with every override documented inline, see `ex
 
 ### Per-environment overrides via repo variables
 
-Several inputs are commonly tuned per-environment (one repo runs on `self-hosted`, another on `ubuntu-latest`; one tolerates 15-minute reviews, another caps at 5; one opts in to project plugins, another doesn't). The example caller templates wire these inputs through GitHub Actions repository variables (`vars.*`) so you can flip them in repo Settings → Secrets and variables → Actions → Variables without editing the workflow file.
+The example caller templates are **drop-in**: copy the file, set the repository secret, and the workflow runs with sensible defaults. To tune behavior per-environment, set the corresponding repository variable in Settings → Secrets and variables → Actions → Variables. The `with:` block in each template is active and reads `vars.SPEC_TREE_*` (mention) or `vars.SPEC_TREE_REVIEW_*` (review) values, falling back to the reusable's documented default when the variable is unset — no edits to the workflow file are needed.
 
-| Repo variable                          | Maps to               | Default if unset | Notes                                                                                          |
-| -------------------------------------- | --------------------- | ---------------- | ---------------------------------------------------------------------------------------------- |
-| `SPEC_TREE_RUNNER`                     | `runner` (mention)    | `ubuntu-slim`    | Single label or JSON-array string. `'["self-hosted","laptop"]'` is one literal string.         |
-| `SPEC_TREE_REVIEW_RUNNER`              | `runner` (review)     | `ubuntu-slim`    | Same.                                                                                          |
-| `SPEC_TREE_CONCURRENCY_CANCEL`         | `concurrency_cancel`  | `true`           | Set the string `'false'` to opt out of cancel-on-new. Anything else preserves cancel behavior. |
-| `SPEC_TREE_REVIEW_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Same, review side.                                                                             |
-| `SPEC_TREE_TIMEOUT_MINUTES`            | `timeout_minutes`     | `'15'`           | Wall-clock budget in minutes (quoted string).                                                  |
-| `SPEC_TREE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Same.                                                                                          |
-| `SPEC_TREE_USE_PROJECT_PLUGINS`        | `use_project_plugins` | `false`          | Set the string `'true'` to opt in. Anything else (including unset) keeps the default off.      |
-| `SPEC_TREE_REVIEW_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Same; usually combined with widening `append_allow_list` to match the plugin's tool needs.     |
+Mention workflow (`spec-tree.yml`):
 
-Inputs **not** gated via `vars.*` in the example: `trigger_phrase` (security-adjacent — explicit edit reviewed by maintainers is safer), `custom_prompt` (multi-line), `additional_env` (structured JSON), `use_bedrock` / `use_vertex` (only meaningful when paired with `additional_env` for cloud auth), and the plugin / allow-list lists (rarely change per-environment). Nothing prevents you from wiring those to `vars.*` too in your caller — the example just omits them to keep the template tight.
+| Repo variable                   | Maps to               | Default if unset | Notes                                                                                                                  |
+| ------------------------------- | --------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `SPEC_TREE_RUNNER`              | `runner`              | `ubuntu-slim`    | Single label or JSON-array string. `'["self-hosted","laptop"]'` is one literal string.                                 |
+| `SPEC_TREE_TRIGGER_PHRASE`      | `trigger_phrase`      | `@spec-tree`     | Mention text the workflow listens for.                                                                                 |
+| `SPEC_TREE_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Set the string `'false'` to opt out of cancel-on-new. Any other value preserves cancel behavior.                       |
+| `SPEC_TREE_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Wall-clock budget in minutes (quoted string).                                                                          |
+| `SPEC_TREE_MODEL`               | `model`               | (action default) | Claude model id (e.g. `claude-opus-4-7`); folded into `claude_args` as `--model <id>`.                                 |
+| `SPEC_TREE_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args, e.g. `--max-turns 20 --allowed-tools "Read,Grep,Bash(gh pr:*)"`.                                       |
+| `SPEC_TREE_CUSTOM_PROMPT`       | `custom_prompt`       | (empty)          | Single-line custom prompt. Multi-line prompts are awkward in repo vars; edit the workflow file directly for those.     |
+| `SPEC_TREE_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install plugins declared in `.claude/settings.json`. Any other value (or unset) keeps the default off. |
+| `SPEC_TREE_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Set `'true'` to stream per-turn JSON to the job log. WARNING: may expose secrets in tool outputs. Debug only.          |
+
+Review workflow (`spec-tree-review.yml`):
+
+| Repo variable                          | Maps to               | Default if unset | Notes                                                                                                                                                         |
+| -------------------------------------- | --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SPEC_TREE_REVIEW_RUNNER`              | `runner`              | `ubuntu-slim`    | Same form as mention.                                                                                                                                         |
+| `SPEC_TREE_REVIEW_TRIGGER_PHRASE`      | `trigger_phrase`      | `@spec-tree`     | Forwarded to the action for content matching; review fires on every `pull_request` event regardless.                                                          |
+| `SPEC_TREE_REVIEW_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Same semantics as mention.                                                                                                                                    |
+| `SPEC_TREE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Same.                                                                                                                                                         |
+| `SPEC_TREE_REVIEW_MODEL`               | `model`               | (action default) | Same.                                                                                                                                                         |
+| `SPEC_TREE_REVIEW_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args OTHER than `--allowed-tools` (use the allow-list inputs below for tool changes).                                                               |
+| `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST`   | `append_allow_list`   | (empty)          | Comma-separated patterns appended to the baked-in baseline (`Bash(gh ...) + Bash(sed:*),Bash(grep:*),Bash(head:*)`). Widen when opting in to project plugins. |
+| `SPEC_TREE_REVIEW_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install project plugins; pair with `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST` so the plugin's tools are reachable.                                  |
+| `SPEC_TREE_REVIEW_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Same warning as mention.                                                                                                                                      |
+
+Inputs **left commented in the example template** (active when uncommented):
+
+- `override_allow_list` (review) — replaces the entire baked-in allowlist; silently drops the `sed`/`grep`/`head` defaults the baked-in prompt depends on. Use `append_allow_list` unless you have a hard reason to start from zero.
+- `use_bedrock` / `use_vertex` / `additional_env` — cloud-provider routing. Coupled inputs (set all three together) and requires the calling workflow to configure AWS or GCP auth before this job. Uncomment as a unit.
+- `plugin_marketplaces` / `extra_plugins` — explicit install lists. Rarely change per-environment; set directly to opt in without using vars.
 
 ## Plugins and marketplaces
 
