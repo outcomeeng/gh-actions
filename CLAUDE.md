@@ -11,8 +11,12 @@ gh-actions/
 │       ├── ci.yml                        # actionlint + shellcheck on every push and PR
 │       ├── spec-tree.yml                 # @spec-tree mention handler (reusable)
 │       ├── spec-tree-review.yml          # PR review with REVIEW.md-aware prompt (reusable)
+│       ├── claude.yml                    # @claude mention handler (reusable)
+│       ├── claude-code-review.yml        # Generic Claude PR review (reusable)
 │       ├── spec-tree-repo.yml            # Self-test caller (spec-tree mention)
-│       └── spec-tree-review-repo.yml     # Self-test caller (spec-tree review)
+│       ├── spec-tree-review-repo.yml     # Self-test caller (spec-tree review)
+│       ├── claude-repo.yml               # Self-test caller (Claude mention)
+│       └── claude-code-review-repo.yml   # Self-test caller (Claude review)
 ├── examples/
 │   └── caller-workflows/                 # Copy-paste templates for downstream repos
 ├── AGENTS.md                             # Cloud review guidance
@@ -37,7 +41,7 @@ gh-actions/
 The `*-repo.yml` workflows in `.github/workflows/` are an in-repo self-test harness: each uses `uses: ./.github/workflows/<name>.yml` so a branch push exercises the reusables against this repository's own issues, comments, and PRs. Use this for fast-feedback testing; use an external test repo (steps below) to validate the `@<ref>` consumption path.
 
 1. Push changes to a branch
-2. Either (a) mention `@spec-tree` on an issue or PR in this repo (fires `spec-tree-repo.yml`) / open a PR (fires `spec-tree-review-repo.yml`), or (b) update an external test repo to use `@branch-name` instead of `@main`
+2. Either (a) mention `@spec-tree` or `@claude` on an issue or PR in this repo (fires `spec-tree-repo.yml` or `claude-repo.yml`) / open a PR (fires `spec-tree-review-repo.yml` and `claude-code-review-repo.yml`), or (b) update an external test repo to use `@branch-name` instead of `@main`
 3. Trigger the workflow and verify behavior
 4. Merge to main when satisfied
 
@@ -58,7 +62,7 @@ The repo's security posture follows [GitHub's hardening guide](https://docs.gith
 
 1. **Every third-party action and reusable workflow is pinned by full-length commit SHA**, not by `@v1` or `@main`. Tags and branches are mutable; a SHA is the only reference an attacker can't redirect after publication. Each pin carries a trailing comment naming the tag or branch the SHA tracks (`@<sha> # v1.2.3` or `@<sha> # main`); Renovate uses that comment to advance the pin on each release. **Documented exception**: consumer repos that act as upstream beta-testers under the same trust boundary as `outcomeeng/gh-actions` MAY pin to `@main` with an explicit `# BETA TESTER:` marker — see README "Security → Documented exception" for the conditions and limits. Inside this repo, SHA-pinning admits no exception.
 2. **Renovate is the single update mechanism**, configured at `renovate.json` with `helpers:pinGitHubActionDigests`. The earlier `.github/dependabot.yml` has been removed — running both creates conflicting PRs against the same lines. Renovate opens grouped PRs on a weekly cadence; security advisories fire immediately under `vulnerabilityAlerts`.
-3. **Top-level `permissions: {}`** on every reusable workflow (`spec-tree.yml`, `spec-tree-review.yml`) and on `ci.yml`. Jobs explicitly grant the narrow permissions they need, subject to the caller workflow's maximum grant. The caller workflow's permissions set the maximum; the reusable's per-job grants do the actual narrowing.
+3. **Top-level `permissions: {}`** on every reusable workflow (`spec-tree.yml`, `spec-tree-review.yml`, `claude.yml`, `claude-code-review.yml`) and on `ci.yml`. Jobs explicitly grant the narrow permissions they need, subject to the caller workflow's maximum grant. The caller workflow's permissions set the maximum; the reusable's per-job grants do the actual narrowing.
 4. **`persist-credentials: false`** on every `actions/checkout` step that does not push back to the same repository. Drops the git-credentials persistence so later steps can't reuse the token.
 5. **Secrets reach the runner via the action's `with:` inputs or via job-level `env:` blocks** — never interpolated into a `run:` script body. The pattern is enforced by actionlint + shellcheck.
 6. **`actionlint` and `shellcheck` run on every push and PR** via `.github/workflows/ci.yml`. The same linters run locally via `just lint`. CI fails on any new warning.

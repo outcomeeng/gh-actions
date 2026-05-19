@@ -141,7 +141,71 @@ on:
 permissions: {}
 
 jobs:
+  validate-workflow:
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
+    permissions:
+      contents: read
+    outputs:
+      matches: ${{ steps.check.outputs.matches }}
+    steps:
+      - name: Validate runner dependencies
+        run: |
+          set -euo pipefail
+          missing=()
+          for cmd in gh jq sed; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+              missing+=("$cmd")
+            fi
+          done
+          if ((${#missing[@]})); then
+            printf 'Missing required command(s): %s\n' "${missing[*]}" >&2
+            printf 'Install the missing command(s) on the runner image or choose a runner that already provides them.\n' >&2
+            exit 1
+          fi
+
+      - name: Compare caller workflow file to default branch
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # github.workflow_ref is "<owner>/<repo>/<path>@<ref>".
+          prefix="$REPO/"
+          path="${WORKFLOW_REF#"$prefix"}"
+          path="${path%@*}"
+          echo "Caller workflow file: $path"
+
+          default_branch=$(gh api "repos/$REPO" --jq '.default_branch')
+          head_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" --jq '.sha' 2>/dev/null || echo "")
+          default_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$default_branch" --jq '.sha' 2>/dev/null || echo "")
+
+          if [[ -z "$default_sha_blob" ]]; then
+            echo "::notice::Workflow file '$path' is not on $default_branch yet. The Anthropic action requires the caller workflow file to exist on the default branch with identical content. Merge this PR (or a workflow-only PR that lands the file first) into $default_branch, then subsequent PRs will be reviewed automatically."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ -z "$head_sha_blob" ]]; then
+            echo "::notice::Workflow file '$path' is not present at the PR head; nothing to review here."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$head_sha_blob" != "$default_sha_blob" ]]; then
+            echo "::notice::Workflow file '$path' at PR head differs from $default_branch. The Anthropic action requires identical content for security. Land the workflow change on $default_branch first (a workflow-only PR is the typical approach), then this PR will be reviewed automatically."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Workflow file at PR head matches $default_branch — review can proceed"
+          echo "matches=true" >> "$GITHUB_OUTPUT"
+
   authorize:
+    needs: validate-workflow
+    if: needs.validate-workflow.outputs.matches == 'true'
     runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
       contents: read
@@ -190,53 +254,6 @@ jobs:
               echo "authorized=false" >> "$GITHUB_OUTPUT"
               ;;
           esac
-
-  validate-workflow:
-    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
-    permissions:
-      contents: read
-    outputs:
-      matches: ${{ steps.check.outputs.matches }}
-    steps:
-      - name: Compare caller workflow file to default branch
-        id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          WORKFLOW_REF: ${{ github.workflow_ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          # github.workflow_ref is "<owner>/<repo>/<path>@<ref>".
-          prefix="$REPO/"
-          path="${WORKFLOW_REF#"$prefix"}"
-          path="${path%@*}"
-          echo "Caller workflow file: $path"
-
-          default_branch=$(gh api "repos/$REPO" --jq '.default_branch')
-          head_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" --jq '.sha' 2>/dev/null || echo "")
-          default_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$default_branch" --jq '.sha' 2>/dev/null || echo "")
-
-          if [[ -z "$default_sha_blob" ]]; then
-            echo "::notice::Workflow file '$path' is not on $default_branch yet. The Anthropic action requires the caller workflow file to exist on the default branch with identical content. Merge this PR (or a workflow-only PR that lands the file first) into $default_branch, then subsequent PRs will be reviewed automatically."
-            echo "matches=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [[ -z "$head_sha_blob" ]]; then
-            echo "::notice::Workflow file '$path' is not present at the PR head; nothing to review here."
-            echo "matches=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [[ "$head_sha_blob" != "$default_sha_blob" ]]; then
-            echo "::notice::Workflow file '$path' at PR head differs from $default_branch. The Anthropic action requires identical content for security. Land the workflow change on $default_branch first (a workflow-only PR is the typical approach), then this PR will be reviewed automatically."
-            echo "matches=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "Workflow file at PR head matches $default_branch — review can proceed"
-          echo "matches=true" >> "$GITHUB_OUTPUT"
 
   claude-review:
     needs: [authorize, validate-workflow]
@@ -310,15 +327,7 @@ jobs:
           plugins=$(echo "$plugins" | sed '/^$/d')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
-          new_delim() {
-            if command -v uuidgen >/dev/null 2>&1; then
-              uuidgen
-            else
-              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
-            fi
-          }
-
-          delim="MULTILINE_$(new_delim)"
+          delim="MULTILINE_${RANDOM}_${RANDOM}_${RANDOM}"
           {
             echo "plugins<<${delim}"
             echo "$plugins"
@@ -387,15 +396,7 @@ jobs:
             args="$args $EXTRA_ARGS"
           fi
 
-          new_delim() {
-            if command -v uuidgen >/dev/null 2>&1; then
-              uuidgen
-            else
-              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
-            fi
-          }
-
-          delim="ARGS_$(new_delim)"
+          delim="ARGS_${RANDOM}_${RANDOM}_${RANDOM}"
           {
             printf '%s<<%s\n' "args" "$delim"
             printf '%s\n' "$args"
@@ -420,14 +421,6 @@ jobs:
           # values (JSON, cert material, etc.) survive unmangled. Reject keys
           # that aren't valid POSIX env var names so a malformed input can't
           # silently inject garbage.
-          new_delim() {
-            if command -v uuidgen >/dev/null 2>&1; then
-              uuidgen
-            else
-              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
-            fi
-          }
-
           while IFS= read -r entry; do
             key=$(printf '%s' "$entry" | jq -r '.key')
             if ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
@@ -435,7 +428,7 @@ jobs:
               exit 1
             fi
             value=$(printf '%s' "$entry" | jq -r '.value | tostring')
-            delim="ENV_$(new_delim)"
+            delim="ENV_${RANDOM}_${RANDOM}_${RANDOM}"
             {
               printf '%s<<%s\n' "$key" "$delim"
               printf '%s\n' "$value"
@@ -456,15 +449,7 @@ jobs:
           CUSTOM_PROMPT: ${{ inputs.custom_prompt }}
         run: |
           set -euo pipefail
-          new_delim() {
-            if command -v uuidgen >/dev/null 2>&1; then
-              uuidgen
-            else
-              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
-            fi
-          }
-
-          delimiter="CLAUDE_PROMPT_$(new_delim)"
+          delimiter="CLAUDE_PROMPT_${RANDOM}_${RANDOM}_${RANDOM}"
           if [ -n "$CUSTOM_PROMPT" ]; then
             {
               echo "prompt<<$delimiter"
