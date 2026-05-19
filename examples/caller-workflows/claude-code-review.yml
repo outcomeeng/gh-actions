@@ -1,0 +1,98 @@
+# Copy this file to .github/workflows/claude-code-review.yml in your repository
+#
+# Required setup:
+# 1. Add CLAUDE_CODE_OAUTH_TOKEN to repository secrets.
+# 2. (Optional) Tune behavior via repo variables in Settings -> Secrets and
+#    variables -> Actions -> Variables. See the `with:` block below; every
+#    entry reads a `vars.CLAUDE_REVIEW_*` value and falls back to the
+#    reusable's default when the variable is unset.
+
+name: Claude Code Review
+
+on:
+  # `ready_for_review` is deliberately omitted: the event always fires on
+  # a SHA that the previous opened/synchronize already reviewed, so
+  # subscribing to it would duplicate every promotion review.
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "src/**/*.ts"
+    #   - "src/**/*.tsx"
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  claude-code-review:
+    # Pin to a full-length commit SHA per GitHub's hardening guidance; never @main or @v1.
+    # Renovate keeps this SHA current; the trailing `# main` comment is the branch
+    # Renovate tracks. See README "Security" for the full rationale.
+    #
+    # Beta-tester consumers (internal repos deliberately tracking-latest) MAY
+    # swap this for `@main` with a `# BETA TESTER:` marker comment; see the
+    # documented exception in README "Security -> Documented exception".
+    uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@762dbe20ebd46f46a5868e1b0a2f20f4ea53c1ab # main
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+    # Authorization is automatic: the review runs only when the PR author has
+    # admin, maintain, or write permission on this repository (queried via the
+    # GitHub API). External contributors are skipped with a clear notice.
+
+    with:
+      # Runner. Single label (`ubuntu-slim`, `ubuntu-latest`, `self-hosted`)
+      # or a JSON-array string for multi-label selectors like
+      # `'["self-hosted","laptop"]'`. Security: self-hosted runners must
+      # only be used when every PR contributor is trusted.
+      runner: ${{ vars.CLAUDE_REVIEW_RUNNER || 'ubuntu-slim' }}
+
+      # Trigger phrase forwarded to the action. The review fires on every
+      # `pull_request` event regardless of this value.
+      trigger_phrase: ${{ vars.CLAUDE_REVIEW_TRIGGER_PHRASE || '@claude' }}
+
+      # Cancel in-progress reviews when the PR is updated.
+      concurrency_cancel: ${{ vars.CLAUDE_REVIEW_CONCURRENCY_CANCEL != 'false' }}
+
+      # Wall-clock budget (minutes) for the Run Claude Code Review step.
+      timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || '15' }}
+
+      # Claude model id (e.g. `claude-opus-4-7`). Empty = action default.
+      model: ${{ vars.CLAUDE_REVIEW_MODEL || '' }}
+
+      # Extra Claude Code CLI args OTHER than `--allowed-tools`.
+      claude_args: ${{ vars.CLAUDE_REVIEW_CLAUDE_ARGS || '' }}
+
+      # Replace the compact default review prompt with project-specific
+      # review instructions.
+      custom_prompt: ${{ vars.CLAUDE_REVIEW_CUSTOM_PROMPT || '' }}
+
+      # Comma-separated tool patterns appended to the gh-only baseline
+      # allowlist. Widen when opting in to project plugins.
+      append_allow_list: ${{ vars.CLAUDE_REVIEW_APPEND_ALLOW_LIST || '' }}
+
+      # Install plugins declared in `.claude/settings.json`. Reusable
+      # default: false because this workflow's baseline allowlist is narrow.
+      use_project_plugins: ${{ vars.CLAUDE_REVIEW_USE_PROJECT_PLUGINS == 'true' }}
+
+      # Stream full per-turn JSON output to the job log. WARNING: may expose
+      # secrets in tool outputs.
+      show_full_output: ${{ vars.CLAUDE_REVIEW_SHOW_FULL_OUTPUT == 'true' }}
+
+      # Comma-separated tool patterns that REPLACE the gh-only baseline
+      # allowlist (uncomment to set):
+      # override_allow_list: ${{ vars.CLAUDE_REVIEW_OVERRIDE_ALLOW_LIST || '' }}
+
+      # Plugin install lists (rarely change per-environment; uncomment and
+      # set directly to opt in without using vars):
+      # plugin_marketplaces: "acme-corp/plugins"
+      # extra_plugins: "internal-style@acme-corp"
+
+      # Cloud-provider routing (uncomment all three together):
+      # use_bedrock: ${{ vars.CLAUDE_REVIEW_USE_BEDROCK == 'true' }}
+      # use_vertex: ${{ vars.CLAUDE_REVIEW_USE_VERTEX == 'true' }}
+      # additional_env: ${{ vars.CLAUDE_REVIEW_ADDITIONAL_ENV || '{}' }}

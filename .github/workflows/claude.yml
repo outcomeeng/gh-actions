@@ -1,7 +1,7 @@
-# Reusable Spec Tree mention workflow.
+# Reusable Claude Code mention workflow.
 #
-# Listens for @spec-tree mentions on issues, PRs, and reviews and runs
-# anthropics/claude-code-action with spec-tree-friendly defaults. Bootstrap
+# Listens for @claude mentions on issues, PRs, and reviews and runs
+# anthropics/claude-code-action with Claude Code defaults. Bootstrap
 # steps (plugin derivation, claude_args composition, additional env
 # application) are inlined here rather than factored into composite actions
 # so the workflow file the consumer pins is fully self-contained — no
@@ -20,12 +20,12 @@
 #       types: [submitted]
 #
 #   jobs:
-#     spec-tree:
-#       uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@<full-commit-sha> # main
+#     claude:
+#       uses: outcomeeng/gh-actions/.github/workflows/claude.yml@<full-commit-sha> # main
 #       secrets:
 #         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-name: Spec Tree
+name: Claude Code
 
 on:
   workflow_call:
@@ -42,9 +42,9 @@ on:
       trigger_phrase:
         description: |
           Text that triggers the workflow (also passed to the action).
-          Defaults to `@spec-tree`.
+          Defaults to `@claude`.
         type: string
-        default: "@spec-tree"
+        default: "@claude"
       concurrency_cancel:
         description: "Cancel in-progress runs when a new mention arrives."
         type: boolean
@@ -129,28 +129,13 @@ jobs:
     outputs:
       authorized: ${{ steps.check.outputs.authorized }}
     steps:
-      - name: Validate runner dependencies
-        run: |
-          set -euo pipefail
-          missing=()
-          for cmd in gh jq sed uuidgen; do
-            if ! command -v "$cmd" >/dev/null 2>&1; then
-              missing+=("$cmd")
-            fi
-          done
-          if ((${#missing[@]})); then
-            printf 'Missing required command(s): %s\n' "${missing[*]}" >&2
-            printf 'Install the missing command(s) on the runner image or choose a runner that already provides them.\n' >&2
-            exit 1
-          fi
-
       - name: Validate trigger phrase
         env:
           TRIGGER_PHRASE: ${{ inputs.trigger_phrase }}
         run: |
           set -euo pipefail
           # GitHub Actions treats any non-empty string as truthy, so the
-          # `${{ vars.X || '@spec-tree' }}` pattern in the example caller
+          # `${{ vars.X || '@claude' }}` pattern in the example caller
           # returns the variable's literal value even when that value is
           # whitespace-only. Combined with the `contains(comment.body, ...)`
           # check in the job-level `if:` above, a whitespace-only trigger
@@ -159,7 +144,7 @@ jobs:
           # whitespace-only trigger phrases here so the workflow fails
           # loudly rather than firing repeatedly.
           if [[ -z "${TRIGGER_PHRASE//[[:space:]]/}" ]]; then
-            echo "::error::trigger_phrase is empty or whitespace-only. Set inputs.trigger_phrase, or the SPEC_TREE_TRIGGER_PHRASE repo variable, to a meaningful mention string (e.g. '@spec-tree')."
+            echo "::error::trigger_phrase is empty or whitespace-only. Set inputs.trigger_phrase, or the CLAUDE_TRIGGER_PHRASE repo variable, to a meaningful mention string (e.g. '@claude')."
             exit 1
           fi
 
@@ -188,7 +173,7 @@ jobs:
               ;;
           esac
 
-  spec-tree:
+  claude:
     needs: authorize
     if: needs.authorize.outputs.authorized == 'true'
     concurrency:
@@ -259,7 +244,15 @@ jobs:
           plugins=$(echo "$plugins" | sed '/^$/d')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
-          delim="MULTILINE_$(uuidgen)"
+          new_delim() {
+            if command -v uuidgen >/dev/null 2>&1; then
+              uuidgen
+            else
+              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
+            fi
+          }
+
+          delim="MULTILINE_$(new_delim)"
           {
             echo "plugins<<${delim}"
             echo "$plugins"
@@ -298,7 +291,15 @@ jobs:
             args="${args:+$args }$EXTRA_ARGS"
           fi
 
-          delim="ARGS_$(uuidgen)"
+          new_delim() {
+            if command -v uuidgen >/dev/null 2>&1; then
+              uuidgen
+            else
+              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
+            fi
+          }
+
+          delim="ARGS_$(new_delim)"
           {
             printf '%s<<%s\n' "args" "$delim"
             printf '%s\n' "$args"
@@ -323,6 +324,14 @@ jobs:
           # values (JSON, cert material, etc.) survive unmangled. Reject keys
           # that aren't valid POSIX env var names so a malformed input can't
           # silently inject garbage.
+          new_delim() {
+            if command -v uuidgen >/dev/null 2>&1; then
+              uuidgen
+            else
+              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
+            fi
+          }
+
           while IFS= read -r entry; do
             key=$(printf '%s' "$entry" | jq -r '.key')
             if ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
@@ -330,7 +339,7 @@ jobs:
               exit 1
             fi
             value=$(printf '%s' "$entry" | jq -r '.value | tostring')
-            delim="ENV_$(uuidgen)"
+            delim="ENV_$(new_delim)"
             {
               printf '%s<<%s\n' "$key" "$delim"
               printf '%s\n' "$value"

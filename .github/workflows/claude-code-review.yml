@@ -1,14 +1,10 @@
-# Reusable Spec Tree Review workflow.
+# Reusable Claude Code Review workflow for automatic PR reviews.
 #
-# Runs anthropics/claude-code-action on every pull_request with a
-# REVIEW.md-aware review prompt and a spec-tree-tuned allowlist
-# (`Bash(sed:*),Bash(grep:*),Bash(head:*)` on top of the
-# `Bash(gh ...)` baseline used for fetching PR context and posting the
-# comment). Bootstrap steps (plugin derivation, claude_args composition,
-# additional env application) are inlined rather than factored into
-# composite actions so the workflow file the consumer pins is fully
-# self-contained — no second checkout of outcomeeng/gh-actions is required
-# at runtime.
+# Generic Claude PR review reusable. This file is self-contained: bootstrap
+# steps (plugin derivation, claude_args composition, additional env
+# application, and prompt selection) are inlined rather than factored into
+# composite actions, so the workflow file the consumer pins is complete on
+# its own.
 #
 # Usage in caller workflow:
 #
@@ -17,17 +13,21 @@
 #       types: [opened, synchronize, reopened]
 #
 #   jobs:
-#     spec-tree-review:
-#       uses: outcomeeng/gh-actions/.github/workflows/spec-tree-review.yml@<full-commit-sha> # main
+#     claude-code-review:
+#       uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@<full-commit-sha> # main
 #       secrets:
 #         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+#
+# Optional inputs cover model selection, full claude_args passthrough,
+# custom review prompt, tool allowlist overrides, Bedrock/Vertex routing,
+# plugin installation, and a runner override.
 #
 # `ready_for_review` is deliberately omitted from the recommended trigger
 # types: it always fires on a SHA the previous `opened` or `synchronize`
 # already reviewed (no commits land at the draft→ready transition), so
 # subscribing to it would burn a redundant review on every promotion.
 
-name: Spec Tree Review
+name: Claude Code Review
 
 on:
   workflow_call:
@@ -45,6 +45,10 @@ on:
         description: "Cancel in-progress reviews when PR is updated."
         type: boolean
         default: true
+      custom_prompt:
+        description: "Custom review prompt (replaces the default review prompt)."
+        type: string
+        default: ""
       model:
         description: "Claude model to use, e.g. claude-opus-4-7. Folded into claude_args as --model. Empty means defer to the action's default."
         type: string
@@ -59,33 +63,27 @@ on:
       append_allow_list:
         description: |
           Comma-separated tool patterns appended to the workflow's baseline
-          allowlist (the `Bash(gh ...)` patterns used for PR context plus the
-          spec-tree defaults `Bash(sed:*),Bash(grep:*),Bash(head:*)`). Use
-          Claude Code's --allowed-tools pattern syntax. Example:
-          'Bash(make test:*),Bash(yarn lint:*)'. Ignored when
+          allowlist (Bash(gh ...) for reading PR context and posting the
+          review comment). Use Claude Code's --allowed-tools pattern syntax.
+          Example: 'Bash(make test:*),Bash(yarn lint:*)'. Ignored when
           override_allow_list is set.
         type: string
         default: ""
       override_allow_list:
         description: |
           Comma-separated tool patterns that replace the workflow's entire
-          baseline allowlist (the `Bash(gh ...)` patterns AND the spec-tree
-          defaults). Use Claude Code's --allowed-tools pattern syntax.
+          baseline allowlist. Use Claude Code's --allowed-tools pattern syntax.
           Example: 'Bash(gh pr view:*),Bash(gh pr comment:*)'. Use when you
-          need a strictly different allowlist than the bake-in; note that
-          the baked-in prompt depends on `sed`, `grep`, and `head` for
-          diff chunking, so dropping those will burn turns on permission
-          denials.
+          need a strictly narrower or different allowlist than the bake-in.
         type: string
         default: ""
       trigger_phrase:
         description: |
           Trigger phrase forwarded to the action. Review does not use this to
           gate the run (review fires on every pull_request event), but the
-          phrase is passed to the action for content-matching. Defaults to
-          `@spec-tree`.
+          phrase is passed to the action for content-matching.
         type: string
-        default: "@spec-tree"
+        default: "@claude"
       use_bedrock:
         description: "Route Claude through Amazon Bedrock instead of the Claude API. Caller is responsible for AWS auth and for setting AWS_REGION via additional_env."
         type: boolean
@@ -143,6 +141,56 @@ on:
 permissions: {}
 
 jobs:
+  authorize:
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
+    permissions:
+      contents: read
+    outputs:
+      authorized: ${{ steps.check.outputs.authorized }}
+    steps:
+      - name: Validate trigger phrase
+        env:
+          TRIGGER_PHRASE: ${{ inputs.trigger_phrase }}
+        run: |
+          set -euo pipefail
+          # The review workflow fires on every `pull_request` event
+          # regardless of `trigger_phrase`, so a whitespace-only value
+          # cannot cause the unbounded-firing failure mode the mention
+          # workflow guards against. The same validation is applied here
+          # for consistency and to defend against future changes that
+          # might introduce comment-matching logic relying on a
+          # non-empty trigger phrase. Reject empty and whitespace-only
+          # trigger phrases.
+          if [[ -z "${TRIGGER_PHRASE//[[:space:]]/}" ]]; then
+            echo "::error::trigger_phrase is empty or whitespace-only. Set inputs.trigger_phrase, or the CLAUDE_REVIEW_TRIGGER_PHRASE repo variable, to a meaningful mention string (e.g. '@claude')."
+            exit 1
+          fi
+
+      - name: Check PR author permission
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$PR_AUTHOR" ]]; then
+            echo "::notice::No PR author in the event payload; skipping review"
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          perm=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission' 2>/dev/null || echo "none")
+          case "$perm" in
+            admin|maintain|write)
+              echo "PR author '$PR_AUTHOR' has '$perm' permission on $REPO — review authorized"
+              echo "authorized=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::notice::PR author '$PR_AUTHOR' has '$perm' permission on $REPO; skipping review (review requires admin, maintain, or write)"
+              echo "authorized=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
   validate-workflow:
     runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
@@ -150,21 +198,6 @@ jobs:
     outputs:
       matches: ${{ steps.check.outputs.matches }}
     steps:
-      - name: Validate runner dependencies
-        run: |
-          set -euo pipefail
-          missing=()
-          for cmd in gh jq sed uuidgen; do
-            if ! command -v "$cmd" >/dev/null 2>&1; then
-              missing+=("$cmd")
-            fi
-          done
-          if ((${#missing[@]})); then
-            printf 'Missing required command(s): %s\n' "${missing[*]}" >&2
-            printf 'Install the missing command(s) on the runner image or choose a runner that already provides them.\n' >&2
-            exit 1
-          fi
-
       - name: Compare caller workflow file to default branch
         id: check
         env:
@@ -205,59 +238,7 @@ jobs:
           echo "Workflow file at PR head matches $default_branch — review can proceed"
           echo "matches=true" >> "$GITHUB_OUTPUT"
 
-  authorize:
-    needs: validate-workflow
-    if: needs.validate-workflow.outputs.matches == 'true'
-    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
-    permissions:
-      contents: read
-    outputs:
-      authorized: ${{ steps.check.outputs.authorized }}
-    steps:
-      - name: Validate trigger phrase
-        env:
-          TRIGGER_PHRASE: ${{ inputs.trigger_phrase }}
-        run: |
-          set -euo pipefail
-          # The review workflow fires on every `pull_request` event
-          # regardless of `trigger_phrase`, so a whitespace-only value
-          # cannot cause the unbounded-firing failure mode the mention
-          # workflow guards against. The same validation is applied here
-          # for consistency and to defend against future changes that
-          # might introduce comment-matching logic relying on a
-          # non-empty trigger phrase. Reject empty and whitespace-only
-          # trigger phrases.
-          if [[ -z "${TRIGGER_PHRASE//[[:space:]]/}" ]]; then
-            echo "::error::trigger_phrase is empty or whitespace-only. Set inputs.trigger_phrase, or the SPEC_TREE_REVIEW_TRIGGER_PHRASE repo variable, to a meaningful mention string (e.g. '@spec-tree')."
-            exit 1
-          fi
-
-      - name: Check PR author permission
-        id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          if [[ -z "$PR_AUTHOR" ]]; then
-            echo "::notice::No PR author in the event payload; skipping review"
-            echo "authorized=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          perm=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission' 2>/dev/null || echo "none")
-          case "$perm" in
-            admin|maintain|write)
-              echo "PR author '$PR_AUTHOR' has '$perm' permission on $REPO — review authorized"
-              echo "authorized=true" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "::notice::PR author '$PR_AUTHOR' has '$perm' permission on $REPO; skipping review (review requires admin, maintain, or write)"
-              echo "authorized=false" >> "$GITHUB_OUTPUT"
-              ;;
-          esac
-
-  spec-tree-review:
+  claude-review:
     needs: [authorize, validate-workflow]
     if: needs.authorize.outputs.authorized == 'true' && needs.validate-workflow.outputs.matches == 'true'
     concurrency:
@@ -329,7 +310,15 @@ jobs:
           plugins=$(echo "$plugins" | sed '/^$/d')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
-          delim="MULTILINE_$(uuidgen)"
+          new_delim() {
+            if command -v uuidgen >/dev/null 2>&1; then
+              uuidgen
+            else
+              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
+            fi
+          }
+
+          delim="MULTILINE_$(new_delim)"
           {
             echo "plugins<<${delim}"
             echo "$plugins"
@@ -353,10 +342,9 @@ jobs:
           EXTRA_ARGS: ${{ inputs.claude_args }}
           APPEND_ALLOW_LIST: ${{ inputs.append_allow_list }}
           OVERRIDE_ALLOW_LIST: ${{ inputs.override_allow_list }}
-          # Baseline allowlist: the `Bash(gh ...)` patterns the prompt needs
-          # to read PR context and post the review comment, plus the
-          # spec-tree defaults (sed/grep/head) for diff chunking.
-          BASELINE_ALLOW_LIST: "Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(sed:*),Bash(grep:*),Bash(head:*)"
+          # Baseline allowlist: the `Bash(gh ...)` patterns the default
+          # prompt needs to read PR context and post the review comment.
+          BASELINE_ALLOW_LIST: "Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"
         run: |
           set -euo pipefail
           # Trim leading/trailing whitespace so a caller passing " " (or a
@@ -399,7 +387,15 @@ jobs:
             args="$args $EXTRA_ARGS"
           fi
 
-          delim="ARGS_$(uuidgen)"
+          new_delim() {
+            if command -v uuidgen >/dev/null 2>&1; then
+              uuidgen
+            else
+              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
+            fi
+          }
+
+          delim="ARGS_$(new_delim)"
           {
             printf '%s<<%s\n' "args" "$delim"
             printf '%s\n' "$args"
@@ -424,6 +420,14 @@ jobs:
           # values (JSON, cert material, etc.) survive unmangled. Reject keys
           # that aren't valid POSIX env var names so a malformed input can't
           # silently inject garbage.
+          new_delim() {
+            if command -v uuidgen >/dev/null 2>&1; then
+              uuidgen
+            else
+              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
+            fi
+          }
+
           while IFS= read -r entry; do
             key=$(printf '%s' "$entry" | jq -r '.key')
             if ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
@@ -431,7 +435,7 @@ jobs:
               exit 1
             fi
             value=$(printf '%s' "$entry" | jq -r '.value | tostring')
-            delim="ENV_$(uuidgen)"
+            delim="ENV_$(new_delim)"
             {
               printf '%s<<%s\n' "$key" "$delim"
               printf '%s\n' "$value"
@@ -441,6 +445,53 @@ jobs:
           echo "::group::Applied additional env keys"
           echo "$ADDITIONAL_ENV" | jq -r 'keys[]'
           echo "::endgroup::"
+
+      - name: Set review prompt
+        id: set-prompt
+        env:
+          # Pass `custom_prompt` via env (not via inline ${{ }} interpolation
+          # in the run block) so any backticks, `$(...)`, embedded heredocs,
+          # or unquoted metacharacters in the prompt body are treated as
+          # opaque text by bash.
+          CUSTOM_PROMPT: ${{ inputs.custom_prompt }}
+        run: |
+          set -euo pipefail
+          new_delim() {
+            if command -v uuidgen >/dev/null 2>&1; then
+              uuidgen
+            else
+              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
+            fi
+          }
+
+          delimiter="CLAUDE_PROMPT_$(new_delim)"
+          if [ -n "$CUSTOM_PROMPT" ]; then
+            {
+              echo "prompt<<$delimiter"
+              printf '%s\n' "$CUSTOM_PROMPT"
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "prompt<<$delimiter"
+              cat <<'PROMPT_EOF'
+          REPO: ${{ github.repository }}
+          PR NUMBER: ${{ github.event.pull_request.number }}
+
+          Please review this pull request and provide feedback on:
+          - Code quality and best practices
+          - Potential bugs or issues
+          - Performance considerations
+          - Security concerns
+          - Test coverage
+
+          Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+
+          Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
+          PROMPT_EOF
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run Claude Code Review
         id: claude-review
@@ -455,6 +506,7 @@ jobs:
         uses: anthropics/claude-code-action@51ea8ea73a139f2a74ff649e3092c25a904aed7e # v1.0.123
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: ${{ steps.set-prompt.outputs.prompt }}
           claude_args: ${{ steps.claude-args.outputs.args }}
           trigger_phrase: ${{ inputs.trigger_phrase }}
           use_bedrock: ${{ inputs.use_bedrock }}
@@ -462,124 +514,3 @@ jobs:
           plugins: ${{ steps.plugins.outputs.plugins }}
           plugin_marketplaces: ${{ steps.plugins.outputs.marketplaces }}
           show_full_output: ${{ inputs.show_full_output }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Review this pull request and post one comment with the review. Follow the steps in order. The environment constraints in the "Environment" section below are real — every constraint listed there cost a previous run between 5 and 20 wasted tool calls.
-
-            ## Steps
-
-            1. **Load repository conventions.** Read `REVIEW.md` from the repository root if present. Resolve the finding-classification taxonomy in this order: (a) `REVIEW.md` if present, (b) a taxonomy defined in `CLAUDE.md` if `REVIEW.md` is absent, (c) the defaults in the "Spec Tree Review Workflow" section below if neither file specifies one. Always read `CLAUDE.md` for project conventions independent of where the taxonomy comes from.
-
-            2. **Gather PR context.** Run:
-
-               ```bash
-               gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json number,title,body,author,baseRefName,headRefName,additions,deletions,changedFiles
-               gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }} | sed -n '1,1000p'
-               ```
-
-               For longer diffs, keep using the same `sed` form for every chunk — `| sed -n '1001,2000p'`, `| sed -n '2001,3000p'`, and so on. To list affected files first, pipe to `| grep '^diff --git'`; to read around one file, pipe to `| sed -n '/^diff --git a\/path\/to\/file/,/^diff --git /p'`. Use the same `sed -n 'A,Bp'` form when reading any file in the working tree by line range — one process per call, same idiom for any chunk position.
-
-            3. **Compose the review in memory.** Do not write the body to a file. Do not call the `Write` tool. Do not redirect Bash output to disk.
-
-            4. **Post the review with one command, using `printf` and stdin.** The entire `printf … | gh pr comment …` pipeline MUST be one physical shell line. Do not split with `\`-newline continuations — the runner's command parser treats continued lines as separate operations and denies the fragments as unapproved invocations.
-
-               ```bash
-               printf '%s\n' '### BLOCKING [consistency]: path/to/file.py:42' 'Reference: <quote the standard from CLAUDE.md, a skill, or governance doc (PDR/ADR/spec)>.' 'Evidence: <quote the diff and explain the disagreement between layers>.' 'Required: <concrete change>.' '' '### FOLLOW-UP [evidence]: path/to/test.py' 'Reference: <quote the standard or assertion>.' 'Issue: <what is missing>.' 'Track under: <issues file or tracker>.' | gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file /dev/stdin
-               ```
-
-               Quoting rule: wrap literal text in single quotes so `$`, backticks, and backslashes pass through unchanged. Each argument to `printf '%s\n'` is one line of output. Blank lines are `''`. The example above wraps visually in your view, but it is a single physical line — preserve that when you compose your own invocation.
-
-            5. **If you need to revise the comment you just posted,** use `--edit-last` (still one physical line):
-
-               ```bash
-               printf '%s\n' '<revised content>' | gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --edit-last --body-file /dev/stdin
-               ```
-
-            ## Environment
-
-            The runner sandboxes filesystem writes. The forms below have all been observed to fail in this workflow — skip the rediscovery and use the form in step 4 directly.
-
-            | Do not use | Why |
-            | --- | --- |
-            | `Write` tool | Blocked by filesystem allowlist; every attempt errors. |
-            | `> file`, `tee file`, `cat > file <<EOF` | Same filesystem allowlist applies to Bash redirection outside the repo working tree. |
-            | `gh pr comment --body "$(cat <<'EOF' … EOF)"` | Command substitution with embedded heredoc is brittle here and silently truncates on some bodies. |
-            | `gh pr comment --body-file /dev/stdin <<HEREDOC` | Heredoc directly to `gh` does not reliably reach the body-file reader. |
-            | `gh api repos/<o>/<r>/issues/comments/<id> -X PATCH` | The Actions integration token lacks permission. Use `gh pr comment --edit-last` instead. |
-            | `gh pr view <N> --repo <O/R>` without `--json` | Default view fetches `statusCheckRollup`, which the token cannot access. Always pass `--json`, and never request the `statusCheckRollup` field. Safe fields: `number,title,body,author,baseRefName,headRefName,additions,deletions,changedFiles`. |
-            | Helper scripts written to disk to assemble the body | Same write blockage; also adds turns for nothing the `printf` form does not already do. |
-            | Backslash-newline (`\`) continuations in shell commands | The runner's parser flags continued lines as multiple operations and gates the fragments separately, even when every binary in the pipeline is approved. Keep `printf … \| gh pr comment …` on one physical line. |
-
-            ## Spec Tree Review Workflow
-
-            These categories and severities apply when the repository has no `REVIEW.md`; when `REVIEW.md` defines its own taxonomy, follow that instead.
-
-            Inspect the changeset under review and the checked out working tree. Emit findings only when they exist. Provide no praise or commentary that is neither a finding nor a tracking commitment. Never modify any file in the working tree; classification is the only output.
-
-            **ALWAYS:** report findings. When the changeset omits a fact a finding depends on, frame the finding as worst-case or conditional. Example: "Evidence: cannot verify X from the changeset; if assumption Y holds, this breaks Z because …"
-
-            **NEVER:** emit open questions or speculative commentary that does not constitute a finding. Questions add CI roundtrips this single-pass review cannot recover from.
-
-            Every finding has two dimensions: **category** and **severity**. Use only these 6 categories and 3 severities.
-
-            ## **Category:** Classify all your findings into one of 6 categories, grouped by three axes
-
-            **What the code does vs. what it is supposed to do**
-
-            - **Consistency:** equivalence across the layers — what the decisions (PDRs and ADRs) govern, what the spec asserts, what tests and evals verify, and what the implementation does. A finding is a consistency one when a lower layer does not match a higher one. The reviewer surfaces the disagreement; they do not judge which side is right.
-            - **Security:** confidentiality, integrity, availability.
-            - **Performance:** unbounded loops, hot-path allocations, O(n^2) traversals where O(n) suffices, synchronous I/O on async paths, and similar pessimisations that change the changeset's runtime characteristics under realistic load.
-
-            **How we know it does what it is supposed to do**
-
-            - **Evidence:** inadequate coverage of declared assertions by tests or evals; unmaintainable tests (literals, magic numbers, test-owned constants, duplication); evals that no longer exercise the assertions they claim to.
-
-            **How it does what it is supposed to do**
-
-            - **Standards:** adherence to `CLAUDE.md` and the rules declared in standardizing-* skills (naming conventions, command tokens, file structure, language idioms).
-            - **Architecture:** violation of structural principles declared by ADRs or PDRs — layer boundaries, separation of concerns, dependency directions, module-shape rules. A finding is an architecture one when the structure itself is at odds with a governance principle, even if every layer is internally consistent.
-
-            ## **Severity:** triage each finding to one of 3 levels
-
-            | Severity    | Use when                                                                                                                                                                                         |
-            | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-            | `BLOCKING`  | Merge-safety defect: If deployed, the changeset would create a deterministic issue or pose a risk.                                                                                               |
-            | `DEBT`      | Must-fix-eventually defect: the finding does **not** jeopardize the product if shipped but accumulates technical debt.                                                                           |
-            | `FOLLOW-UP` | Out-of-scope finding: the finding does **not** jeopardize the product if shipped and addressing it requires wider refactoring or additional scope that would extend the blast-radius of this PR. |
-
-            ## **Reporting:** Return your findings exactly as below
-
-            The bracket after the severity names the category: one of `consistency`, `security`, `performance`, `evidence`, `standards`, `architecture`.
-
-            Label asymmetry by severity is intentional: `BLOCKING` and `DEBT` require an action in this PR and use `Reference:` + `Evidence:` + `Required:`; `FOLLOW-UP` requires only a tracking commitment elsewhere and uses `Reference:` + `Issue:` + `Track under:`.
-
-            ```text
-            ### BLOCKING [consistency]: path/to/file.py:42
-            Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
-            Evidence: <quote the diff or behavior and explain the disagreement between layers>.
-            Required: <concrete change>.
-            ```
-
-            ```text
-            ### DEBT [standards]: path/to/file.py:97
-            Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
-            Evidence: <quote the diff or behavior and explain how it violates the standard>.
-            Required: <concrete change>.
-            ```
-
-            ```text
-            ### FOLLOW-UP [architecture]: `path/to/foo.compliance.test.ts`
-            Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
-            Issue: <what is missing or worthy of improvement>.
-            Track under: <ISSUES.md file or product-specific issue tracker>.
-            ```
-
-            ## **Completeness:** Aim for *first-time right*
-
-            Each review pass is independent and self-contained — there is no cross-pass continuity, and CI replays the prompt from scratch on every `pull_request` event. Surface every finding the changeset exhibits in the **first** pass against that changeset; a finding missed on pass 1 has no second chance unless the diff itself changes. Read the diff once, methodically, across all categories before composing the comment.
-
-            ## **No findings:** say so directly
-
-            When the changeset has no `BLOCKING` or `DEBT` findings, post a one-line comment saying so. NEVER invent lower-priority findings to prove the review happened.

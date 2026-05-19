@@ -1,0 +1,32 @@
+# Run the generic Claude Code mention reusable on this repository as a self-test.
+
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  claude:
+    uses: ./.github/workflows/claude.yml
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    with:
+      # Override at runtime via the CLAUDE_TIMEOUT_MINUTES repo variable
+      # (Settings -> Secrets and variables -> Actions -> Variables). The
+      # reusable input is typed as string so `vars.*` (always a string) and
+      # the quoted fallback both pass through unchanged.
+      timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '15' }}
