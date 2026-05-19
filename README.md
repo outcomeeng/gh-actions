@@ -8,6 +8,8 @@ Reusable GitHub Actions workflows for Claude Code integration.
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `spec-tree.yml`                                   | `@spec-tree` mention handler — fires on issues, PRs, and review comments                              |
 | `spec-tree-review.yml`                            | PR review with `REVIEW.md`-aware prompt and an allowlist tuned for spec-tree's diff-chunking workflow |
+| `claude.yml`                                      | `@claude` mention handler with the same self-contained implementation shape as `spec-tree.yml`        |
+| `claude-code-review.yml`                          | Generic Claude PR review with a compact prompt, `custom_prompt`, and a gh-only baseline allowlist     |
 | `spec-tree-repo.yml`, `spec-tree-review-repo.yml` | This repo's own callers for the reusables above — used as an in-repo self-test harness                |
 
 ## Quick Start
@@ -48,7 +50,7 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
-**For automatic PR reviews** — create `.github/workflows/spec-tree-review.yml`:
+**For automatic spec-tree PR reviews** — create `.github/workflows/spec-tree-review.yml`:
 
 ```yaml
 name: Spec Tree Review
@@ -72,54 +74,66 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
-For complete copy-paste templates with every override documented inline, see `examples/caller-workflows/spec-tree.yml` and `examples/caller-workflows/spec-tree-review.yml`.
+For complete copy-paste templates with every override documented inline, see `examples/caller-workflows/spec-tree.yml`, `examples/caller-workflows/spec-tree-review.yml`, `examples/caller-workflows/claude.yml`, and `examples/caller-workflows/claude-code-review.yml`.
+
+For a generic Claude Code review, use the same `pull_request` trigger shape and call `.github/workflows/claude-code-review.yml` instead. That workflow keeps the default Claude review prompt compact and exposes `custom_prompt` for caller-specific review instructions.
 
 ## Configuration
 
-### Mention workflow inputs (`spec-tree.yml`)
+The Claude-compatible variants are direct, self-contained reusables. They do not call the spec-tree workflows and do not check out composite actions from this repository at runtime.
 
-| Input                 | Default       | Description                                                                                                  |
-| --------------------- | ------------- | ------------------------------------------------------------------------------------------------------------ |
-| `runner`              | `ubuntu-slim` | Runner selection. Single label (`ubuntu-latest`, `self-hosted`) or JSON array (`'["self-hosted","laptop"]'`) |
-| `trigger_phrase`      | `@spec-tree`  | Text that triggers the workflow (also forwarded to the action)                                               |
-| `concurrency_cancel`  | `true`        | Cancel in-progress runs on new mention                                                                       |
-| `custom_prompt`       | (empty)       | Override default behavior with a custom prompt                                                               |
-| `model`               | (empty)       | Claude model id (e.g. `claude-opus-4-7`); folded into `claude_args` as `--model`. Empty = action default     |
-| `claude_args`         | (empty)       | Extra Claude Code CLI args (e.g. `--max-turns 20 --allowed-tools "Bash(gh pr comment:*)"`)                   |
-| `use_bedrock`         | `false`       | Route Claude through Amazon Bedrock (caller handles AWS auth via `additional_env`)                           |
-| `use_vertex`          | `false`       | Route Claude through Google Vertex AI (caller handles GCP auth via `additional_env`)                         |
-| `additional_env`      | `{}`          | JSON object string of env vars set on the claude-code-action step                                            |
-| `use_project_plugins` | `false`       | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below)               |
-| `plugin_marketplaces` | (empty)       | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in               |
-| `extra_plugins`       | (empty)       | Space-separated plugins to install; appends to project list when opted in                                    |
-| `show_full_output`    | `false`       | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)             |
-| `timeout_minutes`     | `"15"`        | Wall-clock budget (minutes) for the Run Claude Code step; cancels the step when exceeded (minimum 1)         |
+### Mention workflow inputs (`spec-tree.yml` and `claude.yml`)
 
-### Review workflow inputs (`spec-tree-review.yml`)
+| Input                 | Default                  | Description                                                                                                                            |
+| --------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `runner`              | `ubuntu-slim`            | Runner selection. Single label (`ubuntu-latest`, `self-hosted`) or JSON array (`'["self-hosted","laptop"]'`)                           |
+| `trigger_phrase`      | `@spec-tree` / `@claude` | Text that triggers the workflow (also forwarded to the action). Default is `@spec-tree` on `spec-tree.yml`, `@claude` on `claude.yml`. |
+| `concurrency_cancel`  | `true`                   | Cancel in-progress runs on new mention                                                                                                 |
+| `custom_prompt`       | (empty)                  | Override default behavior with a custom prompt                                                                                         |
+| `model`               | (empty)                  | Claude model id (e.g. `claude-opus-4-7`); folded into `claude_args` as `--model`. Empty = action default                               |
+| `claude_args`         | (empty)                  | Extra Claude Code CLI args (e.g. `--max-turns 20 --allowed-tools "Bash(gh pr comment:*)"`)                                             |
+| `use_bedrock`         | `false`                  | Route Claude through Amazon Bedrock (caller handles AWS auth via `additional_env`)                                                     |
+| `use_vertex`          | `false`                  | Route Claude through Google Vertex AI (caller handles GCP auth via `additional_env`)                                                   |
+| `additional_env`      | `{}`                     | JSON object string of env vars set on the claude-code-action step                                                                      |
+| `use_project_plugins` | `false`                  | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below)                                         |
+| `plugin_marketplaces` | (empty)                  | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in                                         |
+| `extra_plugins`       | (empty)                  | Space-separated plugins to install; appends to project list when opted in                                                              |
+| `show_full_output`    | `false`                  | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                                       |
+| `timeout_minutes`     | `"15"`                   | Wall-clock budget (minutes) for the Run Claude Code step; cancels the step when exceeded (minimum 1)                                   |
 
-`spec-tree-review.yml` bakes in a `REVIEW.md`-aware review prompt and an allowlist tuned for diff-chunking (`Bash(gh ...)` plus `Bash(sed:*),Bash(grep:*),Bash(head:*)`). It does not expose `custom_prompt` — to extend or replace the allowlist, use `append_allow_list` / `override_allow_list`.
+### Review workflow inputs (`spec-tree-review.yml` and `claude-code-review.yml`)
 
-| Input                 | Default       | Description                                                                                                         |
-| --------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `runner`              | `ubuntu-slim` | Runner selection. Single label or JSON array (see mention table above)                                              |
-| `trigger_phrase`      | `@spec-tree`  | Trigger phrase forwarded to the action (review does not use this to gate the run)                                   |
-| `concurrency_cancel`  | `true`        | Cancel in-progress reviews on new PR update                                                                         |
-| `model`               | (empty)       | Claude model id; folded into `claude_args` as `--model`. Empty = action default                                     |
-| `claude_args`         | (empty)       | Extra Claude Code CLI args OTHER than `--allowed-tools` (use `append_allow_list` / `override_allow_list` for tools) |
-| `append_allow_list`   | (empty)       | Comma-separated tool patterns appended to the baked-in baseline allowlist                                           |
-| `override_allow_list` | (empty)       | Comma-separated tool patterns that REPLACE the baked-in baseline allowlist entirely                                 |
-| `use_bedrock`         | `false`       | Route Claude through Amazon Bedrock                                                                                 |
-| `use_vertex`          | `false`       | Route Claude through Google Vertex AI                                                                               |
-| `additional_env`      | `{}`          | JSON object string of env vars set on the claude-code-action step                                                   |
-| `use_project_plugins` | `false`       | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below)                      |
-| `plugin_marketplaces` | (empty)       | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in                      |
-| `extra_plugins`       | (empty)       | Space-separated plugins to install; appends to project list when opted in                                           |
-| `show_full_output`    | `false`       | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                    |
-| `timeout_minutes`     | `"15"`        | Wall-clock budget (minutes) for the Run Claude Code Review step (minimum 1)                                         |
+Both review workflows are self-contained reusables with the same runner, authorization, workflow-validation, plugin, cloud-routing, timeout, and env-override machinery.
+
+The review prompt and baseline allowlist intentionally differ:
+
+- `spec-tree-review.yml` bakes in a `REVIEW.md`-aware review prompt and a baseline allowlist for diff chunking: `Bash(gh ...)` plus `Bash(sed:*),Bash(grep:*),Bash(head:*)`.
+- `claude-code-review.yml` uses a compact generic Claude review prompt, exposes `custom_prompt`, and defaults to the `Bash(gh ...)` tools needed to read PR context and post the review comment.
+
+| Input                 | Default                  | Description                                                                                                                                                                  |
+| --------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runner`              | `ubuntu-slim`            | Runner selection. Single label or JSON array (see mention table above)                                                                                                       |
+| `trigger_phrase`      | `@spec-tree` / `@claude` | Trigger phrase forwarded to the action (review does not use this to gate the run). Default is `@spec-tree` on `spec-tree-review.yml`, `@claude` on `claude-code-review.yml`. |
+| `concurrency_cancel`  | `true`                   | Cancel in-progress reviews on new PR update                                                                                                                                  |
+| `custom_prompt`       | (empty)                  | `claude-code-review.yml` only. Replaces the default generic review prompt. `spec-tree-review.yml` keeps its baked-in `REVIEW.md` prompt.                                     |
+| `model`               | (empty)                  | Claude model id; folded into `claude_args` as `--model`. Empty = action default                                                                                              |
+| `claude_args`         | (empty)                  | Extra Claude Code CLI args OTHER than `--allowed-tools` (use `append_allow_list` / `override_allow_list` for tools)                                                          |
+| `append_allow_list`   | (empty)                  | Comma-separated tool patterns appended to that workflow's baseline allowlist                                                                                                 |
+| `override_allow_list` | (empty)                  | Comma-separated tool patterns that REPLACE that workflow's baseline allowlist entirely                                                                                       |
+| `use_bedrock`         | `false`                  | Route Claude through Amazon Bedrock                                                                                                                                          |
+| `use_vertex`          | `false`                  | Route Claude through Google Vertex AI                                                                                                                                        |
+| `additional_env`      | `{}`                     | JSON object string of env vars set on the claude-code-action step                                                                                                            |
+| `use_project_plugins` | `false`                  | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below)                                                                               |
+| `plugin_marketplaces` | (empty)                  | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in                                                                               |
+| `extra_plugins`       | (empty)                  | Space-separated plugins to install; appends to project list when opted in                                                                                                    |
+| `show_full_output`    | `false`                  | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                                                                             |
+| `timeout_minutes`     | `"15"`                   | Wall-clock budget (minutes) for the Run Claude Code Review step (minimum 1)                                                                                                  |
 
 ### Per-environment overrides via repo variables
 
 The example caller templates are **drop-in**: copy the file, set the repository secret, and the workflow runs with sensible defaults. To tune behavior per-environment, set the corresponding repository variable in Settings → Secrets and variables → Actions → Variables. The `with:` block in each template is active and reads `vars.SPEC_TREE_*` (mention) or `vars.SPEC_TREE_REVIEW_*` (review) values, falling back to the reusable's documented default when the variable is unset — no edits to the workflow file are needed.
+
+The generic Claude examples mirror the same shape with `vars.CLAUDE_*` for mentions and `vars.CLAUDE_REVIEW_*` for reviews.
 
 Mention workflow (`spec-tree.yml`):
 
@@ -145,13 +159,13 @@ Review workflow (`spec-tree-review.yml`):
 | `SPEC_TREE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Same.                                                                                                                                                                                         |
 | `SPEC_TREE_REVIEW_MODEL`               | `model`               | (action default) | Same.                                                                                                                                                                                         |
 | `SPEC_TREE_REVIEW_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args OTHER than `--allowed-tools` (use the allow-list inputs below for tool changes).                                                                                               |
-| `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST`   | `append_allow_list`   | (empty)          | Comma-separated patterns appended to the baked-in baseline (`Bash(gh ...) + Bash(sed:*),Bash(grep:*),Bash(head:*)`). Widen when opting in to project plugins.                                 |
+| `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST`   | `append_allow_list`   | (empty)          | Comma-separated patterns appended to the baked-in spec-tree review baseline (`Bash(gh ...) + Bash(sed:*),Bash(grep:*),Bash(head:*)`). Widen when opting in to project plugins.                |
 | `SPEC_TREE_REVIEW_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install project plugins; pair with `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST` so the plugin's tools are reachable.                                                                  |
 | `SPEC_TREE_REVIEW_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Same warning as mention.                                                                                                                                                                      |
 
 Inputs **left commented in the example template** (active when uncommented):
 
-- `override_allow_list` (review) — replaces the entire baked-in allowlist; silently drops the `sed`/`grep`/`head` defaults the baked-in prompt depends on. Use `append_allow_list` unless you have a hard reason to start from zero.
+- `override_allow_list` (review) — replaces the entire baked-in allowlist. On `spec-tree-review.yml`, this also drops the `sed`/`grep`/`head` defaults the baked-in prompt depends on. Use `append_allow_list` unless you have a hard reason to start from zero.
 - `use_bedrock` / `use_vertex` / `additional_env` — cloud-provider routing. Coupled inputs (set all three together) and requires the calling workflow to configure AWS or GCP auth before this job. Uncomment as a unit.
 - `plugin_marketplaces` / `extra_plugins` — explicit install lists. Rarely change per-environment; set directly to opt in without using vars.
 
@@ -164,7 +178,7 @@ The reusable workflows install plugins from two possible sources:
 
 ### Default: project plugins are NOT installed
 
-`use_project_plugins` defaults to `false`. The review job and the mention job run with no project plugins. The reason is plugin skills: most non-trivial plugins ship skills with `ALWAYS invoke this skill before X` mandates that pull Claude into tools (`Read`, `Grep`, `Glob`, `Bash(git ...)`) that aren't on the review workflow's baked-in `gh`-only allowlist. The result is a run that spends turns on permission denials and never posts a review comment.
+`use_project_plugins` defaults to `false`. The review job and the mention job run with no project plugins. The reason is plugin skills: most non-trivial plugins ship skills with `ALWAYS invoke this skill before X` mandates that pull Claude into tools (`Read`, `Grep`, `Glob`, `Bash(git ...)`) outside the default review allowlists. The result is a run that spends turns on permission denials and never posts a review comment.
 
 If the caller's `.claude/settings.json` exists while `use_project_plugins` is false, the workflow emits a `::notice::` saying the file is being ignored and how to opt in. To install specific plugins without enabling the whole `.claude/settings.json` set, list them in `extra_plugins` and their marketplaces in `plugin_marketplaces`.
 
@@ -312,7 +326,7 @@ Running both Renovate and Dependabot against the same files produces conflicting
 
 ### Least-privilege `permissions:`
 
-The reusable workflows (`spec-tree.yml`, `spec-tree-review.yml`) and `ci.yml` declare top-level `permissions: {}` and then grant per-job permissions explicitly. Caller workflows should declare top-level `permissions:` with the maximum the reusable needs. The quick-start examples list the exact permissions each reusable expects.
+The reusable workflows (`spec-tree.yml`, `spec-tree-review.yml`, `claude.yml`, `claude-code-review.yml`) and `ci.yml` declare top-level `permissions: {}` and then grant per-job permissions explicitly. Caller workflows should declare top-level `permissions:` with the maximum the reusable needs. The quick-start examples list the exact permissions each reusable expects.
 
 Grants visible in this repo's quick-start examples are the maximum a caller should declare; tighten further if your project doesn't need a given grant.
 
@@ -340,7 +354,7 @@ The `authorize` job in each reusable queries `repos/{owner}/{repo}/collaborators
 ### Operational best practices
 
 - Keep `use_project_plugins` off (the default) unless the project plugins are appropriate for review or mention runs, and widen the allowlist (`append_allow_list` / `override_allow_list` on review, `claude_args` on mention) to match the tools those plugins' skills demand.
-- Narrow `claude_args` (mention) or `append_allow_list` / `override_allow_list` (review) to the minimum the workflow needs; the review workflow's baked-in allowlist covers `gh issue` / `gh pr` read, `gh pr comment`, and `sed` / `grep` / `head` for diff chunking.
+- Narrow `claude_args` (mention) or `append_allow_list` / `override_allow_list` (review) to the minimum the workflow needs. `claude-code-review.yml` starts from `gh issue` / `gh pr` read plus `gh pr comment`; `spec-tree-review.yml` also includes `sed` / `grep` / `head` for diff chunking.
 - Never set `self-hosted` runner labels on public repos or repos that accept PRs from untrusted forks — the runner host is shared across runs.
 - Rotate `CLAUDE_CODE_OAUTH_TOKEN` if compromise is suspected.
 

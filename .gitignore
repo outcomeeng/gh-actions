@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Tool caches
+.dprint-cache/
+
 # IDE
 .idea/
 .vscode/

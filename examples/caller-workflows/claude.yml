@@ -1,0 +1,86 @@
+# Copy this file to .github/workflows/claude.yml in your repository
+#
+# Required setup:
+# 1. Add CLAUDE_CODE_OAUTH_TOKEN to repository secrets.
+# 2. (Optional) Tune behavior via repo variables in Settings -> Secrets and
+#    variables -> Actions -> Variables. See the `with:` block below; every
+#    entry reads a `vars.CLAUDE_*` value and falls back to the reusable's
+#    default when the variable is unset.
+
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  claude:
+    # Pin to a full-length commit SHA per GitHub's hardening guidance; never @main or @v1.
+    # Renovate keeps this SHA current; the trailing `# main` comment is the branch
+    # Renovate tracks. See README "Security" for the full rationale.
+    #
+    # Beta-tester consumers (internal repos deliberately tracking-latest) MAY
+    # swap this for `@main` with a `# BETA TESTER:` marker comment; see the
+    # documented exception in README "Security -> Documented exception".
+    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@762dbe20ebd46f46a5868e1b0a2f20f4ea53c1ab # main
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+    # Authorization is automatic: the workflow accepts any actor with admin,
+    # maintain, or write permission on this repository (queried via the GitHub
+    # API). External contributors are rejected with a clear error.
+
+    with:
+      # Runner. Single label (`ubuntu-slim`, `ubuntu-latest`, `self-hosted`)
+      # or a JSON-array string for multi-label selectors like
+      # `'["self-hosted","laptop"]'`. Security: self-hosted runners must
+      # only be used when every PR/comment contributor is trusted.
+      runner: ${{ vars.CLAUDE_RUNNER || 'ubuntu-slim' }}
+
+      # Mention trigger phrase. Defaults to `@claude`.
+      trigger_phrase: ${{ vars.CLAUDE_TRIGGER_PHRASE || '@claude' }}
+
+      # Cancel in-progress mention runs when a new mention arrives.
+      concurrency_cancel: ${{ vars.CLAUDE_CONCURRENCY_CANCEL != 'false' }}
+
+      # Wall-clock budget (minutes) for the Run Claude Code step.
+      timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '15' }}
+
+      # Claude model id (e.g. `claude-opus-4-7`). Empty = action default.
+      model: ${{ vars.CLAUDE_MODEL || '' }}
+
+      # Extra Claude Code CLI args appended verbatim.
+      claude_args: ${{ vars.CLAUDE_ARGS || '' }}
+
+      # Custom prompt to override the action's default behavior.
+      custom_prompt: ${{ vars.CLAUDE_CUSTOM_PROMPT || '' }}
+
+      # Install plugins declared in `.claude/settings.json`.
+      use_project_plugins: ${{ vars.CLAUDE_USE_PROJECT_PLUGINS == 'true' }}
+
+      # Stream full per-turn JSON output to the job log. WARNING: may expose
+      # secrets in tool outputs.
+      show_full_output: ${{ vars.CLAUDE_SHOW_FULL_OUTPUT == 'true' }}
+
+      # Plugin install lists (rarely change per-environment; uncomment and
+      # set directly to opt in without using vars):
+      # plugin_marketplaces: "acme-corp/plugins"
+      # extra_plugins: "internal-style@acme-corp"
+
+      # Cloud-provider routing (uncomment all three together):
+      # use_bedrock: ${{ vars.CLAUDE_USE_BEDROCK == 'true' }}
+      # use_vertex: ${{ vars.CLAUDE_USE_VERTEX == 'true' }}
+      # additional_env: ${{ vars.CLAUDE_ADDITIONAL_ENV || '{}' }}

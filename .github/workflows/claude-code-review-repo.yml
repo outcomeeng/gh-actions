@@ -1,0 +1,29 @@
+# Run the generic Claude Code Review reusable on this repository as a self-test.
+#
+# `ready_for_review` is omitted from the trigger types deliberately: the
+# event always fires on a SHA that the previous opened/synchronize already
+# reviewed, so subscribing to it would duplicate every promotion review.
+
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  claude-code-review:
+    uses: ./.github/workflows/claude-code-review.yml
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    with:
+      # Override at runtime via the CLAUDE_REVIEW_TIMEOUT_MINUTES repo
+      # variable. The reusable input is typed as string so `vars.*` (always
+      # a string) and the quoted fallback both pass through unchanged.
+      timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || '15' }}
