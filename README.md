@@ -123,31 +123,31 @@ The example caller templates are **drop-in**: copy the file, set the repository 
 
 Mention workflow (`spec-tree.yml`):
 
-| Repo variable                   | Maps to               | Default if unset | Notes                                                                                                                  |
-| ------------------------------- | --------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `SPEC_TREE_RUNNER`              | `runner`              | `ubuntu-slim`    | Single label or JSON-array string. `'["self-hosted","laptop"]'` is one literal string.                                 |
-| `SPEC_TREE_TRIGGER_PHRASE`      | `trigger_phrase`      | `@spec-tree`     | Mention text the workflow listens for.                                                                                 |
-| `SPEC_TREE_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Set the string `'false'` to opt out of cancel-on-new. Any other value preserves cancel behavior.                       |
-| `SPEC_TREE_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Wall-clock budget in minutes (quoted string).                                                                          |
-| `SPEC_TREE_MODEL`               | `model`               | (action default) | Claude model id (e.g. `claude-opus-4-7`); folded into `claude_args` as `--model <id>`.                                 |
-| `SPEC_TREE_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args, e.g. `--max-turns 20 --allowed-tools "Read,Grep,Bash(gh pr:*)"`.                                       |
-| `SPEC_TREE_CUSTOM_PROMPT`       | `custom_prompt`       | (empty)          | Single-line custom prompt. Multi-line prompts are awkward in repo vars; edit the workflow file directly for those.     |
-| `SPEC_TREE_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install plugins declared in `.claude/settings.json`. Any other value (or unset) keeps the default off. |
-| `SPEC_TREE_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Set `'true'` to stream per-turn JSON to the job log. WARNING: may expose secrets in tool outputs. Debug only.          |
+| Repo variable                   | Maps to               | Default if unset | Notes                                                                                                                           |
+| ------------------------------- | --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `SPEC_TREE_RUNNER`              | `runner`              | `ubuntu-slim`    | Single label or JSON-array string. `'["self-hosted","laptop"]'` is one literal string.                                          |
+| `SPEC_TREE_TRIGGER_PHRASE`      | `trigger_phrase`      | `@spec-tree`     | Mention text the workflow listens for. The reusable's authorize job rejects empty or whitespace-only values with a clear error. |
+| `SPEC_TREE_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Set the string `'false'` to opt out of cancel-on-new. Any other value preserves cancel behavior.                                |
+| `SPEC_TREE_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Wall-clock budget in minutes (quoted string).                                                                                   |
+| `SPEC_TREE_MODEL`               | `model`               | (action default) | Claude model id (e.g. `claude-opus-4-7`); folded into `claude_args` as `--model <id>`.                                          |
+| `SPEC_TREE_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args, e.g. `--max-turns 20 --allowed-tools "Read,Grep,Bash(gh pr:*)"`.                                                |
+| `SPEC_TREE_CUSTOM_PROMPT`       | `custom_prompt`       | (empty)          | Single-line custom prompt. Multi-line prompts are awkward in repo vars; edit the workflow file directly for those.              |
+| `SPEC_TREE_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install plugins declared in `.claude/settings.json`. Any other value (or unset) keeps the default off.          |
+| `SPEC_TREE_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Set `'true'` to stream per-turn JSON to the job log. WARNING: may expose secrets in tool outputs. Debug only.                   |
 
 Review workflow (`spec-tree-review.yml`):
 
-| Repo variable                          | Maps to               | Default if unset | Notes                                                                                                                                                         |
-| -------------------------------------- | --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SPEC_TREE_REVIEW_RUNNER`              | `runner`              | `ubuntu-slim`    | Same form as mention.                                                                                                                                         |
-| `SPEC_TREE_REVIEW_TRIGGER_PHRASE`      | `trigger_phrase`      | `@spec-tree`     | Forwarded to the action for content matching; review fires on every `pull_request` event regardless.                                                          |
-| `SPEC_TREE_REVIEW_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Same semantics as mention.                                                                                                                                    |
-| `SPEC_TREE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Same.                                                                                                                                                         |
-| `SPEC_TREE_REVIEW_MODEL`               | `model`               | (action default) | Same.                                                                                                                                                         |
-| `SPEC_TREE_REVIEW_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args OTHER than `--allowed-tools` (use the allow-list inputs below for tool changes).                                                               |
-| `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST`   | `append_allow_list`   | (empty)          | Comma-separated patterns appended to the baked-in baseline (`Bash(gh ...) + Bash(sed:*),Bash(grep:*),Bash(head:*)`). Widen when opting in to project plugins. |
-| `SPEC_TREE_REVIEW_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install project plugins; pair with `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST` so the plugin's tools are reachable.                                  |
-| `SPEC_TREE_REVIEW_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Same warning as mention.                                                                                                                                      |
+| Repo variable                          | Maps to               | Default if unset | Notes                                                                                                                                                                                         |
+| -------------------------------------- | --------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SPEC_TREE_REVIEW_RUNNER`              | `runner`              | `ubuntu-slim`    | Same form as mention.                                                                                                                                                                         |
+| `SPEC_TREE_REVIEW_TRIGGER_PHRASE`      | `trigger_phrase`      | `@spec-tree`     | Forwarded to the action for content matching; review fires on every `pull_request` event regardless. The reusable's authorize job rejects empty or whitespace-only values with a clear error. |
+| `SPEC_TREE_REVIEW_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Same semantics as mention.                                                                                                                                                                    |
+| `SPEC_TREE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Same.                                                                                                                                                                                         |
+| `SPEC_TREE_REVIEW_MODEL`               | `model`               | (action default) | Same.                                                                                                                                                                                         |
+| `SPEC_TREE_REVIEW_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args OTHER than `--allowed-tools` (use the allow-list inputs below for tool changes).                                                                                               |
+| `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST`   | `append_allow_list`   | (empty)          | Comma-separated patterns appended to the baked-in baseline (`Bash(gh ...) + Bash(sed:*),Bash(grep:*),Bash(head:*)`). Widen when opting in to project plugins.                                 |
+| `SPEC_TREE_REVIEW_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install project plugins; pair with `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST` so the plugin's tools are reachable.                                                                  |
+| `SPEC_TREE_REVIEW_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Same warning as mention.                                                                                                                                                                      |
 
 Inputs **left commented in the example template** (active when uncommented):
 

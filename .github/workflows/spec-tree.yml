@@ -129,6 +129,25 @@ jobs:
     outputs:
       authorized: ${{ steps.check.outputs.authorized }}
     steps:
+      - name: Validate trigger phrase
+        env:
+          TRIGGER_PHRASE: ${{ inputs.trigger_phrase }}
+        run: |
+          set -euo pipefail
+          # GitHub Actions treats any non-empty string as truthy, so the
+          # `${{ vars.X || '@spec-tree' }}` pattern in the example caller
+          # returns the variable's literal value even when that value is
+          # whitespace-only. Combined with the `contains(comment.body, ...)`
+          # check in the job-level `if:` above, a whitespace-only trigger
+          # phrase matches nearly every comment and would fire this
+          # workflow on every authorized comment. Reject empty and
+          # whitespace-only trigger phrases here so the workflow fails
+          # loudly rather than firing repeatedly.
+          if [[ -z "${TRIGGER_PHRASE//[[:space:]]/}" ]]; then
+            echo "::error::trigger_phrase is empty or whitespace-only. Set inputs.trigger_phrase, or the SPEC_TREE_TRIGGER_PHRASE repo variable, to a meaningful mention string (e.g. '@spec-tree')."
+            exit 1
+          fi
+
       - name: Check actor permission
         id: check
         env:
