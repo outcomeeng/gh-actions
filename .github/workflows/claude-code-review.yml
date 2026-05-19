@@ -152,7 +152,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for cmd in gh jq sed; do
+          for cmd in gh jq; do
             if ! command -v "$cmd" >/dev/null 2>&1; then
               missing+=("$cmd")
             fi
@@ -327,7 +327,7 @@ jobs:
           plugins=$(echo "$plugins" | sed '/^$/d')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
-          delim="MULTILINE_${RANDOM}_${RANDOM}_${RANDOM}"
+          delim="MULTILINE_${RANDOM}${RANDOM}${RANDOM}"
           {
             echo "plugins<<${delim}"
             echo "$plugins"
@@ -396,7 +396,7 @@ jobs:
             args="$args $EXTRA_ARGS"
           fi
 
-          delim="ARGS_${RANDOM}_${RANDOM}_${RANDOM}"
+          delim="ARGS_${RANDOM}${RANDOM}${RANDOM}"
           {
             printf '%s<<%s\n' "args" "$delim"
             printf '%s\n' "$args"
@@ -428,7 +428,7 @@ jobs:
               exit 1
             fi
             value=$(printf '%s' "$entry" | jq -r '.value | tostring')
-            delim="ENV_${RANDOM}_${RANDOM}_${RANDOM}"
+            delim="ENV_${RANDOM}${RANDOM}${RANDOM}"
             {
               printf '%s<<%s\n' "$key" "$delim"
               printf '%s\n' "$value"
@@ -449,7 +449,7 @@ jobs:
           CUSTOM_PROMPT: ${{ inputs.custom_prompt }}
         run: |
           set -euo pipefail
-          delimiter="CLAUDE_PROMPT_${RANDOM}_${RANDOM}_${RANDOM}"
+          delimiter="CLAUDE_PROMPT_${RANDOM}${RANDOM}${RANDOM}"
           if [ -n "$CUSTOM_PROMPT" ]; then
             {
               echo "prompt<<$delimiter"
