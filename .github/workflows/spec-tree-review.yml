@@ -154,7 +154,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for cmd in gh jq sed uuidgen; do
+          for cmd in gh jq sed; do
             if ! command -v "$cmd" >/dev/null 2>&1; then
               missing+=("$cmd")
             fi
@@ -329,7 +329,7 @@ jobs:
           plugins=$(echo "$plugins" | sed '/^$/d')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
-          delim="MULTILINE_$(uuidgen)"
+          delim="MULTILINE_${RANDOM}_${RANDOM}_${RANDOM}"
           {
             echo "plugins<<${delim}"
             echo "$plugins"
@@ -399,7 +399,7 @@ jobs:
             args="$args $EXTRA_ARGS"
           fi
 
-          delim="ARGS_$(uuidgen)"
+          delim="ARGS_${RANDOM}_${RANDOM}_${RANDOM}"
           {
             printf '%s<<%s\n' "args" "$delim"
             printf '%s\n' "$args"
@@ -431,7 +431,7 @@ jobs:
               exit 1
             fi
             value=$(printf '%s' "$entry" | jq -r '.value | tostring')
-            delim="ENV_$(uuidgen)"
+            delim="ENV_${RANDOM}_${RANDOM}_${RANDOM}"
             {
               printf '%s<<%s\n' "$key" "$delim"
               printf '%s\n' "$value"
