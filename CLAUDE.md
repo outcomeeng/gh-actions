@@ -17,6 +17,7 @@ gh-actions/
 │   └── caller-workflows/                 # Copy-paste templates for downstream repos
 ├── AGENTS.md                             # Cloud review guidance
 ├── CLAUDE.md                             # This file
+├── ISSUES.md                             # Known issues / FOLLOW-UP findings from PR reviews (per spec-tree)
 ├── Justfile                              # Local lint commands (mirror of ci.yml)
 ├── README.md                             # User documentation
 └── renovate.json                         # SHA-pinning + tag-tracking for GitHub Actions and reusable workflows
