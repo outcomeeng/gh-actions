@@ -59,7 +59,10 @@ jobs:
       # untrusted contributors.
       runner: ${{ vars.SPEC_TREE_RUNNER || 'ubuntu-slim' }}
 
-      # Mention trigger phrase. Defaults to `@spec-tree`.
+      # Mention trigger phrase. Defaults to `@spec-tree`. The reusable's
+      # authorize job rejects empty or whitespace-only values with a clear
+      # error (defends against `vars.SPEC_TREE_TRIGGER_PHRASE=' '` causing
+      # `contains(comment, ' ')` to match nearly every comment).
       trigger_phrase: ${{ vars.SPEC_TREE_TRIGGER_PHRASE || '@spec-tree' }}
 
       # Cancel in-progress mention runs when a new mention arrives. Reusable

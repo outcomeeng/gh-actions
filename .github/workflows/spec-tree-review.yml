@@ -150,6 +150,24 @@ jobs:
     outputs:
       authorized: ${{ steps.check.outputs.authorized }}
     steps:
+      - name: Validate trigger phrase
+        env:
+          TRIGGER_PHRASE: ${{ inputs.trigger_phrase }}
+        run: |
+          set -euo pipefail
+          # The review workflow fires on every `pull_request` event
+          # regardless of `trigger_phrase`, so a whitespace-only value
+          # cannot cause the unbounded-firing failure mode the mention
+          # workflow guards against. The same validation is applied here
+          # for consistency and to defend against future changes that
+          # might introduce comment-matching logic relying on a
+          # non-empty trigger phrase. Reject empty and whitespace-only
+          # trigger phrases.
+          if [[ -z "${TRIGGER_PHRASE//[[:space:]]/}" ]]; then
+            echo "::error::trigger_phrase is empty or whitespace-only. Set inputs.trigger_phrase, or the SPEC_TREE_REVIEW_TRIGGER_PHRASE repo variable, to a meaningful mention string (e.g. '@spec-tree')."
+            exit 1
+          fi
+
       - name: Check PR author permission
         id: check
         env:

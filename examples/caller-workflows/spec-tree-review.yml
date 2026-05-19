@@ -64,6 +64,8 @@ jobs:
       # Trigger phrase forwarded to the action. The review fires on every
       # `pull_request` event regardless of this value; it is used for
       # content matching inside the action prompt. Defaults to `@spec-tree`.
+      # The reusable's authorize job rejects empty or whitespace-only
+      # values with a clear error.
       trigger_phrase: ${{ vars.SPEC_TREE_REVIEW_TRIGGER_PHRASE || '@spec-tree' }}
 
       # Cancel in-progress reviews when the PR is updated. Reusable default:
