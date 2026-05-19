@@ -129,6 +129,21 @@ jobs:
     outputs:
       authorized: ${{ steps.check.outputs.authorized }}
     steps:
+      - name: Validate runner dependencies
+        run: |
+          set -euo pipefail
+          missing=()
+          for cmd in gh jq sed; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+              missing+=("$cmd")
+            fi
+          done
+          if ((${#missing[@]})); then
+            printf 'Missing required command(s): %s\n' "${missing[*]}" >&2
+            printf 'Install the missing command(s) on the runner image or choose a runner that already provides them.\n' >&2
+            exit 1
+          fi
+
       - name: Validate trigger phrase
         env:
           TRIGGER_PHRASE: ${{ inputs.trigger_phrase }}
@@ -244,15 +259,7 @@ jobs:
           plugins=$(echo "$plugins" | sed '/^$/d')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
-          new_delim() {
-            if command -v uuidgen >/dev/null 2>&1; then
-              uuidgen
-            else
-              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
-            fi
-          }
-
-          delim="MULTILINE_$(new_delim)"
+          delim="MULTILINE_${RANDOM}_${RANDOM}_${RANDOM}"
           {
             echo "plugins<<${delim}"
             echo "$plugins"
@@ -291,15 +298,7 @@ jobs:
             args="${args:+$args }$EXTRA_ARGS"
           fi
 
-          new_delim() {
-            if command -v uuidgen >/dev/null 2>&1; then
-              uuidgen
-            else
-              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
-            fi
-          }
-
-          delim="ARGS_$(new_delim)"
+          delim="ARGS_${RANDOM}_${RANDOM}_${RANDOM}"
           {
             printf '%s<<%s\n' "args" "$delim"
             printf '%s\n' "$args"
@@ -324,14 +323,6 @@ jobs:
           # values (JSON, cert material, etc.) survive unmangled. Reject keys
           # that aren't valid POSIX env var names so a malformed input can't
           # silently inject garbage.
-          new_delim() {
-            if command -v uuidgen >/dev/null 2>&1; then
-              uuidgen
-            else
-              printf '%s_%s\n' "$RANDOM" "$(date +%s)"
-            fi
-          }
-
           while IFS= read -r entry; do
             key=$(printf '%s' "$entry" | jq -r '.key')
             if ! [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
@@ -339,7 +330,7 @@ jobs:
               exit 1
             fi
             value=$(printf '%s' "$entry" | jq -r '.value | tostring')
-            delim="ENV_$(new_delim)"
+            delim="ENV_${RANDOM}_${RANDOM}_${RANDOM}"
             {
               printf '%s<<%s\n' "$key" "$delim"
               printf '%s\n' "$value"
