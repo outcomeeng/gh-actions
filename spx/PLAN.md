@@ -1,34 +1,25 @@
-# PLAN — top-level composition intent (bootstrap)
+# PLAN — composition state and deferred work
 
-This file records the product areas surfaced during bootstrapping so
-`/decomposing spx/` can compose them into top-level children. The lists below
-are **intent, not structure** — `/decomposing` owns child boundaries, node
-types (enabler vs outcome), ordering evidence, and sparse index assignment. Do
-not infer the tree shape from the order here.
+## Top-level composition (done)
 
-## Candidate top-level areas
+`/decomposing spx/` composed six top-level enablers in three dependency tiers.
+The product is infrastructure, so the behavior-change bet stays in the product
+hypothesis and every top-level node is an enabler.
 
-- **Workflow surfaces** — the consumable reusables, organized by what the agent does: mention-triggered assistance, automated PR review, and the verification gates (validation, test, audit, review).
-- **Provider & runtime integration** — a common invocation shape across providers (Anthropic API, Bedrock, Vertex; OpenAI / cloud review; future providers).
-- **Supply-chain security & least privilege** — full-SHA pinning, Renovate-managed updates, top-level `permissions: {}` with per-job grants, secret handling.
-- **Authorization & workflow-validation gating** — the collaborator-permission gate and the caller-workflow byte-match validation.
-- **Agent & plugin provisioning** — plugin/marketplace install and tool-allowlist composition.
-- **Consumer onboarding & configuration** — copy-paste caller templates, repo-variable overrides, documentation.
-- **Self-test harness** — the in-repo `*-repo.yml` callers that exercise the reusables against this repository.
-- **Secret / credential provisioning** — the `push-secrets.py` tooling.
+- `spx/21-self-test-harness.enabler` — foundational testability; every other node is exercised against it.
+- `spx/32-security.enabler`, `spx/32-agent-invocation.enabler` — shared substrate (independent peers).
+- `spx/54-agent-trigger.enabler`, `spx/54-verification-gates.enabler` — surfaces that consume the substrate (independent peers).
+- `spx/76-distribution.enabler` — consumes the surface contracts (templates, repo-variable overrides, docs, secret provisioning).
 
-## Known constraints and examples
+Reserved index gaps `43`, `65`, and `87` hold space for future top-level insertion.
 
-- Implemented surfaces today are the mention reusables (`spec-tree.yml`, `claude.yml`) and the review reusables (`spec-tree-review.yml`, `claude-code-review.yml`), plus the self-test callers. These are **specified slices** of the surface × provider space; the verification gates and additional providers (OpenAI / cloud) are **declared** and sit in `spx/EXCLUDE` until built.
-- Provider routing already exists as inputs (`use_bedrock`, `use_vertex`) and OpenAI cloud review is partially present via `AGENTS.md` — provider-agnosticism is partially realized, not purely aspirational.
-- The security posture (SHA-pinning, `permissions: {}`, no secrets in `run:`, actionlint + shellcheck) is enforced by `ci.yml` and documented in `README.md` / `CLAUDE.md` today; the tree should declare it as product-level compliance plus a security enabler.
+## Deferred / open
 
-## Unresolved questions (for `/decomposing` and `/interviewing`)
+- **Evidence model — governed by `spx/15-evidence-model.adr.md`.** `[review]` + actionlint/shellcheck conformance + the self-test harness as scenario evidence, with a `scripts/`-scoped pytest lane (not the pytest-everywhere default or the canonical `infrastructure → testing → {generators, fixtures, harnesses}` subtree). The six enablers' `[review]` tags conform; `tests/` directories (for `scripts/` logic) and `spx/EXCLUDE` entries (for the declared gates) are created during `/testing` and implementation per that ADR.
+- **Declared, not built.** In `spx/54-verification-gates.enabler`, the review gate is implemented; validation, test, and audit are declared and belong in `spx/EXCLUDE` once they carry specs and tests.
+- **Per-node decomposition.** Each top-level enabler is a candidate for `/decomposing <node>` as its concerns grow — e.g. `spx/32-security.enabler` into supply-chain / authorization / validation, and `spx/54-verification-gates.enabler` into the four gates. `/authoring` deepens each node's assertions beyond the placeholder compliance rules.
+- **plugins/spx cross-reference.** The review gate's prompt taxonomy and reviewer-only decision are governed in `plugins/spx` and cross-referenced, never restated (coordinated in `PLAN-review-skill-from-ci.md` on the `docs/review-skill-from-ci` branch).
 
-- **Evidence model** (also in the product spec's Open decisions): `[review]` + actionlint/shellcheck conformance + the self-test harness as scenario evidence, versus a pytest lane scoped to `scripts/`. Resolve via an ADR before `/testing` runs.
-- **Surface × provider organization**: by-surface top level with provider as a config axis, versus by-provider top level. A decomposition decision.
-- **Relationship to `plugins/spx`**: the review-prompt taxonomy and the reviewer-only decision are governed in `plugins/spx` and cross-referenced here, never restated. The workflow-side coordination for that work lives in `PLAN-review-skill-from-ci.md` (on the `docs/review-skill-from-ci` branch).
+## Resolved
 
-## Next step
-
-Invoke `/decomposing spx/` to compose top-level children from these areas.
+- Surface × provider shape: surfaces are top-level with provider as a configuration axis (the `spx/32-agent-invocation.enabler` substrate), not a by-provider partition.
