@@ -521,13 +521,15 @@ jobs:
 
             **NEVER:** emit open questions or speculative commentary that does not constitute a finding. Questions add CI roundtrips this single-pass review cannot recover from.
 
+            **For each new validator, check, or derivation introduced by the changeset:** name the configuration inputs it reads (env vars, config keys, CLI flags, file-system state) and confirm it handles every documented value of each input, not just the default. An override that the canonical path honors but the new path ignores is a `consistency` finding even when the default-config behavior is identical.
+
             Every finding has two dimensions: **category** and **severity**. Use only these 6 categories and 3 severities.
 
             ## **Category:** Classify all your findings into one of 6 categories, grouped by three axes
 
             **What the code does vs. what it is supposed to do**
 
-            - **Consistency:** equivalence across the layers — what the decisions (PDRs and ADRs) govern, what the spec asserts, what tests and evals verify, and what the implementation does. A finding is a consistency one when a lower layer does not match a higher one. The reviewer surfaces the disagreement; they do not judge which side is right.
+            - **Consistency:** equivalence across the layers AND across the codebase. Vertical: a lower layer disagrees with a higher one — decisions (PDRs and ADRs) → spec → tests/evals → implementation. Horizontal: a new code path re-derives a value (a name, id, path, label, status, decision) that an existing function in the repo already derives, and the two derivations disagree on any documented input — especially optional/override inputs (env vars, config flags, fallbacks). When the changeset introduces such a derivation, locate the existing helper with `grep` and confirm agreement across every documented input. The reviewer surfaces the disagreement; they do not judge which side is right.
             - **Security:** confidentiality, integrity, availability.
             - **Performance:** unbounded loops, hot-path allocations, O(n^2) traversals where O(n) suffices, synchronous I/O on async paths, and similar pessimisations that change the changeset's runtime characteristics under realistic load.
 
@@ -577,8 +579,10 @@ jobs:
 
             ## **Completeness:** Aim for *first-time right*
 
-            Each review pass is independent and self-contained — there is no cross-pass continuity, and CI replays the prompt from scratch on every `pull_request` event. Surface every finding the changeset exhibits in the **first** pass against that changeset; a finding missed on pass 1 has no second chance unless the diff itself changes. Read the diff once, methodically, across all categories before composing the comment.
+            Each review pass is independent and self-contained — there is no cross-pass continuity, and CI replays the prompt from scratch on every `pull_request` event. Surface every finding the changeset exhibits in the **first** pass against that changeset; a finding missed on pass 1 has no second chance unless the diff itself changes.
 
-            ## **No findings:** say so directly
+            Read the diff once, methodically, across all categories. Then identify the highest-risk files in the changeset — typically new or substantially-rewritten runtime logic, security-sensitive paths, and modules with cross-file invariants — and make a focused second pass on those files: open the full file with `sed -n 'A,Bp'`, and `grep` the working tree for the existing helpers, callers, and collaborators each new function interacts with. A 10k-line diff read in 1000-line chunks puts material in context but does not by itself produce the cross-file inferences `consistency` and `architecture` findings depend on; the second pass is what closes that gap.
 
-            When the changeset has no `BLOCKING` or `DEBT` findings, post a one-line comment saying so. NEVER invent lower-priority findings to prove the review happened.
+            ## **No findings:** confirm the cross-checks first
+
+            Before posting "no findings", for each substantially new runtime function the changeset introduces, state internally which existing collaborator or canonical helper it must agree with, and confirm the agreement by reading both with `sed` and `grep`. A single satisfied sub-check — for example, an env-var override at one layer — does not clear the area; name the collaborator and verify the relationship explicitly. When every such cross-check passes, post a one-line comment saying so. NEVER invent lower-priority findings to prove the review happened, and NEVER generalize "no gap here" from one verified relationship to the whole area.
