@@ -5,10 +5,10 @@
 Bringing an AI coding agent into a repository's CI — reviewing every pull
 request, answering mentions, running the verification gates a team relies on —
 takes workflow logic that is security-sensitive (token handling, supply-chain
-pinning, authorization) and provider-specific. Authored per repository, that
-logic drifts, regresses, and duplicates effort across every repo that wants it.
-This product provides the integration once, as reusable workflows a repository
-consumes by reference and pins by commit SHA.
+pinning, authorization) and provider-specific. This product provides that
+integration as reusable workflows a repository consumes by reference and pins
+by commit SHA, so one hardened implementation serves every consuming
+repository.
 
 ## Product hypothesis
 
@@ -58,7 +58,6 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 
 ## Open decisions
 
-| Decision topic           | Key question                                                                   | Options                                                                                                                        | Triggers ADR/PDR?   |
-| ------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
-| Evidence model           | How does a workflows product carry verifiable evidence without a pytest suite? | self-test harness as scenario evidence + actionlint/shellcheck conformance + `[review]`; pytest lane scoped to `scripts/` only | Yes                 |
-| Surface × provider shape | How is the surface/provider space organized in the tree?                       | by-surface top level with provider as a config axis; by-provider top level                                                     | Yes (decomposition) |
+| Decision topic | Key question | Options | Triggers ADR/PDR? |
+| -------------- | ------------ | ------- | ----------------- |
+| None           | N/A          | N/A     | N/A               |
