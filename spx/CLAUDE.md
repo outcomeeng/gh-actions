@@ -65,8 +65,8 @@ evidence chain differs from the methodology default:
 The canonical `infrastructure → testing → {generators, fixtures, harnesses}`
 subtree and the pytest-everywhere `[test]` default from
 `plugins/spx/15-test-infrastructure.pdr.md` and `plugins/spx/15-test-language.adr.md`
-do not fit a workflows product as-is. The evidence model is an **open decision**
-recorded in `spx/PLAN.md`; an ADR fixes it before tests are authored.
+do not fit a workflows product as-is. The evidence model is governed by
+`spx/15-evidence-model.adr.md`.
 
 ---
 
