@@ -20,5 +20,8 @@ Affected locations:
 - `spx/54-verification-gates.enabler/verification-gates.md` — the
   Compliance assertion citing "the governance cross-referenced from
   `plugins/spx`".
+- `spx/PLAN.md` — the "plugins/spx cross-reference" bullet stating the
+  review gate's prompt taxonomy and reviewer-only decision are "governed
+  in `plugins/spx` and cross-referenced, never restated".
 
 Resolve before the verification-gates review gate's implementation begins.
