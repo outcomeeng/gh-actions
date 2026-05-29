@@ -34,3 +34,14 @@ exist on this branch. Per `spx/PLAN.md`, `spx/EXCLUDE` entries are created
 during `/testing` and implementation per `spx/15-evidence-model.adr.md`,
 specifically for the three declared-but-not-built verification gates
 (`validation`, `test`, `audit`) once they carry specs and tests.
+
+## 3. OpenAI / cloud-review provider routing not yet implemented
+
+`spx/32-agent-invocation.enabler` PROVIDES "Anthropic API, Bedrock, Vertex,
+OpenAI / cloud review, and further providers" — declaring the full
+provider scope from the product hypothesis. The current reusable
+workflows (`spec-tree.yml`, `spec-tree-review.yml`, `claude.yml`,
+`claude-code-review.yml`) carry `use_bedrock`, `use_vertex`, and `model`
+inputs but no structured OpenAI routing input. Per the methodology,
+the spec correctly declares the contract; the code-in-violation gap
+closes when an OpenAI invocation path lands.
