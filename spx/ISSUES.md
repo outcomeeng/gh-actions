@@ -5,8 +5,8 @@
 Three locations in this tree cite `plugins/spx` as a directory-level
 governance pointer rather than a specific file. A specific-file path
 replaces each pointer once the canonical PDR governing the shared
-Review-layer implementation is authored in `plugins/spx` — drafted today
-at `outcomeeng/plugins/PDR-DRAFT-shared-review-implementation.md`.
+Review-layer implementation is authored in `plugins/spx`. The working draft
+sits at `outcomeeng/plugins/PDR-DRAFT-shared-review-implementation.md`.
 
 Affected locations:
 
