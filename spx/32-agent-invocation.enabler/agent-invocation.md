@@ -1,7 +1,7 @@
 # Agent Invocation
 
 PROVIDES a common agent-run setup — provider and runtime routing (Anthropic API, Bedrock, Vertex, and further providers), agent plugin and marketplace installation, and tool-allowlist composition
-SO THAT the `spx/54-agent-trigger.enabler` and `spx/54-verification-gates.enabler` surfaces
+SO THAT this product's agent-surface nodes
 CAN invoke an AI coding agent through one configurable shape regardless of provider, with the required plugins installed and the matching tools allowed
 
 ## Assertions
