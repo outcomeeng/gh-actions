@@ -2,7 +2,7 @@
 
 ## 1. Coarse `plugins/spx` directory-level cross-references
 
-Three locations in this tree cite `plugins/spx` as a directory-level
+Four locations in this tree cite `plugins/spx` as a directory-level
 governance pointer rather than a specific file. A specific-file path
 replaces each pointer once the canonical PDR governing the shared
 Review-layer implementation is authored in `plugins/spx`. The working draft
