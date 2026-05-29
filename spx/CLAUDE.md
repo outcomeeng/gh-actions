@@ -87,10 +87,8 @@ do not fit a workflows product as-is. The evidence model is governed by
 
 ## Excluded Nodes
 
-Nodes with specs and tests but no implementation are listed in `spx/EXCLUDE`;
-the quality gate skips their tests while linting still applies. Declared
-surfaces and providers that are not yet built live here until implementation
-begins.
+A node with a spec and tests but no implementation is listed in `spx/EXCLUDE`;
+the quality gate skips its tests while linting still applies.
 
 ---
 
