@@ -25,3 +25,12 @@ Affected locations:
   in `plugins/spx` and cross-referenced, never restated".
 
 Resolve before the verification-gates review gate's implementation begins.
+
+## 2. `spx/EXCLUDE` is referenced but does not yet exist
+
+`spx/CLAUDE.md` and `spx/PLAN.md` reference `spx/EXCLUDE` as the registry
+for nodes with specs and tests but no implementation. The file does not
+exist on this branch. Per `spx/PLAN.md`, `spx/EXCLUDE` entries are created
+during `/testing` and implementation per `spx/15-evidence-model.adr.md`,
+specifically for the three declared-but-not-built verification gates
+(`validation`, `test`, `audit`) once they carry specs and tests.
