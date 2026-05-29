@@ -1,8 +1,8 @@
 # Self-Test Harness
 
 PROVIDES an in-repo harness — caller workflows that invoke this repository's own reusables via `uses: ./.github/workflows/<name>.yml` against its own issues, comments, and pull requests
-SO THAT every other node in this product — the `spx/32-security.enabler` and `spx/32-agent-invocation.enabler` substrate, the `spx/54-agent-trigger.enabler` and `spx/54-verification-gates.enabler` surfaces, and `spx/76-distribution.enabler`
-CAN be exercised end-to-end on real GitHub events before it ships, so a reusable's runtime behavior is verifiable without an external consumer
+SO THAT this product's maintainers
+CAN observe each reusable's end-to-end runtime behavior on real GitHub events before it reaches an external consumer
 
 ## Assertions
 
