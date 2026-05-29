@@ -1,12 +1,23 @@
 # ISSUES — gh-actions spec tree
 
-## 1. Coarse `plugins/spx` cross-reference in `spx/54-verification-gates.enabler`
+## 1. Coarse `plugins/spx` directory-level cross-references
 
-`spx/54-verification-gates.enabler/verification-gates.md` cites `plugins/spx`
-as the governance source for the review-prompt taxonomy and the reviewer-only
-decision (directory-level pointer rather than a specific file). A specific
-file replaces the directory pointer once the canonical PDR governing the
-shared Review-layer implementation is authored in `plugins/spx` — drafted
-today at `outcomeeng/plugins/PDR-DRAFT-shared-review-implementation.md`.
+Three locations in this tree cite `plugins/spx` as a directory-level
+governance pointer rather than a specific file. A specific-file path
+replaces each pointer once the canonical PDR governing the shared
+Review-layer implementation is authored in `plugins/spx` — drafted today
+at `outcomeeng/plugins/PDR-DRAFT-shared-review-implementation.md`.
+
+Affected locations:
+
+- `spx/gh-actions.product.md` — the `What's excluded` table row "Agent
+  skill, prompt, and review-taxonomy logic / Governed in `plugins/spx`;
+  cross-referenced, never restated".
+- `spx/gh-actions.product.md` — the product-level NEVER assertion:
+  "restate agent skill, prompt, or review-taxonomy governance that lives
+  in `plugins/spx` — cross-reference it so the two surfaces cannot drift".
+- `spx/54-verification-gates.enabler/verification-gates.md` — the
+  Compliance assertion citing "the governance cross-referenced from
+  `plugins/spx`".
 
 Resolve before the verification-gates review gate's implementation begins.
