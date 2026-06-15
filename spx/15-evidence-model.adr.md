@@ -14,19 +14,13 @@ The self-test harness is this product's analog of a test runner: it invokes each
 
 Deterministic Python under `scripts/` (keychain reads, repository detection) is unit-testable and gets a pytest lane like any code.
 
+The model accepts that workflow behavior leans on `[audit]`, which CI does not enforce: the self-test harness and the `actionlint`/`shellcheck` conformance lane carry the falsifiable load, and audit covers only the residue no run or linter can falsify. It also accepts that the self-test harness's callers reference the reusables — a runtime consumer relationship — while the harness itself is foundational; testability leads, so every node is built and verified against the harness, and that consumer detail stays subordinate to the harness as the verification substrate (`spx/21-self-test-harness.enabler`).
+
 Alternatives rejected:
 
 - **Pytest everywhere** (the methodology default): pytest cannot exercise workflow runtime behavior; the result is string-shape assertions over YAML — phantom evidence. Retained only for `scripts/`.
 - **Review-only:** loses the falsifiability `actionlint`/`shellcheck` already provide for structural rules and pytest provides for `scripts/` logic. Too weak.
 - **Adopt the canonical `infrastructure → testing → {generators, fixtures, harnesses}` subtree:** that subtree presumes generators, fixtures, and harnesses feeding a pytest collector over product code; a workflows product has no such code surface, so the subtree would be empty scaffolding. The self-test harness enabler is this product's testing-infrastructure analog.
-
-## Trade-offs accepted
-
-| Trade-off                                                                                                                 | Mitigation / reasoning                                                                                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Workflow behavior leans on `[audit]`, which CI does not enforce                                                           | The self-test harness exercises each reusable end-to-end on real events, and `actionlint`/`shellcheck` enforce the structural and security rules; audit covers only the residue no run or linter can falsify |
-| Diverging from the methodology's pytest-everywhere default and canonical test-infra subtree                               | A workflows product has no importable units; honest evidence is real runs plus conformance, and forcing the default produces phantom green CI                                                                |
-| The self-test harness's callers reference the reusables (a runtime consumer relationship) yet the harness is foundational | Testability leads — every node is built and verified against the harness; the consumer detail is subordinate to the harness as the verification substrate (`spx/21-self-test-harness.enabler`)               |
 
 ## Verification
 
