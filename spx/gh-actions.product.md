@@ -50,11 +50,11 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 
 ### Compliance
 
-- ALWAYS: pin every action and reusable workflow referenced by `uses:` by full-length commit SHA with a trailing tag or branch comment — mutable references can be redirected after publication ([review])
-- ALWAYS: declare top-level `permissions: {}` and grant each job only the permissions it needs — least privilege bounds the blast radius of a compromised step ([review])
-- ALWAYS: gate every agent-invoking job behind an authorization check against the repository collaborator-permission API — only `admin`, `maintain`, or `write` actors trigger an agent run ([review])
-- NEVER: interpolate a secret or user-controlled input into a `run:` script body — interpolation resolves before the shell parses the line and enables injection ([review])
-- NEVER: restate agent skill, prompt, or review-taxonomy governance that lives in `plugins/spx` — cross-reference it so the two surfaces cannot drift ([review])
+- ALWAYS: pin every action and reusable workflow referenced by `uses:` by full-length commit SHA with a trailing tag or branch comment — mutable references can be redirected after publication ([audit])
+- ALWAYS: declare top-level `permissions: {}` and grant each job only the permissions it needs — least privilege bounds the blast radius of a compromised step ([audit])
+- ALWAYS: gate every agent-invoking job behind an authorization check against the repository collaborator-permission API — only `admin`, `maintain`, or `write` actors trigger an agent run ([audit])
+- NEVER: interpolate a secret or user-controlled input into a `run:` script body — interpolation resolves before the shell parses the line and enables injection ([audit])
+- NEVER: restate agent skill, prompt, or review-taxonomy governance that lives in `plugins/spx` — cross-reference it so the two surfaces cannot drift ([audit])
 
 ## Open decisions
 

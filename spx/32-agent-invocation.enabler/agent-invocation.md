@@ -8,6 +8,6 @@ CAN invoke an AI coding agent through one configurable shape regardless of provi
 
 ### Compliance
 
-- ALWAYS: provider and runtime selection is a configuration axis (inputs such as `use_bedrock`, `use_vertex`, `model`) over a single invocation shape, never a separate workflow per provider ([review])
-- ALWAYS: plugin and marketplace installation composes from caller inputs and, when opted in, the consumer's `.claude/settings.json`, and the tool allowlist is composed to match the installed tools ([review])
-- NEVER: a surface embeds provider-specific invocation logic that bypasses this shared setup — provider variation lives here ([review])
+- ALWAYS: provider and runtime selection is a configuration axis (inputs such as `use_bedrock`, `use_vertex`, `model`) over a single invocation shape, never a separate workflow per provider ([audit])
+- ALWAYS: plugin and marketplace installation composes from caller inputs and, when opted in, the consumer's `.claude/settings.json`, and the tool allowlist is composed to match the installed tools ([audit])
+- NEVER: a surface embeds provider-specific invocation logic that bypasses this shared setup — provider variation lives here ([audit])
