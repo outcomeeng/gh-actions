@@ -1,20 +1,10 @@
 # Evidence Model
 
-## Purpose
-
-This decision governs which evidence mechanism verifies which kind of assertion across the product — how a reusable-workflows product carries falsifiable evidence when its deliverable is workflow definitions rather than an importable code library.
-
-## Context
-
-**Business impact:** The product's value is reusable CI workflows other repositories pin and trust. Evidence that those workflows behave and stay secure is the product's quality guarantee. A mismatched evidence model either leaves workflow behavior unverified (review-only and unfalsifiable) or imposes a code-library test harness on artifacts that have no importable units — both produce phantom green CI.
-
-**Technical constraints:** The product ships GitHub Actions reusable workflows (YAML), example caller templates, and a small amount of Python under `scripts/` (e.g. `push-secrets.py`). Workflow behavior is observable only by running a workflow on real GitHub events. Structural and shell-injection rules are checked by `actionlint` + `shellcheck` in `ci.yml`. The methodology's default `[test]` lane is pytest (`plugins/spx/15-test-language.adr.md`), and `plugins/spx/15-test-infrastructure.pdr.md` mandates a canonical `infrastructure → testing → {generators, fixtures, harnesses}` subtree — both assume a code product with importable units and a pytest collector.
-
-## Decision
-
-The product verifies each assertion through the evidence mechanism that matches its subject: `[review]` for workflow behavior and security/governance rules no finite automated test can falsify; conformance against `actionlint` + `shellcheck` for structural and shell-injection rules; the in-repo self-test harness (`spx/21-self-test-harness.enabler`) as scenario evidence that a reusable runs end-to-end on real events; and a pytest `[test]` lane scoped to deterministic Python under `scripts/`. The canonical `infrastructure → testing → {generators, fixtures, harnesses}` subtree and the pytest-everywhere default do not apply to workflow nodes.
+The product verifies each assertion through the evidence mechanism that matches its subject: `[audit]` for workflow behavior and security/governance rules no finite automated test can falsify; conformance against `actionlint` + `shellcheck` for structural and shell-injection rules; the in-repo self-test harness (`spx/21-self-test-harness.enabler`) as scenario evidence that a reusable runs end-to-end on real events; and a pytest `[test]` lane scoped to deterministic Python under `scripts/`. The canonical `infrastructure → testing → {generators, fixtures, harnesses}` subtree and the pytest-everywhere default from `plugins/spx/15-test-language.adr.md` and `plugins/spx/15-test-infrastructure.pdr.md` do not apply to workflow nodes.
 
 ## Rationale
+
+The product's deliverable is reusable CI workflows other repositories pin and trust, plus example caller templates and a small amount of Python under `scripts/` (e.g. `push-secrets.py`). Evidence that those workflows behave and stay secure is the product's quality guarantee. A mismatched evidence model either leaves workflow behavior unverified — review-only and unfalsifiable — or imposes a code-library test harness on artifacts that have no importable units. Both produce phantom green CI.
 
 Workflow behavior has no importable unit a pytest assertion can exercise; its only honest evidence is a real run plus review of the YAML against the governance rules. Forcing pytest over workflow behavior yields assertions over YAML strings — formatting, not behavior.
 
@@ -32,25 +22,18 @@ Alternatives rejected:
 
 ## Trade-offs accepted
 
-| Trade-off                                                                                                                 | Mitigation / reasoning                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workflow behavior leans on `[review]`, which CI does not enforce                                                          | The self-test harness exercises each reusable end-to-end on real events, and `actionlint`/`shellcheck` enforce the structural and security rules; review covers only the residue no run or linter can falsify |
-| Diverging from the methodology's pytest-everywhere default and canonical test-infra subtree                               | A workflows product has no importable units; honest evidence is real runs plus conformance, and forcing the default produces phantom green CI                                                                 |
-| The self-test harness's callers reference the reusables (a runtime consumer relationship) yet the harness is foundational | Testability leads — every node is built and verified against the harness; the consumer detail is subordinate to the harness as the verification substrate (`spx/21-self-test-harness.enabler`)                |
+| Trade-off                                                                                                                 | Mitigation / reasoning                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Workflow behavior leans on `[audit]`, which CI does not enforce                                                           | The self-test harness exercises each reusable end-to-end on real events, and `actionlint`/`shellcheck` enforce the structural and security rules; audit covers only the residue no run or linter can falsify |
+| Diverging from the methodology's pytest-everywhere default and canonical test-infra subtree                               | A workflows product has no importable units; honest evidence is real runs plus conformance, and forcing the default produces phantom green CI                                                                |
+| The self-test harness's callers reference the reusables (a runtime consumer relationship) yet the harness is foundational | Testability leads — every node is built and verified against the harness; the consumer detail is subordinate to the harness as the verification substrate (`spx/21-self-test-harness.enabler`)               |
 
-## Compliance
+## Verification
 
-### Recognized by
+### Audit
 
-Assertions across the tree carry `[review]` for workflow-behavior and governance rules, conformance to `actionlint`/`shellcheck` for structural rules, the self-test harness for end-to-end runs, and `[test]` (pytest) only on `scripts/` logic. No spec assertion forces pytest over a workflow definition.
-
-### MUST
-
-- A `[test]` assertion in the tree targets deterministic Python under `scripts/`, named per the canonical `test_<subject>.<evidence>.<level>.py` convention — the pytest lane is scoped to script logic ([review])
-- A reusable workflow's end-to-end behavior is evidenced by a self-test caller in `spx/21-self-test-harness.enabler`, not by an assertion over its YAML ([review])
-- Structural and shell-injection rules (SHA-pinning, no secrets in `run:`, the `permissions:` shape) are evidenced by `actionlint` + `shellcheck` conformance in `ci.yml` ([review])
-
-### NEVER
-
-- A workflow node carries a `[test]` assertion that asserts over workflow YAML strings rather than a real run — that is formatting evidence, not behavior ([review])
-- The product authors the canonical `infrastructure → testing → {generators, fixtures, harnesses}` subtree — the self-test harness enabler is this product's testing-infrastructure analog ([review])
+- ALWAYS: a `[test]` assertion in the tree targets deterministic Python under `scripts/`, named per the canonical `test_<subject>.<evidence>.<level>.py` convention — the pytest lane is scoped to script logic ([audit])
+- ALWAYS: a reusable workflow's end-to-end behavior is evidenced by a self-test caller in `spx/21-self-test-harness.enabler`, not by an assertion over its YAML ([audit])
+- ALWAYS: structural and shell-injection rules (SHA-pinning, no secrets in `run:`, the `permissions:` shape) are evidenced by `actionlint` + `shellcheck` conformance in `ci.yml` ([audit])
+- NEVER: a workflow node carries a `[test]` assertion that asserts over workflow YAML strings rather than a real run — that is formatting evidence, not behavior ([audit])
+- NEVER: the product authors the canonical `infrastructure → testing → {generators, fixtures, harnesses}` subtree — the self-test harness enabler is this product's testing-infrastructure analog ([audit])
