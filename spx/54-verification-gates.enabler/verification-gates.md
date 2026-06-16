@@ -9,5 +9,5 @@ CAN obtain agent-run verification across the four layers, gated and invoked thro
 ### Compliance
 
 - ALWAYS: each gate runs on `pull_request` events, is authorized via `spx/32-security.enabler`, and is invoked via `spx/32-agent-invocation.enabler` ([audit])
-- ALWAYS: the review gate posts findings only and never a verdict — the reviewer reviews, the author decides — per the governance cross-referenced from `plugins/spx` ([audit])
-- NEVER: this product restates the review-prompt taxonomy or the reviewer-only decision that `plugins/spx` governs — it cross-references them ([audit])
+- ALWAYS: the review gate posts findings only and never a verdict — the reviewer reviews, the author decides — per `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md` (findings-only) and `plugins/spx/15-merging.pdr.md` (the reviewer reviews, the author decides) ([audit])
+- NEVER: this product restates the review-prompt taxonomy (`plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md`) or the reviewer-only decision (`plugins/spx/15-merging.pdr.md`) those files govern — it cross-references them ([audit])
