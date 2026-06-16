@@ -39,12 +39,12 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 
 ### What's excluded
 
-| Excluded                                                               | Rationale                                                                                                                                                                                                 |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Upstream agent actions and CLIs (e.g. `anthropics/claude-code-action`) | Consumed as pinned dependencies, not built here                                                                                                                                                           |
-| Agent skill, prompt, review-taxonomy, and reviewer-only decision logic | Governed by `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md` (skill, prompt, taxonomy) and `plugins/spx/15-merging.pdr.md` (reviewer-only decision); cross-referenced, never restated |
-| The AI models                                                          | Provided by the agent vendors                                                                                                                                                                             |
-| Non-GitHub CI platforms                                                | The product targets GitHub Actions                                                                                                                                                                        |
+| Excluded                                                               | Rationale                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upstream agent actions and CLIs (e.g. `anthropics/claude-code-action`) | Consumed as pinned dependencies, not built here                                                                                                                                                                                                                                                                               |
+| Agent skill, prompt, review-taxonomy, and reviewer-only decision logic | Governed by `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler/reviewing-changes.md` (skill, prompt), `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md` (review taxonomy), and `plugins/spx/15-merging.pdr.md` (reviewer-only decision); cross-referenced, never restated |
+| The AI models                                                          | Provided by the agent vendors                                                                                                                                                                                                                                                                                                 |
+| Non-GitHub CI platforms                                                | The product targets GitHub Actions                                                                                                                                                                                                                                                                                            |
 
 ## Product-level assertions
 
@@ -54,7 +54,7 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 - ALWAYS: declare top-level `permissions: {}` and grant each job only the permissions it needs — least privilege bounds the blast radius of a compromised step ([audit])
 - ALWAYS: gate every agent-invoking job behind an authorization check against the repository collaborator-permission API — only `admin`, `maintain`, or `write` actors trigger an agent run ([audit])
 - NEVER: interpolate a secret or user-controlled input into a `run:` script body — interpolation resolves before the shell parses the line and enables injection ([audit])
-- NEVER: restate the agent skill, prompt, and review-taxonomy governance (governed at `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md`) or the reviewer-only decision (governed at `plugins/spx/15-merging.pdr.md`) — cross-reference them so the two surfaces cannot drift ([audit])
+- NEVER: restate the agent skill and prompt governance (governed at `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler/reviewing-changes.md`), the review taxonomy (governed at `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md`), or the reviewer-only decision (governed at `plugins/spx/15-merging.pdr.md`) — cross-reference them so the two surfaces cannot drift ([audit])
 
 ## Open decisions
 
