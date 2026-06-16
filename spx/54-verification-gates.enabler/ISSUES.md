@@ -14,7 +14,7 @@ to the repository's `CLAUDE.md`.
 **Canonical source — not this repo.** The review prompt is governed in the
 `outcomeeng/plugins` repo by the `reviewing-changes` skill: the prompt body
 lives at
-`src/plugins/spec-tree/skills/reviewing-changes/references/review-prompt.md`,
+`plugins/spec-tree/skills/reviewing-changes/references/review-prompt.md`,
 and the governing spec node is
 `spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler`.
 The full diagnosis and the required prompt-hardening (a strongly worded rule
@@ -28,7 +28,7 @@ canonical source.
 baked-in restatement of that prompt. Per this tree's
 `spx/54-verification-gates.enabler` Compliance assertions, this product
 cross-references the review-prompt governance at the prompt body
-`src/plugins/spec-tree/skills/reviewing-changes/references/review-prompt.md`
+`plugins/spec-tree/skills/reviewing-changes/references/review-prompt.md`
 (governed by the spec `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler/reviewing-changes.md`)
 and never restates it. Once the canonical prompt is
 hardened upstream, apply the same citation-discipline rule to the baked-in copy
