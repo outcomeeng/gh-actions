@@ -39,12 +39,12 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 
 ### What's excluded
 
-| Excluded                                                               | Rationale                                                                                                          |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Upstream agent actions and CLIs (e.g. `anthropics/claude-code-action`) | Consumed as pinned dependencies, not built here                                                                    |
-| Agent skill, prompt, and review-taxonomy logic                         | Governed by `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md`; cross-referenced, never restated |
-| The AI models                                                          | Provided by the agent vendors                                                                                      |
-| Non-GitHub CI platforms                                                | The product targets GitHub Actions                                                                                 |
+| Excluded                                                               | Rationale                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upstream agent actions and CLIs (e.g. `anthropics/claude-code-action`) | Consumed as pinned dependencies, not built here                                                                                                                                                           |
+| Agent skill, prompt, review-taxonomy, and reviewer-only decision logic | Governed by `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md` (skill, prompt, taxonomy) and `plugins/spx/15-merging.pdr.md` (reviewer-only decision); cross-referenced, never restated |
+| The AI models                                                          | Provided by the agent vendors                                                                                                                                                                             |
+| Non-GitHub CI platforms                                                | The product targets GitHub Actions                                                                                                                                                                        |
 
 ## Product-level assertions
 

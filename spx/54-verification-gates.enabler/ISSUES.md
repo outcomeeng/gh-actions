@@ -27,9 +27,9 @@ canonical source.
 **This repo's follow-on.** The `spec-tree-review.yml` workflow carries a
 baked-in restatement of that prompt. Per this tree's
 `spx/54-verification-gates.enabler` Compliance assertions, this product
-cross-references the review-prompt governance at
-`plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md` and never
-restates it. Once the canonical prompt is
+cross-references the review-prompt governance at the prompt-owning node
+`plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler`
+and never restates it. Once the canonical prompt is
 hardened upstream, apply the same citation-discipline rule to the baked-in copy
 in `.github/workflows/spec-tree-review.yml` (the `Standards` category and the
 `Reference:` instruction lines), or replace the restatement with a reference to
