@@ -29,6 +29,7 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 ### What's included
 
 - Agent-automation surfaces: mention-triggered assistance, automated PR review, and the verification gates (validation, test, audit, review)
+- Coding-agent integration: agent selection (Claude Code first, then Codex and Gemini) as a configuration axis over one invocation shape, defaulting to Claude Code
 - Provider and runtime integration: Anthropic (API, Bedrock, Vertex), OpenAI / cloud review, and further providers behind a common invocation shape
 - Supply-chain security and least privilege: full-SHA pinning, Renovate-managed updates, top-level `permissions: {}` with explicit per-job grants, secrets that never cross a `run:` body
 - Authorization and workflow-validation gating: collaborator-permission gate, caller-workflow byte-match validation
