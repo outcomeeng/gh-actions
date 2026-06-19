@@ -16,3 +16,6 @@
 
 # Temporary spec-tree plugin files
 .spx/*
+
+# Local session-resume helper
+RESUME
