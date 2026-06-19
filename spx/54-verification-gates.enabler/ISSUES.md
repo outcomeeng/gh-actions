@@ -45,11 +45,13 @@ prompt, so the baked-in copy is removed when the host supersedes
 
 `spx/18-verification-host.adr.md` declares the host's side of the `SPX_VERDICT_*`
 sink contract — the variable names and the write credential. The same names are
-shared with the `spx` CLI in `outcomeeng/plugins` that reads them, and that CLI
-does not yet exist, so no single canonical declaration spans both repos.
+read by the `spx` CLI (`outcomeeng/spx`), whose hosted-pull-request verdict-delivery
+command — the command that posts a rendered verdict back to the pull request — does
+not yet exist, so no single canonical declaration spans both repos. The `spx` CLI
+runs hermetic-local today: it renders verdict projections but reserves remote
+pull-request mutation to a separate, not-yet-built command.
 
-Resolve when the `spx` CLI lands its sink-routing support upstream: declare the
-`SPX_VERDICT_*` variable list canonically in the CLI's own spec node in
-`outcomeeng/plugins`, then cite that path from `spx/18-verification-host.adr.md`
-so the host and the CLI cannot drift on the names. This entry tracks that gap; it
-is not itself the contract.
+Resolve when the `spx` CLI gains that hosted-PR verdict-delivery command: declare the
+`SPX_VERDICT_*` contract canonically in that command's spec node in `outcomeeng/spx`,
+then cite that path from `spx/18-verification-host.adr.md` so the host and the CLI
+cannot drift on the names. This entry tracks that gap; it is not itself the contract.
