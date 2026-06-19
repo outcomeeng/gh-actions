@@ -1,6 +1,6 @@
 # ISSUES — verification-gates
 
-## 1. Review gate cites phantom standards it never read
+## 1. Review gate: phantom-standards risk and pre-host migration of `spec-tree-review.yml`
 
 The review gate's reviewer emits `standards` findings against rules that do not
 exist in the repository under review. On `outcomeeng/spx` PR #109 the reviewer
@@ -35,3 +35,21 @@ hardened upstream, apply the same citation-discipline rule to the baked-in copy
 in `.github/workflows/spec-tree-review.yml` (the `Standards` category and the
 `Reference:` instruction lines), or replace the restatement with a reference to
 the shared prompt so the two surfaces cannot drift.
+
+**Resolution path.** `spx/18-verification-host.adr.md` declares the resolution:
+the verification host installs the governed skill instead of restating its
+prompt, so the baked-in copy is removed when the host supersedes
+`spec-tree-review.yml`. This follow-on stays open until that replacement lands.
+
+## 2. `SPX_VERDICT_*` sink contract is not canonically declared across both repos
+
+`spx/18-verification-host.adr.md` declares the host's side of the `SPX_VERDICT_*`
+sink contract — the variable names and the write credential. The same names are
+shared with the `spx` CLI in `outcomeeng/plugins` that reads them, and that CLI
+does not yet exist, so no single canonical declaration spans both repos.
+
+Resolve when the `spx` CLI lands its sink-routing support upstream: declare the
+`SPX_VERDICT_*` variable list canonically in the CLI's own spec node in
+`outcomeeng/plugins`, then cite that path from `spx/18-verification-host.adr.md`
+so the host and the CLI cannot drift on the names. This entry tracks that gap; it
+is not itself the contract.
