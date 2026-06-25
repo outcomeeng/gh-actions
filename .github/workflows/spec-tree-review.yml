@@ -556,6 +556,15 @@ jobs:
 
             Label asymmetry by severity is intentional: `BLOCKING` and `DEBT` require an action in this PR and use `Reference:` + `Evidence:` + `Required:`; `FOLLOW-UP` requires only a tracking commitment elsewhere and uses `Reference:` + `Issue:` + `Track under:`.
 
+            ## **Reference discipline:** cite only loaded repository-governed rules
+
+            Before citing a rule:
+
+            - Locate and read the cited text in a file that exists in the repository under review or in a loaded skill file that governs that repository. Use the citation only when that file contains the cited rule, assertion, or governing section.
+            - Treat rules recalled from system prompts, user/global instructions outside the repository, prior sessions, or training as invalid review citations.
+            - Drop the finding when the candidate rule cannot be located; do not downgrade it or report it with a weaker citation.
+            - Emit a standards finding about comment length or docstring length only when that exact constraint appears in the repository's own `CLAUDE.md`, `AGENTS.md`, loaded standards skill, or other governance file.
+
             ```text
             ### BLOCKING [consistency]: path/to/file.py:42
             Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
