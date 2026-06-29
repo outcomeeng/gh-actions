@@ -4,13 +4,14 @@ Reusable GitHub Actions workflows for Claude Code integration.
 
 ## Available Workflows
 
-| Workflow                                          | Description                                                                                           |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `spec-tree.yml`                                   | `@spec-tree` mention handler — fires on issues, PRs, and review comments                              |
-| `spec-tree-review.yml`                            | PR review with `REVIEW.md`-aware prompt and an allowlist tuned for spec-tree's diff-chunking workflow |
-| `claude.yml`                                      | `@claude` mention handler with the same self-contained implementation shape as `spec-tree.yml`        |
-| `claude-code-review.yml`                          | Generic Claude PR review with a compact prompt, `custom_prompt`, and a gh-only baseline allowlist     |
-| `spec-tree-repo.yml`, `spec-tree-review-repo.yml` | This repo's own callers for the reusables above — used as an in-repo self-test harness                |
+| Workflow                     | Description                                                                                           |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `spec-tree.yml`              | `@spec-tree` mention handler — fires on issues, PRs, and review comments                              |
+| `spec-tree-review.yml`       | PR review with `REVIEW.md`-aware prompt and an allowlist tuned for spec-tree's diff-chunking workflow |
+| `spec-tree-verification.yml` | Preview verification host that runs a caller-selected spec-tree skill against a pull request          |
+| `claude.yml`                 | `@claude` mention handler with the same self-contained implementation shape as `spec-tree.yml`        |
+| `claude-code-review.yml`     | Generic Claude PR review with a compact prompt, `custom_prompt`, and a gh-only baseline allowlist     |
+| `*-repo.yml`                 | This repo's own callers for the reusables above — used as an in-repo self-test harness                |
 
 ## Quick Start
 
@@ -78,6 +79,12 @@ For complete copy-paste templates with every override documented inline, see `ex
 
 For a generic Claude Code review, use the same `pull_request` trigger shape and call `.github/workflows/claude-code-review.yml` instead. That workflow keeps the default Claude review prompt compact and exposes `custom_prompt` for caller-specific review instructions.
 
+### Branch-preview verification
+
+`spec-tree-verification.yml` is the preview host for skill-based verification runs. It checks out a caller-selected skill source ref, loads the requested Claude Code plugin directory, launches Claude Code in `--bare` mode with a scrubbed process environment, and lets the skill write its `spx journal` output. This preview host currently publishes the captured skill output to the job summary; hosted pull-request comment persistence waits on the `spx` hosted PR delivery command tracked in `spx/54-verification-gates.enabler/ISSUES.md`.
+
+This repository's `.github/workflows/spec-tree-verification-repo.yml` caller is intentionally branch-preview only. It passes `allow_branch_preview: true` and carries the required `# BETA TESTER:` marker, so maintainers can set `vars.SPEC_TREE_VERIFICATION_SKILL_REF` to a skill branch while testing this workflow branch. Production callers must keep the workflow and skill refs SHA-pinned.
+
 ## Configuration
 
 The Claude-compatible variants are direct, self-contained reusables. They do not call the spec-tree workflows and do not check out composite actions from this repository at runtime.
@@ -128,6 +135,25 @@ The review prompt and baseline allowlist intentionally differ:
 | `extra_plugins`       | (empty)                  | Space-separated plugins to install; appends to project list when opted in                                                                                                    |
 | `show_full_output`    | `false`                  | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                                                                             |
 | `timeout_minutes`     | `"15"`                   | Wall-clock budget (minutes) for the Run Claude Code Review step (minimum 1)                                                                                                  |
+
+### Verification host inputs (`spec-tree-verification.yml`)
+
+| Input                  | Default                         | Description                                                                                                  |
+| ---------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `runner`               | `ubuntu-slim`                   | Runner selection. Single label or JSON array string.                                                         |
+| `skill`                | `review-changes`                | Skill name to invoke, without a leading slash.                                                               |
+| `skill_repository`     | `outcomeeng/plugins`            | GitHub repository containing the plugin source.                                                              |
+| `ref`                  | required                        | Skill source ref. Production callers pass a full commit SHA; branch refs require the beta-preview exception. |
+| `skill_path`           | `plugins/src/plugins/spec-tree` | Path within the skill repository to the Claude plugin directory.                                             |
+| `agent`                | `claude-code`                   | Agent adapter. The first slice supports Claude Code only.                                                    |
+| `model`                | (empty)                         | Claude model id. Empty = CLI default.                                                                        |
+| `paths`                | (empty)                         | Optional newline-separated changed-path globs. Empty = every PR change is in scope.                          |
+| `allow_branch_preview` | `false`                         | Allows a same-repo beta caller with the marker comment to use a floating skill ref.                          |
+| `spx_version`          | `0.6.8`                         | Version of `@outcomeeng/spx` to install.                                                                     |
+| `claude_code_version`  | `2.1.195`                       | Version of `@anthropic-ai/claude-code` to install.                                                           |
+| `timeout_minutes`      | `"20"`                          | Wall-clock budget for the verification skill run.                                                            |
+
+Secret required by the first Claude Code host slice: `ANTHROPIC_API_KEY`. The host uses Claude Code `--bare`, so the existing `CLAUDE_CODE_OAUTH_TOKEN` action credential does not apply.
 
 ### Per-environment overrides via repo variables
 
