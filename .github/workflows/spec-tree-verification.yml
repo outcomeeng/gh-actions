@@ -1,0 +1,424 @@
+# Reusable Spec Tree verification host.
+#
+# Runs a caller-selected marketplace skill against a pull request through a
+# sanitized Claude Code CLI subprocess. The workflow owns GitHub plumbing,
+# checkout, authorization, filtering, and summaries; verdict judgment stays in
+# the installed skill.
+
+name: Spec Tree Verification
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: "Runner selection. Accepts a single label or a JSON array string."
+        type: string
+        default: ubuntu-slim
+      skill:
+        description: "Skill name to invoke, without a leading slash. Example: review-changes."
+        type: string
+        default: review-changes
+      skill_repository:
+        description: "GitHub repository that contains the skill plugin source."
+        type: string
+        default: outcomeeng/plugins
+      ref:
+        description: "Git ref for the skill source. Production callers must pass a full commit SHA; branch refs require allow_branch_preview plus the BETA TESTER marker."
+        type: string
+        required: true
+      skill_path:
+        description: "Path within the skill repository to the Claude plugin directory."
+        type: string
+        default: plugins/src/plugins/spec-tree
+      agent:
+        description: "Agent adapter. Only claude-code is implemented in this first host slice."
+        type: string
+        default: claude-code
+      model:
+        description: "Claude model id. Empty means defer to the CLI default."
+        type: string
+        default: ""
+      paths:
+        description: "Optional newline-separated changed-path globs. Empty means every PR change is in scope."
+        type: string
+        default: ""
+      allow_branch_preview:
+        description: "Allow a same-repo branch preview with a floating skill ref when the caller carries the BETA TESTER marker."
+        type: boolean
+        default: false
+      spx_version:
+        description: "Version of @outcomeeng/spx to install."
+        type: string
+        default: "0.6.8"
+      claude_code_version:
+        description: "Version of @anthropic-ai/claude-code to install."
+        type: string
+        default: "2.1.195"
+      timeout_minutes:
+        description: "Wall-clock budget in minutes for the agent step."
+        type: string
+        default: "20"
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: "Anthropic API key used by Claude Code in --bare mode."
+        required: false
+
+permissions: {}
+
+jobs:
+  validate-workflow:
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
+    permissions:
+      contents: read
+    outputs:
+      matches: ${{ steps.check.outputs.matches }}
+      preview: ${{ steps.check.outputs.preview }}
+    steps:
+      - name: Validate runner dependencies
+        run: |
+          set -euo pipefail
+          missing=()
+          for cmd in gh jq; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+              missing+=("$cmd")
+            fi
+          done
+          if ((${#missing[@]})); then
+            printf 'Missing required command(s): %s\n' "${missing[*]}" >&2
+            printf 'Install the missing command(s) on the runner image or choose a runner that already provides them.\n' >&2
+            exit 1
+          fi
+
+      - name: Compare caller workflow file to default branch
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          ALLOW_BRANCH_PREVIEW: ${{ inputs.allow_branch_preview }}
+          SKILL_REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          prefix="$REPO/"
+          path="${WORKFLOW_REF#"$prefix"}"
+          path="${path%@*}"
+          echo "Caller workflow file: $path"
+
+          default_branch=$(gh api "repos/$REPO" --jq '.default_branch')
+          head_content=$(gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" --jq '.content' 2>/dev/null || echo "")
+          head_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" --jq '.sha' 2>/dev/null || echo "")
+          default_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$default_branch" --jq '.sha' 2>/dev/null || echo "")
+
+          preview_allowed=false
+          if [[ "$ALLOW_BRANCH_PREVIEW" == "true" && "$HEAD_REPO" == "$BASE_REPO" && -n "$head_content" ]]; then
+            if printf '%s' "$head_content" | base64 --decode | grep -q '# BETA TESTER:'; then
+              preview_allowed=true
+            fi
+          fi
+
+          if [[ ! "$SKILL_REF" =~ ^[0-9a-fA-F]{40}$ && "$preview_allowed" != "true" ]]; then
+            echo "::error::inputs.ref must be a full 40-character commit SHA unless allow_branch_preview is true for a same-repo caller carrying the # BETA TESTER: marker."
+            exit 1
+          fi
+
+          if [[ -z "$default_sha_blob" ]]; then
+            if [[ "$preview_allowed" == "true" ]]; then
+              echo "::notice::Workflow file '$path' is not on $default_branch yet; allowing same-repo beta preview."
+              echo "matches=true" >> "$GITHUB_OUTPUT"
+              echo "preview=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::notice::Workflow file '$path' is not on $default_branch yet. Merge the workflow first, then subsequent PRs can run verification."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            echo "preview=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ -z "$head_sha_blob" ]]; then
+            echo "::notice::Workflow file '$path' is not present at the PR head; nothing to verify."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            echo "preview=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$head_sha_blob" != "$default_sha_blob" ]]; then
+            if [[ "$preview_allowed" == "true" ]]; then
+              echo "::notice::Workflow file '$path' differs from $default_branch; allowing same-repo beta preview."
+              echo "matches=true" >> "$GITHUB_OUTPUT"
+              echo "preview=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::notice::Workflow file '$path' at PR head differs from $default_branch. Land the workflow change first, then this verification run can proceed."
+            echo "matches=false" >> "$GITHUB_OUTPUT"
+            echo "preview=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Workflow file at PR head matches $default_branch; verification can proceed"
+          echo "matches=true" >> "$GITHUB_OUTPUT"
+          echo "preview=false" >> "$GITHUB_OUTPUT"
+
+  authorize:
+    needs: validate-workflow
+    if: needs.validate-workflow.outputs.matches == 'true'
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
+    permissions:
+      contents: read
+    outputs:
+      authorized: ${{ steps.check.outputs.authorized }}
+    steps:
+      - name: Check PR author permission
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$PR_AUTHOR" ]]; then
+            echo "::notice::No PR author in the event payload; skipping verification"
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          perm=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission' 2>/dev/null || echo "none")
+          case "$perm" in
+            admin|maintain|write)
+              echo "PR author '$PR_AUTHOR' has '$perm' permission on $REPO; verification authorized"
+              echo "authorized=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::notice::PR author '$PR_AUTHOR' has '$perm' permission on $REPO; skipping verification"
+              echo "authorized=false" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+  filter-changes:
+    needs: [authorize, validate-workflow]
+    if: needs.authorize.outputs.authorized == 'true' && needs.validate-workflow.outputs.matches == 'true'
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
+    permissions:
+      pull-requests: read
+    outputs:
+      should_run: ${{ steps.filter.outputs.should_run }}
+      changed_files: ${{ steps.filter.outputs.changed_files }}
+    steps:
+      - name: Resolve changed files
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PATH_FILTERS: ${{ inputs.paths }}
+        run: |
+          set -euo pipefail
+          changed_files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
+          if [[ -z "$changed_files" ]]; then
+            echo "::notice::Pull request has no changed files; skipping verification"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "changed_files=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          should_run=false
+          if [[ -z "${PATH_FILTERS//[[:space:]]/}" ]]; then
+            should_run=true
+          else
+            while IFS= read -r file; do
+              [[ -z "$file" ]] && continue
+              while IFS= read -r pattern; do
+                [[ -z "${pattern//[[:space:]]/}" ]] && continue
+                # Path filters are documented as globs, so the pattern is intentionally unquoted.
+                # shellcheck disable=SC2254
+                case "$file" in
+                  $pattern)
+                    should_run=true
+                    break 2
+                    ;;
+                esac
+              done <<< "$PATH_FILTERS"
+            done <<< "$changed_files"
+          fi
+
+          if [[ "$should_run" != "true" ]]; then
+            echo "::notice::No changed files matched the configured verification paths; skipping agent run"
+          fi
+
+          delim="FILES_${RANDOM}${RANDOM}${RANDOM}"
+          {
+            echo "should_run=$should_run"
+            echo "changed_files<<${delim}"
+            echo "$changed_files"
+            echo "${delim}"
+          } >> "$GITHUB_OUTPUT"
+
+  run-verification:
+    needs: [authorize, filter-changes, validate-workflow]
+    if: needs.authorize.outputs.authorized == 'true' && needs.filter-changes.outputs.should_run == 'true' && needs.validate-workflow.outputs.matches == 'true'
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number }}-${{ inputs.skill }}
+      cancel-in-progress: true
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout verification skill source
+        env:
+          SKILL_REPOSITORY: ${{ inputs.skill_repository }}
+          SKILL_REF: ${{ inputs.ref }}
+          SKILL_SOURCE_ROOT: ${{ runner.temp }}/verification-skill-source
+        run: |
+          set -euo pipefail
+          if ! [[ "$SKILL_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::skill_repository must use the owner/repo form."
+            exit 1
+          fi
+          if ! [[ "$SKILL_REF" =~ ^[A-Za-z0-9._/@-]+$ ]] || [[ "$SKILL_REF" == -* ]]; then
+            echo "::error::ref contains unsupported characters."
+            exit 1
+          fi
+          rm -rf "$SKILL_SOURCE_ROOT"
+          git init "$SKILL_SOURCE_ROOT"
+          git -C "$SKILL_SOURCE_ROOT" remote add origin "https://github.com/${SKILL_REPOSITORY}.git"
+          git -C "$SKILL_SOURCE_ROOT" fetch --depth=1 origin "$SKILL_REF"
+          git -C "$SKILL_SOURCE_ROOT" checkout --detach FETCH_HEAD
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: "24"
+
+      - name: Install verification CLIs
+        env:
+          SPX_VERSION: ${{ inputs.spx_version }}
+          CLAUDE_CODE_VERSION: ${{ inputs.claude_code_version }}
+        run: |
+          set -euo pipefail
+          npm install --global "@outcomeeng/spx@$SPX_VERSION" "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
+          spx --version
+          claude --version
+
+      - name: Validate verification inputs
+        env:
+          AGENT: ${{ inputs.agent }}
+          SKILL: ${{ inputs.skill }}
+          SKILL_PATH: ${{ inputs.skill_path }}
+          SKILL_SOURCE_ROOT: ${{ runner.temp }}/verification-skill-source
+          ANTHROPIC_API_KEY_VALUE: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ "$AGENT" != "claude-code" ]]; then
+            echo "::error::Unsupported verification agent '$AGENT'. This host slice implements claude-code only."
+            exit 1
+          fi
+          if ! [[ "$SKILL" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "::error::skill must contain only letters, numbers, underscores, or hyphens."
+            exit 1
+          fi
+          if [[ ! -f "$SKILL_SOURCE_ROOT/$SKILL_PATH/.claude-plugin/plugin.json" ]]; then
+            echo "::error::Skill plugin path '$SKILL_PATH' does not contain .claude-plugin/plugin.json."
+            exit 1
+          fi
+          if [[ ! -d "$SKILL_SOURCE_ROOT/$SKILL_PATH/skills/$SKILL" ]]; then
+            echo "::error::Skill '$SKILL' was not found under '$SKILL_PATH/skills'."
+            exit 1
+          fi
+          if [[ -z "$ANTHROPIC_API_KEY_VALUE" ]]; then
+            echo "::error::ANTHROPIC_API_KEY is required for the verification host because Claude Code runs in --bare mode."
+            exit 1
+          fi
+
+      - name: Create verification context
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.sha }}
+          SKILL: ${{ inputs.skill }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          set -euo pipefail
+          spx verification-context create \
+            --subject changeset \
+            --base "$BASE_REF" \
+            --head "$HEAD_REF" \
+            --predicate "$SKILL" \
+            --workflow "$WORKFLOW_REF"
+
+      - name: Run verification skill
+        id: verify
+        timeout-minutes: ${{ fromJSON(inputs.timeout_minutes || '20') }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          SKILL: ${{ inputs.skill }}
+          SKILL_PATH: ${{ inputs.skill_path }}
+          SKILL_SOURCE_ROOT: ${{ runner.temp }}/verification-skill-source
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.sha }}
+          CHANGED_FILES: ${{ needs.filter-changes.outputs.changed_files }}
+        run: |
+          set -euo pipefail
+          work_home="$RUNNER_TEMP/verification-home"
+          mkdir -p "$work_home"
+          prompt=$(printf '%s\n' \
+            "Run /$SKILL against this checked out pull request." \
+            "" \
+            "Scope:" \
+            "- Base ref: $BASE_REF" \
+            "- Head ref: $HEAD_REF" \
+            "- Changed files:" \
+            "$CHANGED_FILES" \
+            "" \
+            "Use the skill's journal workflow. Print the run token and rendered result the skill produces.")
+          args=(
+            --bare
+            --print
+            --no-session-persistence
+            --plugin-dir "$SKILL_SOURCE_ROOT/$SKILL_PATH"
+            --allowedTools "Read,Grep,Glob,Bash(date:*),Bash(mktemp:*),Bash(printf:*),Bash(python3:*),Bash(rm -rf:*),Bash(spx journal open:*),Bash(spx journal append:*),Bash(spx journal read:*),Bash(spx journal seal:*),Bash(spx journal render:*)"
+          )
+          if [[ -n "${MODEL//[[:space:]]/}" ]]; then
+            args+=(--model "$MODEL")
+          fi
+          cd "$GITHUB_WORKSPACE"
+          env -i \
+            PATH="$PATH" \
+            HOME="$work_home" \
+            TMPDIR="$RUNNER_TEMP" \
+            TMP="$RUNNER_TEMP" \
+            ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+            SPX_VERIFY_BASE_REF="$BASE_REF" \
+            SPX_VERIFY_HEAD_REF="$HEAD_REF" \
+            claude "${args[@]}" "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
+
+      - name: Publish job summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Spec Tree Verification"
+            echo
+            echo "- Skill: \`${{ inputs.skill }}\`"
+            echo "- Skill repository: \`${{ inputs.skill_repository }}\`"
+            echo "- Skill ref: \`${{ inputs.ref }}\`"
+            echo "- Preview mode: \`${{ needs.validate-workflow.outputs.preview }}\`"
+            echo
+            echo "### Output"
+            echo
+            echo '```text'
+            if [[ -f "$RUNNER_TEMP/spec-tree-verification-output.txt" ]]; then
+              sed -n '1,240p' "$RUNNER_TEMP/spec-tree-verification-output.txt"
+            else
+              echo "No verification output captured."
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

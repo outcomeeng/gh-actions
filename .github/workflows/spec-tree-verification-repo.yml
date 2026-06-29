@@ -1,0 +1,32 @@
+# Run the spec-tree verification host on this repository as a branch-preview
+# self-test. The preview mode exists so a branch can test changes to the
+# reusable and to a skill ref before either is released to SHA-pinned callers.
+
+name: Spec Tree Verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  spec-tree-verification:
+    # BETA TESTER: this in-repository caller deliberately allows branch refs
+    # for the verification skill so maintainers can test a skill branch with
+    # this workflow branch. Production callers must SHA-pin the skill ref.
+    uses: ./.github/workflows/spec-tree-verification.yml
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    with:
+      skill: ${{ vars.SPEC_TREE_VERIFICATION_SKILL || 'review-changes' }}
+      skill_repository: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REPOSITORY || 'outcomeeng/plugins' }}
+      ref: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REF || 'main' }}
+      skill_path: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_PATH || 'plugins/src/plugins/spec-tree' }}
+      model: ${{ vars.SPEC_TREE_VERIFICATION_MODEL || '' }}
+      paths: ${{ vars.SPEC_TREE_VERIFICATION_PATHS || '' }}
+      timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '20' }}
+      allow_branch_preview: true
