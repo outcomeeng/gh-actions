@@ -221,9 +221,13 @@ jobs:
             echo "changed_files=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          file_count=$(wc -l <<< "$changed_files" | tr -d ' ')
 
           should_run=false
           if [[ -z "${PATH_FILTERS//[[:space:]]/}" ]]; then
+            should_run=true
+          elif ((file_count >= 3000)); then
+            echo "::notice::Pull request file list reached GitHub's 3000-file cap; running verification instead of trusting a partial path-filter result"
             should_run=true
           else
             while IFS= read -r file; do
@@ -323,6 +327,10 @@ jobs:
             echo "::error::skill must contain only letters, numbers, underscores, or hyphens."
             exit 1
           fi
+          if [[ -z "$SKILL_PATH" || "$SKILL_PATH" == /* || "$SKILL_PATH" == *..* || "$SKILL_PATH" == -* || ! "$SKILL_PATH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "::error::skill_path must be a relative path within the skill repository and must not contain '..'."
+            exit 1
+          fi
           if [[ ! -f "$SKILL_SOURCE_ROOT/$SKILL_PATH/.claude-plugin/plugin.json" ]]; then
             echo "::error::Skill plugin path '$SKILL_PATH' does not contain .claude-plugin/plugin.json."
             exit 1
@@ -382,6 +390,7 @@ jobs:
             --print
             --no-session-persistence
             --plugin-dir "$SKILL_SOURCE_ROOT/$SKILL_PATH"
+            --tools "Read,Grep,Glob,Bash"
             --allowedTools "Read,Grep,Glob,Bash(date:*),Bash(mktemp:*),Bash(printf:*),Bash(python3:*),Bash(rm -rf:*),Bash(spx journal open:*),Bash(spx journal append:*),Bash(spx journal read:*),Bash(spx journal seal:*),Bash(spx journal render:*)"
           )
           if [[ -n "${MODEL//[[:space:]]/}" ]]; then
@@ -400,15 +409,20 @@ jobs:
 
       - name: Publish job summary
         if: always()
+        env:
+          SKILL: ${{ inputs.skill }}
+          SKILL_REPOSITORY: ${{ inputs.skill_repository }}
+          SKILL_REF: ${{ inputs.ref }}
+          PREVIEW_MODE: ${{ needs.validate-workflow.outputs.preview }}
         run: |
           set -euo pipefail
           {
             echo "## Spec Tree Verification"
             echo
-            echo "- Skill: \`${{ inputs.skill }}\`"
-            echo "- Skill repository: \`${{ inputs.skill_repository }}\`"
-            echo "- Skill ref: \`${{ inputs.ref }}\`"
-            echo "- Preview mode: \`${{ needs.validate-workflow.outputs.preview }}\`"
+            echo "- Skill: \`$SKILL\`"
+            echo "- Skill repository: \`$SKILL_REPOSITORY\`"
+            echo "- Skill ref: \`$SKILL_REF\`"
+            echo "- Preview mode: \`$PREVIEW_MODE\`"
             echo
             echo "### Output"
             echo

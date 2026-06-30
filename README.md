@@ -85,6 +85,8 @@ For a generic Claude Code review, use the same `pull_request` trigger shape and 
 
 This repository's `.github/workflows/spec-tree-verification-repo.yml` caller is intentionally branch-preview only. It passes `allow_branch_preview: true` and carries the required `# BETA TESTER:` marker, so maintainers can set `vars.SPEC_TREE_VERIFICATION_SKILL_REF` to a skill branch while testing this workflow branch. Production callers must keep the workflow and skill refs SHA-pinned.
 
+Verification callers must grant the reusable `contents: read` and `pull-requests: read` at the caller-workflow level; the reusable narrows each job from that maximum. The first preview slice does not request `pull-requests: write` because it writes the captured skill output to the job summary rather than posting a PR comment.
+
 ## Configuration
 
 The Claude-compatible variants are direct, self-contained reusables. They do not call the spec-tree workflows and do not check out composite actions from this repository at runtime.
