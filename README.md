@@ -149,7 +149,7 @@ The review prompt and baseline allowlist intentionally differ:
 | `model`                | (empty)                         | Claude model id. Empty = CLI default.                                                                        |
 | `paths`                | (empty)                         | Optional newline-separated changed-path globs. Empty = every PR change is in scope.                          |
 | `allow_branch_preview` | `false`                         | Allows a same-repo beta caller with the marker comment to use a floating skill ref.                          |
-| `spx_version`          | `0.6.8`                         | Version of `@outcomeeng/spx` to install.                                                                     |
+| `spx_version`          | `0.6.7`                         | Version of `@outcomeeng/spx` to install.                                                                     |
 | `claude_code_version`  | `2.1.195`                       | Version of `@anthropic-ai/claude-code` to install.                                                           |
 | `timeout_minutes`      | `"20"`                          | Wall-clock budget for the verification skill run.                                                            |
 

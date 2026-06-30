@@ -49,7 +49,7 @@ on:
       spx_version:
         description: "Version of @outcomeeng/spx to install."
         type: string
-        default: "0.6.8"
+        default: "0.6.7"
       claude_code_version:
         description: "Version of @anthropic-ai/claude-code to install."
         type: string
@@ -263,8 +263,6 @@ jobs:
     runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
       contents: read
-      pull-requests: write
-      actions: read
     steps:
       - name: Checkout caller repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
