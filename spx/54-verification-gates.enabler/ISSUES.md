@@ -22,3 +22,15 @@ Resolve when the `spx` CLI gains that hosted-PR verdict-delivery command: declar
 `SPX_VERDICT_*` contract canonically in that command's spec node in `outcomeeng/spx`,
 then cite that path from `spx/18-verification-host.adr.md` so the host and the CLI
 cannot drift on the names. This entry tracks that gap; it is not itself the contract.
+
+## 3. Verification-host PR comment persistence waits on hosted delivery
+
+The preview verification host runs the selected skill and publishes the captured
+journal-rendered output to the GitHub Actions job summary. It does not set
+`SPX_VERDICT_*` sink variables or run a host-owned persistence step yet.
+
+Resolve when the `spx` CLI has the hosted-pull-request verdict-delivery command
+tracked in Issue 2: add the host-owned persistence step to
+`.github/workflows/spec-tree-verification.yml`, set the `SPX_VERDICT_*` sink
+contract only on that step, and keep the agent subprocess free of sink routing
+and write credentials per `spx/18-verification-host.adr.md`.
