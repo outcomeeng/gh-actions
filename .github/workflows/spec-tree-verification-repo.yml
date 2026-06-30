@@ -24,7 +24,7 @@ jobs:
       skill: ${{ vars.SPEC_TREE_VERIFICATION_SKILL || 'review-changes' }}
       skill_repository: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REPOSITORY || 'outcomeeng/plugins' }}
       ref: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REF || 'main' }}
-      skill_path: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_PATH || 'plugins/src/plugins/spec-tree' }}
+      skill_path: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_PATH || 'src/plugins/spec-tree' }}
       model: ${{ vars.SPEC_TREE_VERIFICATION_MODEL || '' }}
       paths: ${{ vars.SPEC_TREE_VERIFICATION_PATHS || '' }}
       timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '20' }}

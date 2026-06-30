@@ -140,20 +140,20 @@ The review prompt and baseline allowlist intentionally differ:
 
 ### Verification host inputs (`spec-tree-verification.yml`)
 
-| Input                  | Default                         | Description                                                                                                  |
-| ---------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `runner`               | `ubuntu-slim`                   | Runner selection. Single label or JSON array string.                                                         |
-| `skill`                | `review-changes`                | Skill name to invoke, without a leading slash.                                                               |
-| `skill_repository`     | `outcomeeng/plugins`            | GitHub repository containing the plugin source.                                                              |
-| `ref`                  | required                        | Skill source ref. Production callers pass a full commit SHA; branch refs require the beta-preview exception. |
-| `skill_path`           | `plugins/src/plugins/spec-tree` | Path within the skill repository to the Claude plugin directory.                                             |
-| `agent`                | `claude-code`                   | Agent adapter. The first slice supports Claude Code only.                                                    |
-| `model`                | (empty)                         | Claude model id. Empty = CLI default.                                                                        |
-| `paths`                | (empty)                         | Optional newline-separated changed-path globs. Empty = every PR change is in scope.                          |
-| `allow_branch_preview` | `false`                         | Allows a same-repo beta caller with the marker comment to use a floating skill ref.                          |
-| `spx_version`          | `0.6.7`                         | Version of `@outcomeeng/spx` to install.                                                                     |
-| `claude_code_version`  | `2.1.195`                       | Version of `@anthropic-ai/claude-code` to install.                                                           |
-| `timeout_minutes`      | `"20"`                          | Wall-clock budget for the verification skill run.                                                            |
+| Input                  | Default                 | Description                                                                                                  |
+| ---------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `runner`               | `ubuntu-slim`           | Runner selection. Single label or JSON array string.                                                         |
+| `skill`                | `review-changes`        | Skill name to invoke, without a leading slash.                                                               |
+| `skill_repository`     | `outcomeeng/plugins`    | GitHub repository containing the plugin source.                                                              |
+| `ref`                  | required                | Skill source ref. Production callers pass a full commit SHA; branch refs require the beta-preview exception. |
+| `skill_path`           | `src/plugins/spec-tree` | Path within the skill repository to the Claude plugin directory.                                             |
+| `agent`                | `claude-code`           | Agent adapter. The first slice supports Claude Code only.                                                    |
+| `model`                | (empty)                 | Claude model id. Empty = CLI default.                                                                        |
+| `paths`                | (empty)                 | Optional newline-separated changed-path globs. Empty = every PR change is in scope.                          |
+| `allow_branch_preview` | `false`                 | Allows a same-repo beta caller with the marker comment to use a floating skill ref.                          |
+| `spx_version`          | `0.6.7`                 | Version of `@outcomeeng/spx` to install.                                                                     |
+| `claude_code_version`  | `2.1.195`               | Version of `@anthropic-ai/claude-code` to install.                                                           |
+| `timeout_minutes`      | `"20"`                  | Wall-clock budget for the verification skill run.                                                            |
 
 Secret required by the first Claude Code host slice: `ANTHROPIC_API_KEY`. The host uses Claude Code `--bare`, so the existing `CLAUDE_CODE_OAUTH_TOKEN` action credential does not apply.
 

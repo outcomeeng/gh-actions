@@ -29,7 +29,7 @@ on:
       skill_path:
         description: "Path within the skill repository to the Claude plugin directory."
         type: string
-        default: plugins/src/plugins/spec-tree
+        default: src/plugins/spec-tree
       agent:
         description: "Agent adapter. Only claude-code is implemented in this first host slice."
         type: string
