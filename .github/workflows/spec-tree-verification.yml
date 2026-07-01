@@ -111,9 +111,49 @@ jobs:
           echo "Caller workflow file: $path"
 
           default_branch=$(gh api "repos/$REPO" --jq '.default_branch')
-          head_content=$(gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" --jq '.content' 2>/dev/null || echo "")
-          head_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" --jq '.sha' 2>/dev/null || echo "")
-          default_sha_blob=$(gh api "repos/$REPO/contents/$path?ref=$default_branch" --jq '.sha' 2>/dev/null || echo "")
+
+          read_content_field() {
+            local ref="$1"
+            local field="$2"
+            local err
+            err=$(mktemp)
+            if gh api "repos/$REPO/contents/$path?ref=$ref" --jq ".$field" 2>"$err"; then
+              rm -f "$err"
+              return 0
+            fi
+            status=$?
+            if grep -q 'Not Found' "$err"; then
+              rm -f "$err"
+              return 2
+            fi
+            cat "$err" >&2
+            rm -f "$err"
+            return "$status"
+          }
+
+          head_content_status=0
+          head_content=$(read_content_field "$HEAD_SHA" content) || head_content_status=$?
+          if [[ "$head_content_status" == "2" ]]; then
+            head_content=""
+          elif [[ "$head_content_status" != "0" ]]; then
+            exit "$head_content_status"
+          fi
+
+          head_sha_blob_status=0
+          head_sha_blob=$(read_content_field "$HEAD_SHA" sha) || head_sha_blob_status=$?
+          if [[ "$head_sha_blob_status" == "2" ]]; then
+            head_sha_blob=""
+          elif [[ "$head_sha_blob_status" != "0" ]]; then
+            exit "$head_sha_blob_status"
+          fi
+
+          default_sha_blob_status=0
+          default_sha_blob=$(read_content_field "$default_branch" sha) || default_sha_blob_status=$?
+          if [[ "$default_sha_blob_status" == "2" ]]; then
+            default_sha_blob=""
+          elif [[ "$default_sha_blob_status" != "0" ]]; then
+            exit "$default_sha_blob_status"
+          fi
 
           preview_allowed=false
           if [[ "$ALLOW_BRANCH_PREVIEW" == "true" && "$HEAD_REPO" == "$BASE_REPO" && -n "$head_content" ]]; then
@@ -186,7 +226,19 @@ jobs:
             echo "authorized=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          perm=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission' 2>/dev/null || echo "none")
+          err=$(mktemp)
+          perm_status=0
+          perm=$(gh api "repos/$REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission' 2>"$err") || perm_status=$?
+          if [[ "$perm_status" != "0" ]]; then
+            if grep -q 'Not Found' "$err"; then
+              perm="none"
+            else
+              cat "$err" >&2
+              rm -f "$err"
+              exit "$perm_status"
+            fi
+          fi
+          rm -f "$err"
           case "$perm" in
             admin|maintain|write)
               echo "PR author '$PR_AUTHOR' has '$perm' permission on $REPO; verification authorized"
