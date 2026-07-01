@@ -62,6 +62,9 @@ on:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key used by Claude Code in --bare mode."
         required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        description: "Claude Code OAuth token used when ANTHROPIC_API_KEY is not set."
+        required: false
 
 permissions: {}
 
@@ -317,6 +320,7 @@ jobs:
           SKILL_PATH: ${{ inputs.skill_path }}
           SKILL_SOURCE_ROOT: ${{ runner.temp }}/verification-skill-source
           ANTHROPIC_API_KEY_VALUE: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN_VALUE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           set -euo pipefail
           if [[ "$AGENT" != "claude-code" ]]; then
@@ -339,8 +343,8 @@ jobs:
             echo "::error::Skill '$SKILL' was not found under '$SKILL_PATH/skills'."
             exit 1
           fi
-          if [[ -z "$ANTHROPIC_API_KEY_VALUE" ]]; then
-            echo "::error::ANTHROPIC_API_KEY is required for the verification host because Claude Code runs in --bare mode."
+          if [[ -z "${ANTHROPIC_API_KEY_VALUE//[[:space:]]/}" && -z "${CLAUDE_CODE_OAUTH_TOKEN_VALUE//[[:space:]]/}" ]]; then
+            echo "::error::The verification host requires either ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN for Claude Code."
             exit 1
           fi
 
@@ -364,6 +368,7 @@ jobs:
         timeout-minutes: ${{ fromJSON(inputs.timeout_minutes || '20') }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           MODEL: ${{ inputs.model }}
           SKILL: ${{ inputs.skill }}
           SKILL_PATH: ${{ inputs.skill_path }}
@@ -384,15 +389,21 @@ jobs:
             "- Changed files:" \
             "$CHANGED_FILES" \
             "" \
-            "Use the skill's journal workflow. Print the run token and rendered result the skill produces.")
+            "Use the skill's journal workflow. Print the raw run token the skill produces.")
           args=(
-            --bare
             --print
             --no-session-persistence
             --plugin-dir "$SKILL_SOURCE_ROOT/$SKILL_PATH"
             --tools "Read,Grep,Glob,Bash"
             --allowedTools "Read,Grep,Glob,Bash(date:*),Bash(mktemp:*),Bash(printf:*),Bash(python3:*),Bash(rm -rf:*),Bash(spx journal open:*),Bash(spx journal append:*),Bash(spx journal read:*),Bash(spx journal seal:*),Bash(spx journal render:*)"
           )
+          auth_env=()
+          if [[ -n "${ANTHROPIC_API_KEY//[[:space:]]/}" ]]; then
+            args=(--bare "${args[@]}")
+            auth_env+=(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY")
+          elif [[ -n "${CLAUDE_CODE_OAUTH_TOKEN//[[:space:]]/}" ]]; then
+            auth_env+=(CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN")
+          fi
           if [[ -n "${MODEL//[[:space:]]/}" ]]; then
             args+=(--model "$MODEL")
           fi
@@ -402,7 +413,7 @@ jobs:
             HOME="$work_home" \
             TMPDIR="$RUNNER_TEMP" \
             TMP="$RUNNER_TEMP" \
-            ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+            "${auth_env[@]}" \
             SPX_VERIFY_BASE_REF="$BASE_REF" \
             SPX_VERIFY_HEAD_REF="$HEAD_REF" \
             claude "${args[@]}" "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"

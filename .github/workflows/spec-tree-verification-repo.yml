@@ -20,6 +20,7 @@ jobs:
     uses: ./.github/workflows/spec-tree-verification.yml
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
       skill: ${{ vars.SPEC_TREE_VERIFICATION_SKILL || 'review-changes' }}
       skill_repository: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REPOSITORY || 'outcomeeng/plugins' }}

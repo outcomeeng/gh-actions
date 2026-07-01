@@ -81,11 +81,11 @@ For a generic Claude Code review, use the same `pull_request` trigger shape and 
 
 ### Branch-preview verification
 
-`spec-tree-verification.yml` is the preview host for skill-based verification runs. It checks out a caller-selected skill source ref, loads the requested Claude Code plugin directory, launches Claude Code in `--bare` mode with a scrubbed process environment, and lets the skill write its `spx journal` output. This preview host currently publishes the captured skill output to the job summary; hosted pull-request comment persistence waits on the `spx` hosted PR delivery command tracked in `spx/54-verification-gates.enabler/ISSUES.md`.
+`spec-tree-verification.yml` is the preview host for skill-based verification runs. It checks out a caller-selected skill source ref, loads the requested Claude Code plugin directory, launches Claude Code with a scrubbed process environment, and lets the skill write its `spx journal` output. When `ANTHROPIC_API_KEY` is present the host runs Claude Code in `--bare` mode; otherwise it omits `--bare` and passes `CLAUDE_CODE_OAUTH_TOKEN` when that secret is present. This preview host currently publishes the captured skill output to the job summary; hosted pull-request comment persistence waits on the `spx` hosted PR delivery command tracked in `spx/54-verification-gates.enabler/ISSUES.md`.
 
 This repository's `.github/workflows/spec-tree-verification-repo.yml` caller is intentionally branch-preview only. It passes `allow_branch_preview: true` and carries the required `# BETA TESTER:` marker, so maintainers can set `vars.SPEC_TREE_VERIFICATION_SKILL_REF` to a skill branch while testing this workflow branch. Production callers must keep the workflow and skill refs SHA-pinned.
 
-Verification callers must grant the reusable `contents: read` and `pull-requests: read` at the caller-workflow level; the reusable narrows each job from that maximum. The first preview slice does not request `pull-requests: write` because it writes the captured skill output to the job summary rather than posting a PR comment.
+Verification callers must grant the reusable `contents: read` and `pull-requests: read` at the caller-workflow level; the reusable narrows each job from that maximum. The first preview slice does not request `pull-requests: write` because it writes the captured skill output to the job summary rather than posting a PR comment. The verification host runs the agent only when the PR author's repository permission is `admin`, `maintain`, or `write`, protecting the agent credential and token quota from fork and read-only PRs.
 
 ## Configuration
 
@@ -155,7 +155,7 @@ The review prompt and baseline allowlist intentionally differ:
 | `claude_code_version`  | `2.1.195`               | Version of `@anthropic-ai/claude-code` to install.                                                           |
 | `timeout_minutes`      | `"20"`                  | Wall-clock budget for the verification skill run.                                                            |
 
-Secret required by the first Claude Code host slice: `ANTHROPIC_API_KEY`. The host uses Claude Code `--bare`, so the existing `CLAUDE_CODE_OAUTH_TOKEN` action credential does not apply.
+Secret required by the first Claude Code host slice: either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. When `ANTHROPIC_API_KEY` is set, the host passes `--bare`; when only `CLAUDE_CODE_OAUTH_TOKEN` is set, the host omits `--bare` and passes that token through the scrubbed process environment.
 
 ### Per-environment overrides via repo variables
 
@@ -239,7 +239,7 @@ Whenever you widen the plugin set for review or mention runs, widen the allowlis
 
 ## Authorization
 
-Each reusable workflow has a small `authorize` job that queries `repos/{owner}/{repo}/collaborators/{actor}/permission` and the downstream job runs only when the actor's effective permission is `admin`, `maintain`, or `write`. Permission flows through team and org membership, so trusted org members are authorized without extra configuration. External contributors (including PRs from forks) come back as `none` (or 404), and the review job is `skipped` (gray check on the PR), not failed — so an unauthorized PR doesn't show a red X.
+Each reusable workflow has a small `authorize` job that queries `repos/{owner}/{repo}/collaborators/{actor}/permission` and the downstream job runs only when the actor's effective permission is `admin`, `maintain`, or `write`. Permission flows through team and org membership, so trusted org members are authorized without extra configuration. External contributors (including PRs from forks) come back as `none` (or 404), and the agent job is `skipped` (gray check on the PR), not failed — so an unauthorized PR doesn't show a red X.
 
 If you (an admin/maintainer) want a review on a PR opened by a non-collaborator, comment `@spec-tree` on the PR. That triggers the mention workflow from the `issue_comment` event with you as the actor; the API check sees your write permission and the action runs with the PR context.
 

@@ -1,6 +1,6 @@
 # Security
 
-PROVIDES the product's trust boundary — full-SHA pinning with Renovate-managed updates, least-privilege `permissions: {}` with explicit per-job grants, the collaborator-permission authorization gate, the caller-workflow byte-match validation, the no-secrets-in-`run:` discipline, and verdict-skill environment containment on the verification host
+PROVIDES the product's trust boundary — full-SHA pinning with Renovate-managed updates, least-privilege `permissions: {}` with explicit per-job grants, the collaborator-permission authorization gate, caller-workflow byte-match validation for caller-driven pull-request surfaces, the no-secrets-in-`run:` discipline, and verdict-skill environment containment on the verification host
 SO THAT every reusable workflow and the surfaces built on it
 CAN run only for authorized actors, against dependencies that cannot be redirected, with the narrowest permissions, and without leaking secrets
 
