@@ -22,11 +22,11 @@ closes when an OpenAI invocation path lands.
 
 ## 3. Generated spx/CLAUDE.md advertises `[eval]`, which the evidence model forbids
 
-The spx-level guide is rendered from the spec-tree template
-(`template_version: 0.18.13`) and lists `[eval]` as an assertion tag and
+The spx-level guides are rendered from the spec-tree template
+(`template_version: 0.21.4`) and list `[eval]` as an assertion tag and
 `evals/` as a node subdirectory. `spx/15-evidence-model.adr.md` rules
 `[eval]` out for this product (`NEVER: an assertion carries [eval] — this
-product ships no LLM-graded output of its own`). The guide therefore names a
+product ships no LLM-graded output of its own`). The guides therefore name a
 verification lane the product's evidence model prohibits.
 
 The product is already protected: the ADR's NEVER rule governs by the truth
@@ -35,9 +35,9 @@ step before any assertion is written, so no `[eval]` spec can slip past. The
 residual gap is guide-level only — the generated guide carries no
 product-specific pointer to the prohibition.
 
-Out of scope for this repo: `/update-spx` renders the guide from the template
+Resolution owner: `/update-spx` renders the guides from the template
 scoped only by the `languages` frontmatter and forbids product-specific
-hand-edits, so a guide-level fix would be reverted on the next re-render. The
-real fix is a capability-scoping mechanism in the upstream spec-tree template
+hand-edits, so a guide-level fix belongs in the upstream spec-tree template
+as a capability-scoping mechanism
 (`outcomeeng/plugins`) that omits `[eval]` for products that do not use it.
-Flagged on PR #32 by both the spec-tree CI reviewer and Codex.
+Flagged on PR #32 by the spec-tree CI reviewer.

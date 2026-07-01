@@ -1,7 +1,7 @@
 ---
-template_version: "0.18.13"
+template_version: "0.21.5"
 template_source: spec-tree
-languages: [python]
+languages: []
 ---
 
 # spx/ Directory Guide (Spec Tree)
@@ -10,134 +10,53 @@ This guide explains WHEN to invoke spec-tree skills for this product. It is a **
 
 ---
 
-## Structure Overview
-
-The `spx/` directory is the current map of the desired product. It holds decisions, specs, and implemented verification code (tests and evals). It governs executable code and product behavior, including verification infrastructure, deployment, production checks, monitoring, and product features.
-
-Two node types at any depth:
-
-```text
-spx/
-  {product-slug}.product.md            # Product spec (root)
-  NN-{slug}.adr.md                     # Architecture decision
-  NN-{slug}.pdr.md                     # Product decision
-  NN-{slug}.enabler/                   # Enabler: infrastructure or capability with known output
-    {slug}.md                          # Spec file; sufficient for declared state
-    tests/                             # Test evidence for assertions
-    evals/                             # Eval evidence for assertions
-    PLAN.md                            # Coordination note: deferred plan (optional)
-    ISSUES.md                          # Coordination note: known issues (optional)
-    NN-{slug}.enabler/                 # Children: enablers only
-  NN-{slug}.outcome/                   # Outcome: hypothesis whose output is a product bet
-    {slug}.md                          # Spec file; states hypothesis and assertions
-    tests/                             # Test evidence for assertions
-    evals/                             # Eval evidence for assertions
-    PLAN.md                            # Coordination note: deferred plan (optional)
-    ISSUES.md                          # Coordination note: known issues (optional)
-    NN-{slug}.{enabler|outcome}/       # Children: enablers and outcomes
-```
-
-Coordination notes (`PLAN.md`, `ISSUES.md`) carry cross-session working context. They are not product truth; verify them before use.
-
----
-
-## Key Principles
-
-1. **Durable map**: Decisions, spec nodes and their co-located tests, evals and coordination notes stay in place over their entire lifecycle. They are deleted if they are to be removed from the product. This is a completely normal part of the product lifecycle. Imagine an outcome that required several different implementations to achieve the desired user behavior. The no longer enabled features are deleted, their code loses coverage and is garbage collected.
-2. **Two node types**: Enabler (infrastructure, output is known) and outcome (hypothesis, output is a bet). Enablers can only contain enabler children. Outcomes can contain both.
-3. **Co-location**: Verification (tests and evals) live with their spec in `tests/` and `evals/`.
-4. **Atemporal voice**: Specs state product truth. Never narrate history. Any historical context is provided by git and PRs, never in the Spec Tree.
-5. **Deterministic context injection**: The tree structure defines what context gets loaded for work on a target and is injected by the `/contextualizing` skill.
-6. **Decision records win by hierarchy**: If a spec contradicts an ADR or PDR in its ancestry, the spec is wrong. Rewrite the spec to align with the decision record before any implementation work.
-7. **Decision records updated in-place**: When a decision changes, update the ADR/PDR directly. No "superseded" workflow.
-8. **Coordination notes**: PLAN.md and ISSUES.md in node directories are committed coordination notes created during development or when closing a session via the `/handoff` skill. They are committed to git only to carry coordination across sessions and worktrees; they never hold spec assertions or decisions. They are not durable product truth and go stale unless acted upon, so verify a note before it steers work — reconcile it against the specs, decisions, assertions, tests, implementation, and current user intent. `/contextualizing` reads them automatically. Remove a resolved note; for ISSUES.md entries, either delete the fixed entry or convert unresolved product work into a spec node. These files are an escape hatch to make coordination visible and are committed independently from implementation work because other actors need to incorporate them into their decisions immediately.
-
----
-
-## Numeric Prefixes
-
-Numeric prefixes drive deterministic context injection within each directory:
-
-1. Lower-index sibling specs are read as constraining context for higher-index targets.
-2. Same-index siblings are listed but not read as target constraints.
-3. Higher-index siblings are listed but not read as target constraints.
-4. Files and directories share one number space. The numeric prefix sorts; the type suffix identifies the artifact.
-5. Numbers are sibling-unique only. The same integer can be reused under a different parent.
-
-Read an existing directory like this:
-
-```text
-spx/
-  55-example.outcome/
-    15-auth-strategy.adr.md
-    21-test-harness.enabler/
-    32-auth.outcome/
-    32-billing.outcome/
-    43-integration.outcome/
-```
-
-Work on `spx/55-example.outcome/43-integration.outcome/` reads `spx/55-example.outcome/15-auth-strategy.adr.md`, `spx/55-example.outcome/21-test-harness.enabler/test-harness.md`, `spx/55-example.outcome/32-auth.outcome/auth.md`, and `spx/55-example.outcome/32-billing.outcome/billing.md` as prior context. Work on `spx/55-example.outcome/32-auth.outcome/` does not read `spx/55-example.outcome/32-billing.outcome/`; same-index siblings are unordered peers.
-
-Use `/decomposing` to create or restructure child nodes. It owns concern boundaries, node types, ordering evidence, and sparse index assignment.
-
-**ALWAYS use full paths when referencing nodes, ADRs, and PDRs** — indices are sibling-unique, not globally unique, and bare decision filenames cannot be resolved:
-
-| Wrong                  | Correct                                                       |
-| ---------------------- | ------------------------------------------------------------- |
-| "32-parser.enabler"    | "spx/55-example.enabler/12-infra.enabler/32-parser.enabler"   |
-| "implement enabler-43" | "spx/55-example.enabler/12-infra.enabler/43-api.enabler"      |
-| "15-build.adr.md"      | "spx/55-example.enabler/15-build.adr.md"                      |
-| "21-pricing.pdr.md"    | "spx/55-example.enabler/21-billing.outcome/21-pricing.pdr.md" |
-
----
-
 ## When to Invoke Skills
 
-### Before ANY spec-tree work → `/understanding`
+### Before ANY spec-tree work -> `/understand`
 
 **BLOCKING REQUIREMENT**
 
 Loads the Spec Tree methodology. Required once per session and again after every individual compaction event.
 
-### Before working on a specific node → `/contextualizing`
+A live `<SPEC_TREE_FOUNDATION>` marker in the current conversation is the proof that `/understand` is loaded. A compacted summary, a session file, a statement that `/understand` ran, or reading the skill file does not satisfy the requirement. Questions about spec-tree workflows, session continuity, or whether a skill was invoked are spec-tree work and require `/understand` first when the marker is absent.
+
+### Before working on a specific node -> `/contextualize`
 
 **BLOCKING REQUIREMENT**
 
-**ALWAYS** invoke `/contextualizing` before working on a spec node.
+**ALWAYS** invoke `/contextualize` before working on a spec node.
 
-**🛑 STOP TRIGGER — after every compaction event:** all loaded spec-tree context is gone. **Re-invoke `/contextualizing` on every node still in scope** before touching it again — not just the next one being worked on.
+**🛑 STOP TRIGGER — after every compaction event:** all loaded spec-tree context is gone. **Re-invoke `/contextualize` on every node still in scope** before touching it again — not just the next one being worked on.
 
-**NEVER** resume work on a node without having invoked `/contextualizing` since the last compaction.
+**NEVER** resume work on a node without having invoked `/contextualize` since the last compaction.
 
-### When creating specs or nodes → `/authoring`
+### When creating specs or nodes -> `/author`
 
 Create product specs, ADRs/PDRs, enabler nodes, outcome nodes.
 
-### When composing or breaking down nodes → `/decomposing`
+### When composing or breaking down nodes -> `/decompose`
 
-Compose top-level children with `/decomposing spx/`. Decompose an existing node when it has too many assertions (>7), contains independent concerns, or has `PLAN.md`/`ISSUES.md` structure intent.
+Compose top-level children with `/decompose spx/`. Decompose an existing node when it has too many assertions (>7), contains independent concerns, or has `PLAN.md`/`ISSUES.md` structure intent.
 
-### When restructuring the tree → `/refactoring`
+### When restructuring the tree -> `/refactor`
 
 Move nodes, re-scope assertions, extract shared enablers, consolidate duplicates.
 
-### When checking consistency → `/aligning`
+### When checking consistency -> `/align`
 
 Review, audit, or quality check specs. Find contradictions or gaps.
 
-### When shipping work to the default branch → `/merge` (transport dispatcher)
+### When shipping work to the default branch -> `/merge` (transport dispatcher)
 
 **BLOCKING REQUIREMENT**
 
-Every change destined for the default branch routes through `/merge`, the transport dispatcher. It reads `spx/local/merging.md` and selects the merge transport — a coordination-note-only changeset (only `PLAN.md` / `ISSUES.md`) to the direct-push transport, an overlay-declared `transport:` when present, else the GitHub-PR transport (`/github-pr`) as the default — then delegates to that transport's skills. The three authority gates and the finding-disposition rule are transport-neutral and live in `/standardizing-merging`; `/merge` owns transport selection only.
-
-For the GitHub-PR transport, `/github-pr` drives the lifecycle — by default autonomously, presenting a pre-mutation confirmation first only when the merge overlay opts into one — then invokes the internal PR protocols. The opening protocol passes through the `REVIEW_READINESS` gate before the PR opens. The gate holds when deterministic verification passes (the project's full validation-and-testing command) **and** the local review has converged. The opening protocol invokes the `changes-reviewer` agent on the working diff — falling back to the `/review-changes` slash command when `changes-reviewer` is unavailable; both run the same `reviewing-changes` skill chain in an isolated context, so the verdict is not biased by what the operator's main agent has been doing. Claude acts on each finding by **validity and phase, never severity**: it validates each finding against its cited rule and drops any the citation does not support, applies every valid finding that belongs, and splits out of the changeset any whose fix is too large to belong (recording it in the relevant node's `ISSUES.md` or `PLAN.md`). Once `REVIEW_READINESS` holds the PR opens `ready_for_review`; `MERGE_READINESS` and `PRODUCTION_READINESS` then govern the merge. See `/standardizing-merging` `<authority_gates>` for the three-gate vocabulary.
+Every change destined for the default branch routes through `/merge`, the transport dispatcher — it classifies the changeset, selects the transport, and delegates. `/merge` reads `spx/local/merging.md` as a repo-local overlay **when that file is present**; the overlay is optional, so its absence is normal and not a blocker — `/merge` applies the default lifecycle. `spx/local/merging.md` is the one place repository-specific merge behavior belongs: never infer the transport from other docs when it is absent, and never edit this generated guide to change merge behavior — invoke `/merge` and let the lifecycle apply the defaults. The three authority gates, the delivered-value boundary, and the finding-disposition rule are transport-neutral and live in `/merging-standards`.
 
 ## Stop Triggers
 
-Default-branch work is complete only when merged — passing validation, tests, review, or audits is progress, not a stopping point, and an accepted proposal ("yes", "go", "do it") authorizes the whole lifecycle, not a pause. Each trigger below resolves the same way: finish the remaining independent work, then continue through `/committing-changes` and `/merge` until the change is merged.
+Default-branch work is complete only when it reaches the default branch on origin through `/merge` — passing validation, tests, review, or audits is progress, not a stopping point, and an accepted proposal ("yes", "go", "do it") authorizes the whole lifecycle, not a pause. Each trigger below resolves the same way: finish the remaining independent work, then continue through `/commit-changes` and `/merge` until the change reaches the default branch on origin or an explicit lifecycle gate stops.
 
-🛑 **About to summarize after edits, validation, tests, review, or audits passed** — do not conclude. Ensure the work is on a local branch, then drive `/committing-changes` and `/merge`.
+🛑 **About to summarize after edits, validation, tests, review, or audits passed** — do not conclude. Ensure the work is committed on a local branch, then drive `/merge`.
 
 🛑 **About to report blocked, wait, or ask a question** — first do every action that does not need the answer: edits, verification, branch setup, commit, review. A blocker exists only when all three hold:
 
@@ -145,104 +64,49 @@ Default-branch work is complete only when merged — passing validation, tests, 
 - the local branch already holds every change makeable without the answer;
 - the applicable gates have run or produced concrete failing evidence.
 
-🛑 **About to finish on a detached HEAD or stop at a fresh commit** — `git status --short --branch` reporting `## HEAD (no branch)`, or a new local commit, is not an endpoint. Create or switch to a local branch preserving the worktree changes, then continue through `/merge` unless the user asked only for a local commit.
+🛑 **About to finish on a detached HEAD or stop at a fresh commit** — `git status --short --branch` reporting `## HEAD (no branch)`, or a new local commit, is not an endpoint. Create or switch to a local branch preserving the worktree changes, then continue through `/merge` unless the user explicitly limited the task to local-only work.
 
----
+## Mutation Status Updates
+
+Before proposing or performing a repository mutation, name:
+
+- the exact target path, PR number, branch ref, or command target;
+- the intended action;
+- why the action is local enough or gate-authorized enough to proceed;
+- the next validation command, review, audit, check wait, or merge gate the action feeds.
+
+Avoid shorthand such as "config patch", "direct patch", "fix the PR", or "ship it path" when the exact file, PR state, or command is known. A terse user prompt such as "check", "continue", or "ship it" still gets the live state first: full head SHA when a PR exists, current-head review state, required-check state, production-readiness rule, and the next autonomous action.
 
 ## Quick Reference: Skills and Agents
 
-Skills run in the main conversation. Agents preload the skill and run autonomously as subagents in a separate context, returning structured APPROVED/REJECTED verdicts. **ALWAYS run an audit through its agent** — the separate context keeps the verdict free of the main conversation's bias — and dispatch agents in parallel when auditing multiple targets.
+Skills run in the main conversation. Agents preload the skill and run autonomously as subagents in a separate context. Audit agents return structured verdicts; changeset reviewer agents return the raw review journal token for the main conversation to inspect and process through the governing review workflow. **ALWAYS run an audit through its agent** — the separate context keeps the verdict free of the main conversation's bias — and dispatch agents in parallel when auditing multiple targets.
 
-| User Says...                               | Skill              | Agent                   |
-| ------------------------------------------ | ------------------ | ----------------------- |
-| "Implement this outcome"                   | `/contextualizing` | —                       |
-| "Create an outcome"                        | `/authoring`       | —                       |
-| "Add an ADR"                               | `/authoring`       | —                       |
-| "Add a new node" or "This node is too big" | `/decomposing`     | —                       |
-| "Move this under that"                     | `/refactoring`     | —                       |
-| "Check these specs"                        | `/aligning`        | —                       |
-| "Write tests for this"                     | `/testing`         | —                       |
-| "Start the TDD flow"                       | `/applying`        | `applier`               |
-| "Audit this PDR"                           | `/audit-pdr`       | `pdr-auditor`           |
-| "Audit this ADR"                           | `/audit-adr`       | `adr-auditor`           |
-| "Audit test evidence"                      | `/auditing-tests`  | `test-evidence-auditor` |
+| User Says...                               | Skill            | Agent                   |
+| ------------------------------------------ | ---------------- | ----------------------- |
+| "Implement this outcome"                   | `/contextualize` | —                       |
+| "Create an outcome"                        | `/author`        | —                       |
+| "Add an ADR"                               | `/author`        | —                       |
+| "Add a new node" or "This node is too big" | `/decompose`     | —                       |
+| "Move this under that"                     | `/refactor`      | —                       |
+| "Check these specs"                        | `/align`         | —                       |
+| "Write tests for this"                     | `/test`          | —                       |
+| "Start the TDD flow"                       | `/apply`         | `applier`               |
+| "Audit this PDR"                           | `/audit-pdr`     | `pdr-auditor`           |
+| "Audit this ADR"                           | `/audit-adr`     | `adr-auditor`           |
+| "Audit test evidence"                      | `/audit-tests`   | `test-evidence-auditor` |
+| "Audit this spec node"                     | `/audit-specs`   | `spec-auditor`          |
+| "Diagnose the spx environment"             | `/diagnose`      | —                       |
 
-Per-language code, architecture, and test audits render for the product's enabled languages:
-
-| User Says...            | Skill                           | Agent                         |
-| ----------------------- | ------------------------------- | ----------------------------- |
-| "Audit this code"       | `/auditing-python`              | `python-code-auditor`         |
-| "Audit ADRs for Python" | `/auditing-python-architecture` | `python-architecture-auditor` |
-| "Audit these tests"     | `/auditing-python-tests`        | `python-test-auditor`         |
+Per-language code, architecture, and test audits ship as `audit-{lang}*` skills that the generic artifact-type auditors **compose** for the language in scope — there is no per-language auditor agent. Dispatch the generic auditor; it invokes the matching language skill automatically:
 
 ---
 
 ## Test Naming Convention
 
-Test level is encoded in the filename. This guide renders only the languages listed in its `languages` frontmatter; `/update-spx` re-renders from the installed template when the methodology advances.
-
-### Python
-
-| Level | Pattern                           | Example                        |
-| ----- | --------------------------------- | ------------------------------ |
-| 1     | `test_{subject}.{evidence}.l1.py` | `test_parsing.scenario.l1.py`  |
-| 2     | `test_{subject}.{evidence}.l2.py` | `test_cli.scenario.l2.py`      |
-| 3     | `test_{subject}.{evidence}.l3.py` | `test_workflow.scenario.l3.py` |
-
----
-
-## Assertion Evidence Contract
-
-Spec assertions link to their evidence inline:
-
-```markdown
-### Scenarios
-
-- Given X, when Y, then Z ([test](tests/test_slug.scenario.l1.py))
-```
-
-Use `[test](...)` for automated evidence verified by a test runner, `[eval](...)` for LLM-driven behavior verified by graded cases against a structured verdict, and `[audit]` for semantic constraints judged by an auditing skill that no deterministic test or eval can falsify (`[review]` is the legacy form of `[audit]`, still accepted during migration). Every assertion carries exactly one verification-type tag. The `[eval]` link points at a per-eval directory's `eval.toml`; the eval runner is declared per project.
-
----
-
-## Excluded Nodes
-
-Nodes with specs and tests but no implementation are listed in `spx/EXCLUDE`. The `spx` CLI reads this file and skips excluded nodes when running `spx test passing`. Linting always applies — style is checked regardless of implementation existence.
-
-`spx` never writes to product configuration files. It passes exclusion flags to each tool at invocation time.
-
-Remove entries when implementation begins and tests should start running.
+Test level is encoded in the filename. The `{evidence}` segment is chosen by `/test` routing from the assertion type: `scenario`, `mapping`, `conformance`, `property`, or `compliance`. Universal assertions use `mapping`, `conformance`, `property`, or `compliance`; a universal is never `scenario`. This guide renders only the languages listed in its `languages` frontmatter; `/update-spx` re-renders from the installed template when the methodology advances.
 
 ---
 
 ## Session Management
 
-Claude Code session handoffs are stored in `.spx/sessions/` (separate from the spec tree):
-
-```text
-.spx/sessions/
-├── todo/          # Available for /pickup
-├── doing/         # Currently claimed
-└── archive/       # Completed sessions
-```
-
-Use `/handoff` to create, `/pickup` to claim, `spx session release` to return a claimed session to the queue.
-
-Session files use structured YAML frontmatter (rendered by the CLI from JSON input):
-
-```yaml
----
-priority: medium
-git_ref: work/example
-goal: Implement X
-next_step: Run the focused validation
-specs:
-  - spx/55-example.enabler/21-session.enabler/session.md
-files:
-  - src/commands/session/handoff.ts
-created_at: 2026-05-30T14:22:00.000Z
-agent_session_id: abc123-def456
----
-```
-
-`spx session handoff` reads a JSON header on the first line of stdin followed by the body bytes. It prefills `created_at`, `agent_session_id` when available, and `git_ref`. The handoff must provide non-empty `goal` and `next_step`.
+Sessions are shared across every worktree. Each session must be handed off via `/handoff` so it can be resumed from any other worktree: the handoff leaves the worktree clean and persists all state on origin. Propose a handoff when the session's goal is met or the work must pause; resume one with `/pickup`. When a claimed session is complete and should leave the active queue, close it through `/handoff` or `/handoff --no-session` so claimed-session accounting archives it. To return a wrongly claimed session to the shared queue instead, run `spx session release <session-id>`.
