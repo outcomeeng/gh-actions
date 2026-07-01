@@ -32,6 +32,14 @@
       "matchStrings": [
         "ACTIONLINT_VERSION: \"(?<currentValue>[^\"]+)\" # renovate: datasource=(?<datasource>[^ ]+) depName=(?<depName>[^ \\n]+)"
       ]
+    },
+    {
+      "description": "Track npm CLI defaults installed by spec-tree-verification.yml.",
+      "customType": "regex",
+      "fileMatch": ["^\\.github/workflows/spec-tree-verification\\.yml$"],
+      "matchStrings": [
+        "default: \"(?<currentValue>[^\"]+)\" # renovate: datasource=(?<datasource>[^ ]+) depName=(?<depName>[^ \\n]+)"
+      ]
     }
   ],
   "vulnerabilityAlerts": {

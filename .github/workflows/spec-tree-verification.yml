@@ -49,11 +49,11 @@ on:
       spx_version:
         description: "Version of @outcomeeng/spx to install."
         type: string
-        default: "0.6.7"
+        default: "0.6.7" # renovate: datasource=npm depName=@outcomeeng/spx
       claude_code_version:
         description: "Version of @anthropic-ai/claude-code to install."
         type: string
-        default: "2.1.195"
+        default: "2.1.195" # renovate: datasource=npm depName=@anthropic-ai/claude-code
       timeout_minutes:
         description: "Wall-clock budget in minutes for the agent step."
         type: string
@@ -329,6 +329,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Resolve pull request diff refs
+        id: diff-refs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          merge_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          {
+            echo "base_ref=$merge_base"
+            echo "head_ref=$HEAD_SHA"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Checkout verification skill source
         env:
           SKILL_REPOSITORY: ${{ inputs.skill_repository }}
@@ -402,8 +415,8 @@ jobs:
 
       - name: Create verification context
         env:
-          BASE_REF: ${{ github.event.pull_request.base.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ steps.diff-refs.outputs.base_ref }}
+          HEAD_REF: ${{ steps.diff-refs.outputs.head_ref }}
           SKILL: ${{ inputs.skill }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
@@ -425,8 +438,8 @@ jobs:
           SKILL: ${{ inputs.skill }}
           SKILL_PATH: ${{ inputs.skill_path }}
           SKILL_SOURCE_ROOT: ${{ runner.temp }}/verification-skill-source
-          BASE_REF: ${{ github.event.pull_request.base.sha }}
-          HEAD_REF: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ steps.diff-refs.outputs.base_ref }}
+          HEAD_REF: ${{ steps.diff-refs.outputs.head_ref }}
           CHANGED_FILES: ${{ needs.filter-changes.outputs.changed_files }}
         run: |
           set -euo pipefail
