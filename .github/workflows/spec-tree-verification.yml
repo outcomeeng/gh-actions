@@ -502,11 +502,28 @@ jobs:
             echo
             echo "### Output"
             echo
-            echo '```text'
             if [[ -f "$RUNNER_TEMP/spec-tree-verification-output.txt" ]]; then
+              echo '```text'
               sed -n '1,240p' "$RUNNER_TEMP/spec-tree-verification-output.txt"
+              echo '```'
+              token=$(awk 'NF { candidate = $NF } END { print candidate }' "$RUNNER_TEMP/spec-tree-verification-output.txt")
+              journal_type=""
+              if [[ "$SKILL" == "review-changes" ]]; then
+                journal_type="review"
+              fi
+              if [[ -n "$journal_type" && "$token" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}-[0-9a-f]+$ ]]; then
+                echo
+                echo "### Journal"
+                echo
+                echo '```text'
+                if ! spx journal render --type "$journal_type" --run "$token"; then
+                  echo "Unable to render journal for token: $token"
+                fi
+                echo '```'
+              fi
             else
+              echo '```text'
               echo "No verification output captured."
+              echo '```'
             fi
-            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
