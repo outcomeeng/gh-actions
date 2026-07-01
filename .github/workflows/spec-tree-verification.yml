@@ -42,6 +42,10 @@ on:
         description: "Optional newline-separated changed-path globs. Empty means every PR change is in scope."
         type: string
         default: ""
+      concurrency_suffix:
+        description: "Optional discriminator for callers that run the same skill more than once on one pull request."
+        type: string
+        default: ""
       allow_branch_preview:
         description: "Allow a same-repo branch preview with a floating skill ref when the caller carries the BETA TESTER marker."
         type: boolean
@@ -317,7 +321,7 @@ jobs:
     needs: [authorize, filter-changes, validate-workflow]
     if: needs.authorize.outputs.authorized == 'true' && needs.filter-changes.outputs.should_run == 'true' && needs.validate-workflow.outputs.matches == 'true'
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.pull_request.number }}-${{ inputs.skill }}
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number }}-${{ inputs.skill }}-${{ inputs.concurrency_suffix }}
       cancel-in-progress: true
     runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     permissions:
@@ -452,7 +456,9 @@ jobs:
             "- Base ref: $BASE_REF" \
             "- Head ref: $HEAD_REF" \
             "- Changed files:" \
+            '```text' \
             "$CHANGED_FILES" \
+            '```' \
             "" \
             "Use the skill's journal workflow. Print the raw run token the skill produces.")
           args=(

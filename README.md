@@ -150,6 +150,7 @@ The review prompt and baseline allowlist intentionally differ:
 | `agent`                | `claude-code`           | Agent adapter. The first slice supports Claude Code only.                                                    |
 | `model`                | (empty)                 | Claude model id. Empty = CLI default.                                                                        |
 | `paths`                | (empty)                 | Optional newline-separated changed-path globs. Empty = every PR change is in scope.                          |
+| `concurrency_suffix`   | (empty)                 | Optional discriminator when one caller runs the same skill more than once on a PR.                           |
 | `allow_branch_preview` | `false`                 | Allows a same-repo beta caller with the marker comment to use a floating skill ref.                          |
 | `spx_version`          | `0.6.7`                 | Version of `@outcomeeng/spx` to install.                                                                     |
 | `claude_code_version`  | `2.1.195`               | Version of `@anthropic-ai/claude-code` to install.                                                           |
