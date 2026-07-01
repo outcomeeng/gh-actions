@@ -121,7 +121,7 @@ jobs:
               rm -f "$err"
               return 0
             fi
-            status=$?
+            local status=$?
             if grep -q 'Not Found' "$err"; then
               rm -f "$err"
               return 2
@@ -505,6 +505,11 @@ jobs:
             if [[ -f "$RUNNER_TEMP/spec-tree-verification-output.txt" ]]; then
               echo '```text'
               sed -n '1,240p' "$RUNNER_TEMP/spec-tree-verification-output.txt"
+              total_lines=$(wc -l < "$RUNNER_TEMP/spec-tree-verification-output.txt" | tr -d ' ')
+              if ((total_lines > 240)); then
+                echo
+                echo "[output truncated at 240 of $total_lines lines]"
+              fi
               echo '```'
               token=$(awk 'NF { candidate = $NF } END { print candidate }' "$RUNNER_TEMP/spec-tree-verification-output.txt")
               journal_type=""
