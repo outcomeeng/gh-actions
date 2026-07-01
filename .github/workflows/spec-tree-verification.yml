@@ -468,7 +468,7 @@ jobs:
             "${auth_env[@]}" \
             SPX_VERIFY_BASE_REF="$BASE_REF" \
             SPX_VERIFY_HEAD_REF="$HEAD_REF" \
-            claude "${args[@]}" "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
+            claude "${args[@]}" -- "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
 
       - name: Publish job summary
         if: always()
