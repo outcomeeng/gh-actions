@@ -353,6 +353,8 @@ The example caller templates in this repository (`examples/caller-workflows/`) s
 
 Running both Renovate and Dependabot against the same files produces conflicting PRs — pick one.
 
+For this repository's own `anthropics/claude-code-action` dependency, Renovate runs a separate weekday lane because upstream publishes frequent `v1.0.x` releases. Beta-tester callers pinned to `outcomeeng/gh-actions@main` receive the reviewed upstream action update after the Renovate PR merges here. Production callers that SHA-pin `outcomeeng/gh-actions` receive it after this repository publishes a release commit and the caller's Renovate PR advances the reusable-workflow SHA.
+
 ### Least-privilege `permissions:`
 
 The reusable workflows (`spec-tree.yml`, `spec-tree-review.yml`, `claude.yml`, `claude-code-review.yml`) and `ci.yml` declare top-level `permissions: {}` and then grant per-job permissions explicitly. Caller workflows should declare top-level `permissions:` with the maximum the reusable needs. The quick-start examples list the exact permissions each reusable expects.
