@@ -61,7 +61,7 @@ Consumers can then use `@v1` for the latest v1.x.x.
 The repo's security posture follows [GitHub's hardening guide](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) and the OpenSSF baseline for GitHub Actions. The non-negotiables, in priority order:
 
 1. **Every third-party action and reusable workflow is pinned by full-length commit SHA**, not by `@v1` or `@main`. Tags and branches are mutable; a SHA is the only reference an attacker can't redirect after publication. Each pin carries a trailing comment naming the tag or branch the SHA tracks (`@<sha> # v1.2.3` or `@<sha> # main`); Renovate uses that comment to advance the pin on each release. **Documented exception**: consumer repos that act as upstream beta-testers under the same trust boundary as `outcomeeng/gh-actions` MAY pin to `@main` with an explicit `# BETA TESTER:` marker — see README "Security → Documented exception" for the conditions and limits. Inside this repo, SHA-pinning admits no exception.
-2. **Renovate is the single update mechanism**, configured at `renovate.json` with `helpers:pinGitHubActionDigests`. The earlier `.github/dependabot.yml` has been removed — running both creates conflicting PRs against the same lines. Renovate opens grouped PRs on a weekly cadence; security advisories fire immediately under `vulnerabilityAlerts`.
+2. **Renovate is the single update mechanism**, configured at `renovate.json` with `helpers:pinGitHubActionDigests`. The earlier `.github/dependabot.yml` has been removed — running both creates conflicting PRs against the same lines. Renovate opens grouped PRs on a weekly cadence for ordinary actions, tracks `anthropics/claude-code-action` on its own weekday cadence, and fires security advisories immediately under `vulnerabilityAlerts`.
 3. **Top-level `permissions: {}`** on every reusable workflow (`spec-tree.yml`, `spec-tree-review.yml`, `claude.yml`, `claude-code-review.yml`) and on `ci.yml`. Jobs explicitly grant the narrow permissions they need, subject to the caller workflow's maximum grant. The caller workflow's permissions set the maximum; the reusable's per-job grants do the actual narrowing.
 4. **`persist-credentials: false`** on every `actions/checkout` step that does not push back to the same repository, except the Claude action workflows (`claude.yml`, `spec-tree.yml`, `claude-code-review.yml`, and `spec-tree-review.yml`). Those workflows intentionally keep checkout's default credentials because `anthropics/claude-code-action` performs an early PR-branch `git fetch` before configuring its own git auth. Keep the surrounding job permissions narrow when relying on that default.
 5. **Secrets reach the runner via the action's `with:` inputs or via job-level `env:` blocks** — never interpolated into a `run:` script body. The pattern is enforced by actionlint + shellcheck.
@@ -77,6 +77,13 @@ Renovate opens the PR. Reviewer responsibilities:
 3. Merge when CI is green. The Renovate PR title carries `ci(deps):` or `chore(deps):` per the `:semanticCommits` preset.
 
 For consumers of this repo (downstream `.github/workflows/*.yml` callers that reference `outcomeeng/gh-actions`), the same rule applies by default: pin by SHA, let Renovate advance. The one exception is beta-tester consumers under the shared trust boundary, who may pin to `@main` per the conditions in README "Security → Documented exception".
+
+Claude Code Action updates have two consumer paths:
+
+1. Beta consumers that reference `outcomeeng/gh-actions@main` receive the reviewed upstream action update as soon as the Renovate PR merges here.
+2. Release consumers that SHA-pin `outcomeeng/gh-actions` receive the upstream action update after this repository publishes a new release commit and their own Renovate PR advances their reusable-workflow SHA.
+
+Keep the upstream dependency pinned to an exact release tag comment such as `# v1.0.165`, not `# v1`, so Renovate can show the concrete upstream release being adopted.
 
 ### Running lint locally
 
