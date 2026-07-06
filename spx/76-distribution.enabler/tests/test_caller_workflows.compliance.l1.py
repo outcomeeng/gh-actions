@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -149,6 +150,55 @@ def test_workspace_reports_manifest_entry_missing_reusable_file(
 def test_manifest_parser_rejects_invalid_yaml() -> None:
     with pytest.raises(ValueError, match="invalid YAML"):
         caller_workflows._parse_manifest("workflows: [")
+
+
+def test_resolve_git_sha_returns_full_sha(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+
+    sha = caller_workflows.resolve_git_sha("HEAD", tmp_path)
+
+    assert caller_workflows.FULL_SHA_RE.fullmatch(sha)
+
+
+def test_resolve_git_sha_rejects_non_sha_output(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+
+    with pytest.raises(ValueError, match="resolved to non-SHA value"):
+        caller_workflows.resolve_git_sha("--show-toplevel", tmp_path)
+
+
+def test_main_checks_workspace_with_expected_ref_and_repo_root(
+    tmp_path: Path,
+) -> None:
+    head_sha = _init_git_repo(tmp_path)
+    workflow = _workflow(Path("examples/caller-workflows/example.yml"))
+    _write_workspace_fixture(tmp_path, workflow, head_sha)
+    _write_readme(tmp_path, workflow, head_sha)
+
+    result = caller_workflows.main(
+        ["--check", "--repo-root", str(tmp_path), "--expected-ref", "HEAD"]
+    )
+
+    assert result == 0
+
+
+def test_main_rejects_conflicting_expected_sha_and_ref(
+    tmp_path: Path,
+) -> None:
+    _init_git_repo(tmp_path)
+
+    with pytest.raises(SystemExit):
+        caller_workflows.main(
+            [
+                "--check",
+                "--repo-root",
+                str(tmp_path),
+                "--expected-sha",
+                EXPECTED_SHA,
+                "--expected-ref",
+                "HEAD",
+            ]
+        )
 
 
 def test_workspace_reports_extra_example_file(tmp_path: Path) -> None:
@@ -383,3 +433,32 @@ def _write_readme(
         f"uses: outcomeeng/gh-actions/{workflow.reusable}@{sha} # main\n",
         encoding="utf-8",
     )
+
+
+def _init_git_repo(tmp_path: Path) -> str:
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "tests@example.invalid"],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Tests"],
+        cwd=tmp_path,
+        check=True,
+    )
+    (tmp_path / "seed.txt").write_text("seed\n", encoding="utf-8")
+    subprocess.run(["git", "add", "seed.txt"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "test seed"],
+        cwd=tmp_path,
+        check=True,
+    )
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    )
+    return result.stdout.strip()
