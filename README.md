@@ -45,8 +45,8 @@ permissions:
 
 jobs:
   spec-tree:
-    # Pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@eedf66bdd69dbe899a746374419d5a3cfbecfd25 # main
+    # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -69,8 +69,8 @@ permissions:
 
 jobs:
   spec-tree-review:
-    # Pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/spec-tree-review.yml@eedf66bdd69dbe899a746374419d5a3cfbecfd25 # main
+    # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/spec-tree-review.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -264,8 +264,8 @@ jobs:
   spec-tree:
     # Replace alice and bob with trusted accounts not on the repo's collaborators list.
     if: github.event.issue.pull_request && contains(fromJSON('["alice", "bob"]'), github.actor)
-    # Pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@eedf66bdd69dbe899a746374419d5a3cfbecfd25 # main
+    # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
@@ -313,11 +313,10 @@ Every `uses:` reference — actions and reusable workflows alike — is pinned b
 ```yaml
 # Correct
 uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@eedf66bdd69dbe899a746374419d5a3cfbecfd25 # main
+uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
 
 # Forbidden
 uses: actions/checkout@v6
-uses: outcomeeng/gh-actions/.github/workflows/spec-tree.yml@main
 ```
 
 The trailing `# v6.0.2` / `# main` comment names the tag or branch the SHA tracks. Renovate uses that comment to know which upstream reference to follow when advancing the pin.
@@ -352,11 +351,13 @@ The example caller templates in this repository (`examples/caller-workflows/`) s
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    "helpers:pinGitHubActionDigests"
+    "github>outcomeeng/gh-actions//renovate-presets/gh-actions-consumer"
   ],
   "vulnerabilityAlerts": { "enabled": true }
 }
 ```
+
+The shared preset extends Renovate's GitHub Action digest helper and groups `outcomeeng/gh-actions` reusable updates. Renovate presets are JSON files; the `github>outcomeeng/gh-actions//renovate-presets/gh-actions-consumer` form resolves to `renovate-presets/gh-actions-consumer.json` on this repository's default branch.
 
 Running both Renovate and Dependabot against the same files produces conflicting PRs — pick one.
 

@@ -1,0 +1,10 @@
+[project]
+name = "outcomeeng-gh-actions-maintenance"
+version = "0.0.0"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["spx"]
+python_files = ["test_*.py"]
+addopts = ["--import-mode=importlib"]
+pythonpath = ["."]

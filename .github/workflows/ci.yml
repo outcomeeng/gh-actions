@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
       # Install actionlint by downloading the release archive AND the official
@@ -47,6 +47,12 @@ jobs:
 
       - name: Run actionlint
         run: actionlint -color
+
+      - name: Check generated caller examples
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          python3 -m scripts.check_caller_workflows --check
 
       # Inline `run:` blocks inside workflow YAML are already linted by the
       # actionlint step above (actionlint invokes shellcheck on each block).
