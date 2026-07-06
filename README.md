@@ -238,7 +238,12 @@ Caller-supplied `extra_plugins` and `plugin_marketplaces` inputs append to the p
 
 Whenever you widen the plugin set for review or mention runs, widen the allowlist to match via `append_allow_list` (on the review workflow) or `claude_args` (on the mention workflow). Otherwise the same permission-denial spiral that motivated the opt-in default will surface again.
 
-Widening the tool patterns is not sufficient on its own to *run* a plugin's skills. When a plugin skill declares extra capabilities in its frontmatter (an `allowed-tools` list — every spec-tree skill does), the pinned `anthropics/claude-code-action` denies the `Skill` tool call in a headless run, because the action grants no `Skill` rule for the plugins it installs. The prompt then fails with `Error: Execute skill: <name>`. Until the action derives these rules automatically ([anthropics/claude-code-action#1467](https://github.com/anthropics/claude-code-action/pull/1467)), grant them yourself: add `Skill(<plugin>:*)` for each installed plugin to `append_allow_list` (review) or `claude_args` (mention) — e.g. `Skill(spec-tree:*)`. The action merges allowlist entries as a set, so this composes with the baked-in patterns. Once that fix ships in a release and the pin advances, the manual `Skill(...)` entry becomes redundant and can be dropped.
+Widening the tool patterns is not sufficient on its own to *run* a plugin's skills. When a plugin skill declares extra capabilities in its frontmatter (an `allowed-tools` list — every spec-tree skill does), the pinned `anthropics/claude-code-action` denies the `Skill` tool call in a headless run, because the action grants no `Skill` rule for the plugins it installs. The prompt then fails with `Error: Execute skill: <name>`. Until the action derives these rules automatically ([anthropics/claude-code-action#1467](https://github.com/anthropics/claude-code-action/pull/1467)), grant them yourself — one `Skill(<plugin>:*)` entry per installed plugin, e.g. `Skill(spec-tree:*)`:
+
+- **Review workflows** — add the pattern to `append_allow_list`. The action merges it as a set with the workflow's baked-in review baseline.
+- **Mention workflows** — `claude_args` is forwarded to the CLI verbatim, so pass the grant as an `--allowed-tools` flag value, not a bare pattern: `--allowed-tools "Skill(spec-tree:*)"`. The mention workflows carry no baked-in allowlist, so this same `claude_args` value must also name every other tool pattern the run needs.
+
+Once that fix ships in a release and the pin advances, the manual `Skill(...)` grant becomes redundant and can be dropped.
 
 ## Authorization
 
