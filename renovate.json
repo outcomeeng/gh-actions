@@ -11,9 +11,6 @@
   "labels": ["dependencies"],
   "prHourlyLimit": 4,
   "prConcurrentLimit": 10,
-  "github-actions": {
-    "managerFilePatterns": ["/^examples/caller-workflows/.*\\.ya?ml$/"]
-  },
   "packageRules": [
     {
       "description": "Group GitHub Actions and reusable-workflow updates. Digest pinning itself is already enforced by the helpers:pinGitHubActionDigests preset above; this rule only adds the grouping.",
@@ -26,12 +23,6 @@
       "matchPackageNames": ["anthropics/claude-code-action"],
       "groupName": "claude-code-action",
       "schedule": ["before 6am every weekday"]
-    },
-    {
-      "description": "Self-references to outcomeeng/gh-actions in caller workflow examples are grouped when Renovate scans them; the manifest drift gate remains the source of truth for generated examples.",
-      "matchManagers": ["github-actions"],
-      "matchPackageNames": ["outcomeeng/gh-actions"],
-      "groupName": "outcomeeng/gh-actions self-reference"
     }
   ],
   "customManagers": [

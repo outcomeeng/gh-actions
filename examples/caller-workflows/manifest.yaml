@@ -1,7 +1,7 @@
 schema_version: 1
 repository: outcomeeng/gh-actions
 tracked_ref: main
-default_expected_ref: origin/main
+default_expected_sha: a113491956c710dcdb7cb54174b4a52f9f6609d4
 workflows:
   - id: claude
     example: examples/caller-workflows/claude.yml

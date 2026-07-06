@@ -8,7 +8,7 @@ CAN adopt a reusable by copying a SHA-pinned caller stub, setting one secret, an
 
 ### Compliance
 
-- ALWAYS: each surface ships a drop-in caller template under `examples/caller-workflows/` whose reusable reference, tracked branch comment, and documented timeout default are checked against `examples/caller-workflows/manifest.yaml`; generated examples cannot drift from the manifest-governed release lane ([test](tests/test_caller_workflows.compliance.l1.py))
+- ALWAYS: each surface ships a drop-in caller template under `examples/caller-workflows/`; its reusable reference, tracked branch comment, README release-lane snippets, and caller-template timeout default are checked against `examples/caller-workflows/manifest.yaml` and the reusable workflow default; generated examples and copied snippets cannot drift from the manifest-governed release lane ([test](tests/test_caller_workflows.compliance.l1.py))
 - ALWAYS: README snippets teach the same beta and release consumer lanes that `examples/caller-workflows/` implements, so copy-paste documentation and caller templates present one adoption contract ([audit])
 - ALWAYS: the distribution surface documents two consumer lanes: a beta lane that deliberately uses `@main` with an explicit `# BETA TESTER:` marker, and a release lane that uses a full-length SHA with trailing `# main` for Renovate-managed production consumers ([audit])
 - ALWAYS: production consumers receive a shareable Renovate preset for `outcomeeng/gh-actions` reusable pins so copied caller workflows get grouped, SHA-pinned update PRs without each consumer inventing dependency-update policy ([audit])

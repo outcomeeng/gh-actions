@@ -2,6 +2,14 @@
 name = "outcomeeng-gh-actions-maintenance"
 version = "0.0.0"
 requires-python = ">=3.11"
+dependencies = [
+  "PyYAML==6.0.2",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest==9.0.2",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["spx"]

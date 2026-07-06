@@ -12,11 +12,18 @@ default:
     @just --list
 
 # Umbrella — what CI runs.
-check: lint
+check: lint test
 
 # Remove every gitignored file and directory.
 clean:
     git clean -fdX
+
+# Run deterministic caller workflow tests.
+test:
+    python3 -m venv .venv
+    .venv/bin/python -m pip install -q -e ".[test]"
+    .venv/bin/python -m scripts.check_caller_workflows --check
+    PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
 
 # Run all linters.
 lint: lint-actions lint-shell
