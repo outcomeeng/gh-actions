@@ -75,6 +75,31 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
+**For spec-tree verification runs** — create `.github/workflows/spec-tree-verification.yml`:
+
+```yaml
+name: Spec Tree Verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  spec-tree-verification:
+    # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/spec-tree-verification.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    with:
+      # Production callers must pin the skill source ref as well.
+      ref: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REF || '1a0a2474c50c2f60344e772576a0341fc3b4f8dd' }}
+```
+
 **For generic `@claude` mentions** — create `.github/workflows/claude.yml`:
 
 ```yaml
@@ -129,7 +154,7 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
-For complete copy-paste templates with every override documented inline, see `examples/caller-workflows/spec-tree.yml`, `examples/caller-workflows/spec-tree-review.yml`, `examples/caller-workflows/claude.yml`, and `examples/caller-workflows/claude-code-review.yml`.
+For complete copy-paste templates with every override documented inline, see `examples/caller-workflows/spec-tree.yml`, `examples/caller-workflows/spec-tree-review.yml`, `examples/caller-workflows/spec-tree-verification.yml`, `examples/caller-workflows/claude.yml`, and `examples/caller-workflows/claude-code-review.yml`.
 
 For a generic Claude Code review, use the same `pull_request` trigger shape and call `.github/workflows/claude-code-review.yml` instead. That workflow keeps the default Claude review prompt compact and exposes `custom_prompt` for caller-specific review instructions.
 

@@ -13,6 +13,7 @@ import yaml
 
 MANIFEST_PATH: Final = Path("examples/caller-workflows/manifest.yaml")
 README_PATH: Final = Path("README.md")
+WORKFLOWS_DIR: Final = Path(".github/workflows")
 FULL_SHA_RE: Final = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -131,6 +132,8 @@ def check_workspace(repo_root: Path, expected_sha: str) -> list[Drift]:
 def check_manifest_file_set(repo_root: Path, manifest: CallerManifest) -> list[Drift]:
     declared = {workflow.example for workflow in manifest.workflows}
     actual = set(list_caller_examples(repo_root))
+    declared_reusables = {Path(workflow.reusable) for workflow in manifest.workflows}
+    actual_reusables = set(list_reusable_workflows(repo_root))
     drifts: list[Drift] = []
     for path in sorted(actual - declared):
         drifts.append(
@@ -146,7 +149,36 @@ def check_manifest_file_set(repo_root: Path, manifest: CallerManifest) -> list[D
                 message="manifest declares missing caller workflow example",
             )
         )
+    for path in sorted(actual_reusables - declared_reusables):
+        drifts.append(
+            Drift(
+                path=path,
+                message="reusable workflow is not declared in manifest",
+            )
+        )
+    for path in sorted(
+        path
+        for path in declared_reusables - actual_reusables
+        if (repo_root / path).exists()
+    ):
+        drifts.append(
+            Drift(
+                path=path,
+                message="manifest reusable workflow path does not declare workflow_call",
+            )
+        )
     return drifts
+
+
+def list_reusable_workflows(repo_root: Path) -> tuple[Path, ...]:
+    actual: set[Path] = set()
+    for path in (repo_root / WORKFLOWS_DIR).glob("*.yml"):
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if re.search(r"(?m)^[ \t]+workflow_call:\s*$", text):
+            actual.add(path.relative_to(repo_root))
+    return tuple(sorted(actual))
 
 
 def list_caller_examples(repo_root: Path) -> tuple[Path, ...]:
@@ -218,14 +250,18 @@ def check_example(
                 message=f"vars.{workflow.timeout_var} defaults to {timeout_match.group('value')}, expected {workflow.timeout_default}",
             )
         )
-    reusable_default = read_reusable_timeout_default(repo_root, workflow)
-    if reusable_default != workflow.timeout_default:
-        drifts.append(
-            Drift(
-                path=Path(workflow.reusable),
-                message=f"timeout_minutes default is {reusable_default}, expected manifest {workflow.timeout_default}",
+    try:
+        reusable_default = read_reusable_timeout_default(repo_root, workflow)
+    except ValueError as exc:
+        drifts.append(Drift(path=Path(workflow.reusable), message=str(exc)))
+    else:
+        if reusable_default != workflow.timeout_default:
+            drifts.append(
+                Drift(
+                    path=Path(workflow.reusable),
+                    message=f"timeout_minutes default is {reusable_default}, expected manifest {workflow.timeout_default}",
+                )
             )
-        )
     return drifts
 
 
