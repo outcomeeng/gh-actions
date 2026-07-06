@@ -3,6 +3,9 @@
 
 # Tool caches
 .dprint-cache/
+.pytest_cache/
+__pycache__/
+*.py[cod]
 
 # IDE
 .idea/

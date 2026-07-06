@@ -14,6 +14,10 @@ default:
 # Umbrella — what CI runs.
 check: lint
 
+# Remove every gitignored file and directory.
+clean:
+    git clean -fdX
+
 # Run all linters.
 lint: lint-actions lint-shell
 

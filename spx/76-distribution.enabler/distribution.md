@@ -8,6 +8,9 @@ CAN adopt a reusable by copying a SHA-pinned caller stub, setting one secret, an
 
 ### Compliance
 
-- ALWAYS: each surface ships a drop-in caller template under `examples/caller-workflows/` that SHA-pins the reusable and reads `vars.*` overrides with documented defaults ([audit])
+- ALWAYS: each surface ships a drop-in caller template under `examples/caller-workflows/` whose reusable reference, tracked branch comment, and documented timeout default are checked against `examples/caller-workflows/manifest.yaml`; generated examples cannot drift from the manifest-governed release lane ([test](tests/test_caller_workflows.compliance.l1.py))
+- ALWAYS: README snippets teach the same beta and release consumer lanes that `examples/caller-workflows/` implements, so copy-paste documentation and caller templates present one adoption contract ([audit])
+- ALWAYS: the distribution surface documents two consumer lanes: a beta lane that deliberately uses `@main` with an explicit `# BETA TESTER:` marker, and a release lane that uses a full-length SHA with trailing `# main` for Renovate-managed production consumers ([audit])
+- ALWAYS: production consumers receive a shareable Renovate preset for `outcomeeng/gh-actions` reusable pins so copied caller workflows get grouped, SHA-pinned update PRs without each consumer inventing dependency-update policy ([audit])
 - ALWAYS: secret provisioning reads the credential from the platform keystore and pushes it via `gh secret set`, never printing or committing the value ([audit])
 - NEVER: a shipped caller template pins a mutable ref (`@main` / `@v1`) except under the documented beta-tester exception carrying an explicit marker comment ([audit])
