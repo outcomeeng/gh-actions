@@ -147,6 +147,45 @@ def test_workspace_reports_manifest_entry_missing_reusable_file(
     ]
 
 
+def test_workspace_reports_reusable_workflow_missing_manifest_entry(
+    tmp_path: Path,
+) -> None:
+    workflow = _workflow(Path("examples/caller-workflows/example.yml"))
+    _write_workspace_fixture(tmp_path, workflow, EXPECTED_SHA)
+    _write_readme(tmp_path, workflow, EXPECTED_SHA)
+    extra_reusable = Path(".github/workflows/extra.yml")
+    _write_workflow_call(tmp_path / extra_reusable)
+
+    assert caller_workflows.check_workspace(tmp_path, EXPECTED_SHA) == [
+        caller_workflows.Drift(
+            path=extra_reusable,
+            message="reusable workflow is not declared in manifest",
+        )
+    ]
+
+
+def test_workspace_reports_manifest_reusable_without_workflow_call(
+    tmp_path: Path,
+) -> None:
+    workflow = _workflow(Path("examples/caller-workflows/example.yml"))
+    _write_workspace_fixture(tmp_path, workflow, EXPECTED_SHA)
+    _write_readme(tmp_path, workflow, EXPECTED_SHA)
+    (tmp_path / workflow.reusable).write_text(
+        "name: ordinary workflow\n", encoding="utf-8"
+    )
+
+    assert caller_workflows.check_workspace(tmp_path, EXPECTED_SHA) == [
+        caller_workflows.Drift(
+            path=Path(workflow.reusable),
+            message="manifest reusable workflow path does not declare workflow_call",
+        ),
+        caller_workflows.Drift(
+            path=Path(workflow.reusable),
+            message=f"{workflow.reusable} missing timeout_minutes default",
+        ),
+    ]
+
+
 def test_manifest_parser_rejects_invalid_yaml() -> None:
     with pytest.raises(ValueError, match="invalid YAML"):
         caller_workflows._parse_manifest("workflows: [")
@@ -406,7 +445,11 @@ def _write_reusable(
     reusable_timeout: str = "15",
 ) -> None:
     reusable_path = tmp_path / workflow.reusable
-    reusable_path.parent.mkdir(parents=True)
+    _write_workflow_call(reusable_path, reusable_timeout)
+
+
+def _write_workflow_call(reusable_path: Path, reusable_timeout: str = "15") -> None:
+    reusable_path.parent.mkdir(parents=True, exist_ok=True)
     reusable_path.write_text(
         "\n".join(
             [

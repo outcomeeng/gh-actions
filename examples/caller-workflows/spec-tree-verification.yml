@@ -1,0 +1,80 @@
+# Copy this file to .github/workflows/spec-tree-verification.yml in your repository
+#
+# Required setup:
+# 1. Add ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN to repository secrets.
+# 2. Keep `ref` pinned to a full-length commit SHA for production callers.
+# 3. (Optional) Tune behavior via repo variables in Settings -> Secrets and
+#    variables -> Actions -> Variables. See the `with:` block below; every
+#    entry reads a `vars.SPEC_TREE_VERIFICATION_*` value and falls back to
+#    the reusable's default when the variable is unset.
+
+name: Spec Tree Verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  spec-tree-verification:
+    # Pin to a full-length commit SHA per GitHub's hardening guidance — never @main or @v1.
+    # This example's release-lane SHA is rendered from examples/caller-workflows/manifest.yaml.
+    # Consumer repos keep the copied SHA current with the Renovate preset in README "Security".
+    #
+    # Beta-tester consumers (internal repos deliberately tracking-latest) MAY
+    # swap this for `@main` with a `# BETA TESTER:` marker comment — see the
+    # documented exception in README "Security → Documented exception".
+    uses: outcomeeng/gh-actions/.github/workflows/spec-tree-verification.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+    # Authorization is automatic: the verification runs only when the PR
+    # author has admin, maintain, or write permission on this repository
+    # (queried via the GitHub API). External contributors are skipped.
+    #
+    # Production callers keep both refs pinned: this reusable workflow pin
+    # and the skill source `ref` below. Same-repo branch previews may set
+    # `allow_branch_preview: true` only with the documented BETA TESTER marker.
+
+    with:
+      # Runner. Single label (`ubuntu-slim`, `ubuntu-latest`, `self-hosted`)
+      # or a JSON-array string for multi-label selectors like
+      # `'["self-hosted","laptop"]'`.
+      runner: ${{ vars.SPEC_TREE_VERIFICATION_RUNNER || 'ubuntu-slim' }}
+
+      # Skill to invoke from the installed spec-tree plugin.
+      skill: ${{ vars.SPEC_TREE_VERIFICATION_SKILL || 'review-changes' }}
+
+      # Skill source repository and pinned source ref. Production callers
+      # must keep `ref` as a full 40-character commit SHA.
+      skill_repository: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REPOSITORY || 'outcomeeng/plugins' }}
+      ref: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REF || '1a0a2474c50c2f60344e772576a0341fc3b4f8dd' }}
+      skill_path: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_PATH || 'src/plugins/spec-tree' }}
+
+      # Agent adapter. The current host slice implements Claude Code.
+      agent: ${{ vars.SPEC_TREE_VERIFICATION_AGENT || 'claude-code' }}
+
+      # Claude model id. Empty = CLI default.
+      model: ${{ vars.SPEC_TREE_VERIFICATION_MODEL || '' }}
+
+      # Optional newline-separated changed-path globs. Empty = every PR
+      # change is in scope.
+      paths: ${{ vars.SPEC_TREE_VERIFICATION_PATHS || '' }}
+
+      # Optional discriminator for callers that run the same skill more than
+      # once on one pull request.
+      concurrency_suffix: ${{ vars.SPEC_TREE_VERIFICATION_CONCURRENCY_SUFFIX || '' }}
+
+      # Version pins for the verification host's CLIs.
+      spx_version: ${{ vars.SPEC_TREE_VERIFICATION_SPX_VERSION || '0.6.7' }}
+      claude_code_version: ${{ vars.SPEC_TREE_VERIFICATION_CLAUDE_CODE_VERSION || '2.1.195' }}
+
+      # Wall-clock budget (minutes) for the verification skill run.
+      timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '20' }}
+
+      # Beta-only escape hatch. Production callers leave this false.
+      allow_branch_preview: ${{ vars.SPEC_TREE_VERIFICATION_ALLOW_BRANCH_PREVIEW == 'true' }}
