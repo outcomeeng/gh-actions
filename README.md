@@ -75,6 +75,60 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
+**For generic `@claude` mentions** — create `.github/workflows/claude.yml`:
+
+```yaml
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  claude:
+    # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+**For generic Claude Code PR reviews** — create `.github/workflows/claude-code-review.yml`:
+
+```yaml
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  claude-code-review:
+    # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
+    uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
 For complete copy-paste templates with every override documented inline, see `examples/caller-workflows/spec-tree.yml`, `examples/caller-workflows/spec-tree-review.yml`, `examples/caller-workflows/claude.yml`, and `examples/caller-workflows/claude-code-review.yml`.
 
 For a generic Claude Code review, use the same `pull_request` trigger shape and call `.github/workflows/claude-code-review.yml` instead. That workflow keeps the default Claude review prompt compact and exposes `custom_prompt` for caller-specific review instructions.
