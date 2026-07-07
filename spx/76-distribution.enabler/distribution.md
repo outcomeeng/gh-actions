@@ -1,6 +1,6 @@
 # Distribution
 
-PROVIDES the consumer-adoption surface — copy-paste caller templates, per-environment repo-variable overrides, documentation, and secret provisioning tooling (`push-secrets.py`)
+PROVIDES the consumer-adoption surface — copy-paste caller templates, per-environment repo-variable overrides, documentation, and secret provisioning tooling (`gh_actions/push_secrets.py`)
 SO THAT a downstream repository
 CAN adopt a reusable by copying a SHA-pinned caller stub, setting one secret, and tuning behavior through repo variables, without editing workflow logic
 
