@@ -40,7 +40,7 @@ clean:
 check-test:
     python3 -m venv .venv
     .venv/bin/python -m pip install -q -e ".[test]"
-    PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m scripts.check_caller_workflows --check
+    PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m gh_actions.check_caller_workflows --check
     PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
 
 # Run all linters.
@@ -51,11 +51,11 @@ check-actions:
     @echo "=== actionlint ==="
     actionlint -color
 
-# shellcheck over scripts/ (inline run-blocks are covered by lint-actions).
+# shellcheck over gh_actions/ (inline run-blocks are covered by lint-actions).
 check-shell:
     @echo "=== shellcheck ==="
-    @if find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print -quit 2>/dev/null | grep -q .; then \
-        find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 shellcheck --color=always; \
+    @if find gh_actions -type f \( -name '*.sh' -o -name '*.bash' \) -print -quit 2>/dev/null | grep -q .; then \
+        find gh_actions -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 shellcheck --color=always; \
     else \
-        echo "  (no shell scripts under scripts/ — nothing to check)"; \
+        echo "  (no shell scripts under gh_actions/ — nothing to check)"; \
     fi

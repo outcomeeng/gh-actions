@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-from scripts import caller_workflows
+from gh_actions import caller_workflows
 
 
 EXPECTED_SHA = "a" * 40
