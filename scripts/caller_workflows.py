@@ -413,7 +413,7 @@ def _replace_timeout_default(text: str, workflow: CallerWorkflow) -> str:
 def _uses_pattern(reusable: str, manifest: CallerManifest) -> re.Pattern[str]:
     escaped = re.escape(f"{manifest.repository}/{reusable}")
     return re.compile(
-        rf"(?m)^(?P<prefix>[ \t]*uses:\s+{escaped}@)(?P<ref>[0-9a-f]{{40}})(?P<suffix>\s+#\s+{re.escape(manifest.tracked_ref)})"
+        rf"(?m)^(?P<prefix>[ \t]*uses:\s+{escaped}@)(?P<ref>[0-9a-f]{{40}})(?P<suffix>\s+#\s+{re.escape(manifest.tracked_ref)}[ \t]*)$"
     )
 
 
@@ -436,7 +436,11 @@ def main(argv: list[str] | None = None) -> int:
 
     repo_root = args.repo_root or find_repo_root(Path.cwd())
     manifest = load_manifest(repo_root)
-    expected_sha = args.expected_sha or manifest.default_expected_sha
+    expected_sha = (
+        args.expected_sha
+        if args.expected_sha is not None
+        else manifest.default_expected_sha
+    )
     if args.expected_ref:
         expected_sha = resolve_git_sha(args.expected_ref, repo_root)
     if not FULL_SHA_RE.fullmatch(expected_sha):

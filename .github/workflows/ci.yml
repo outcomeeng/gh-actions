@@ -69,7 +69,7 @@ jobs:
       - name: Check generated caller examples
         run: |
           set -euo pipefail
-          .venv/bin/python -m scripts.check_caller_workflows --check
+          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m scripts.check_caller_workflows --check
 
       - name: Run caller workflow tests
         run: PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
