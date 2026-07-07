@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "outcomeeng-gh-actions-maintenance"
 version = "0.0.0"
@@ -10,6 +14,11 @@ dependencies = [
 test = [
   "pytest==9.0.2",
 ]
+
+# The importable package is gh_actions. Declared explicitly so setuptools does
+# not auto-discover the spx/ spec tree as a second top-level package.
+[tool.setuptools]
+packages = ["gh_actions"]
 
 [tool.pytest.ini_options]
 testpaths = ["spx"]

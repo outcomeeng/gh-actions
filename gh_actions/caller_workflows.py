@@ -455,7 +455,7 @@ def main(argv: list[str] | None = None) -> int:
         for drift in drifts:
             print(f"{drift.path}: {drift.message}", file=sys.stderr)
         print(
-            "Run `python3 -m scripts.check_caller_workflows --write` to refresh generated caller refs.",
+            "Run `python3 -m gh_actions.check_caller_workflows --write` to refresh generated caller refs.",
             file=sys.stderr,
         )
         return 1

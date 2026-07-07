@@ -5,9 +5,9 @@
 """Push GitHub secrets to the current repository.
 
 Usage:
-    uv run scripts/push-secrets.py check
-    uv run scripts/push-secrets.py push
-    uv run scripts/push-secrets.py push --dry-run
+    uv run gh_actions/push_secrets.py check
+    uv run gh_actions/push_secrets.py push
+    uv run gh_actions/push_secrets.py push --dry-run
 """
 
 from __future__ import annotations
@@ -148,8 +148,10 @@ def get_from_keychain() -> str | None:
             [
                 "security",
                 "find-generic-password",
-                "-s", KEYCHAIN_SERVICE,
-                "-a", os.environ.get("USER", ""),
+                "-s",
+                KEYCHAIN_SERVICE,
+                "-a",
+                os.environ.get("USER", ""),
                 "-w",
             ],
             capture_output=True,

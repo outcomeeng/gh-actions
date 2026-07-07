@@ -463,7 +463,7 @@ brew install just actionlint shellcheck   # macOS
 just check
 ```
 
-`actionlint` flags unpinned actions, deprecated inputs, and shell-injection-prone interpolation; `shellcheck` audits inline `run:` scripts (and standalone shell files under `scripts/`).
+`actionlint` flags unpinned actions, deprecated inputs, and shell-injection-prone interpolation; `shellcheck` audits inline `run:` scripts (and standalone shell files under `gh_actions/`).
 
 ### Authorization (this repo's reusables)
 
@@ -491,7 +491,7 @@ The reviewer reads `AGENTS.md` and applies the closest instruction file to each 
 
 ## Pushing Secrets
 
-Setting `CLAUDE_CODE_OAUTH_TOKEN` in each repository is tedious. The `push-secrets.py` script automates this by:
+Setting `CLAUDE_CODE_OAUTH_TOKEN` in each repository is tedious. The `gh_actions/push_secrets.py` script automates this by:
 
 1. Reading the secret value from your **macOS Keychain** (no manual input needed)
 2. Finding the current GitHub repository from `git`
@@ -510,10 +510,10 @@ Setting `CLAUDE_CODE_OAUTH_TOKEN` in each repository is tedious. The `push-secre
 # Run from any subdirectory of the target repository.
 
 # Check whether the current repository has the secret
-uv run /path/to/gh-actions/scripts/push-secrets.py check
+uv run /path/to/gh-actions/gh_actions/push_secrets.py check
 
 # Push secrets (reads from Keychain automatically)
-uv run /path/to/gh-actions/scripts/push-secrets.py push
+uv run /path/to/gh-actions/gh_actions/push_secrets.py push
 ```
 
 The target repository is the Git repository where you run the command.

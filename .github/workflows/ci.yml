@@ -50,14 +50,14 @@ jobs:
 
       # Inline `run:` blocks inside workflow YAML are already linted by the
       # actionlint step above (actionlint invokes shellcheck on each block).
-      # This step covers only standalone shell scripts under scripts/.
+      # This step covers only standalone shell scripts under gh_actions/.
       - name: Run shellcheck on standalone shell scripts
         run: |
           set -euo pipefail
-          if find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print -quit 2>/dev/null | grep -q .; then
-            find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 shellcheck --color=always
+          if find gh_actions -type f \( -name '*.sh' -o -name '*.bash' \) -print -quit 2>/dev/null | grep -q .; then
+            find gh_actions -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 shellcheck --color=always
           else
-            echo "No shell scripts under scripts/ — skipping shellcheck."
+            echo "No shell scripts under gh_actions/ — skipping shellcheck."
           fi
 
       - name: Install Python test dependencies
@@ -69,7 +69,7 @@ jobs:
       - name: Check generated caller examples
         run: |
           set -euo pipefail
-          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m scripts.check_caller_workflows --check
+          PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m gh_actions.check_caller_workflows --check
 
       - name: Run caller workflow tests
         run: PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
