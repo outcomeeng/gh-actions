@@ -22,7 +22,7 @@ clean:
 test:
     python3 -m venv .venv
     .venv/bin/python -m pip install -q -e ".[test]"
-    .venv/bin/python -m scripts.check_caller_workflows --check
+    PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m scripts.check_caller_workflows --check
     PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
 
 # Run all linters.

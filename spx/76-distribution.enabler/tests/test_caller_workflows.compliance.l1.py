@@ -109,6 +109,35 @@ def test_drift_reports_each_stale_executable_uses_line(tmp_path: Path) -> None:
     ]
 
 
+def test_drift_rejects_tracked_ref_comment_prefix_match(tmp_path: Path) -> None:
+    workflow = _workflow()
+    _write_reusable(tmp_path, workflow)
+    (tmp_path / workflow.example).write_text(
+        "\n".join(
+            [
+                "jobs:",
+                "  call:",
+                f"    uses: outcomeeng/gh-actions/{workflow.reusable}@{EXPECTED_SHA} # maintainer note",
+                "    with:",
+                "      timeout_minutes: ${{ vars.TEST_TIMEOUT || '15' }}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    drifts = caller_workflows.check_example(
+        tmp_path, _manifest(workflow), workflow, EXPECTED_SHA
+    )
+
+    assert drifts == [
+        caller_workflows.Drift(
+            path=workflow.example,
+            message=f"missing release-lane uses line for {workflow.reusable}",
+        )
+    ]
+
+
 def test_drift_reports_missing_uses_and_timeout(tmp_path: Path) -> None:
     workflow = _workflow()
     _write_reusable(tmp_path, workflow)
@@ -237,6 +266,18 @@ def test_main_rejects_conflicting_expected_sha_and_ref(
                 "--expected-ref",
                 "HEAD",
             ]
+        )
+
+
+def test_main_rejects_empty_expected_sha(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    workflow = _workflow(Path("examples/caller-workflows/example.yml"))
+    _write_workspace_fixture(tmp_path, workflow, EXPECTED_SHA)
+    _write_readme(tmp_path, workflow, EXPECTED_SHA)
+
+    with pytest.raises(SystemExit):
+        caller_workflows.main(
+            ["--check", "--repo-root", str(tmp_path), "--expected-sha", ""]
         )
 
 
