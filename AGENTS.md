@@ -1,48 +1,23 @@
-# Repository Instructions
-
-This repository publishes reusable GitHub Actions workflows. Treat workflow behavior, inputs, permissions, and examples as public API for downstream repositories.
-
-## Review guidelines
-
-- Prioritize findings that can break caller workflows, weaken security, expose secrets, make reviews unreliable, or make documented setup diverge from actual behavior.
-- Check reusable workflow inputs, defaults, permissions, event contexts, concurrency groups, cache keys, shell quoting, and GitHub expression syntax together. A value documented in `README.md` or `examples/` should match the reusable workflow.
-- Treat GitHub Actions YAML as executable code. Validate syntax with `actionlint` when workflow files change.
-- Verify third-party actions are pinned to full commit SHAs with a version comment when this repo already follows that pattern.
-- Review shell blocks for `set -euo pipefail`, quoted paths and variables, safe GitHub output delimiters, and visible failures for malformed configuration files.
-- Flag documentation issues when they would cause a caller to copy a broken workflow, use the wrong secret, or misunderstand a security boundary.
-- Keep review findings focused on high-priority risks. Avoid style-only comments unless the style issue can mislead callers or hide a workflow bug.
-
-## Spec tree and cross-repository review governance
-
-This repository carries a Spec Tree under `spx/` — a durable, declarative map of the product. Specs declare; tests and code comply. When reviewing `spx/` changes, judge them against that hierarchy, not against the current workflow YAML.
-
-The agent skill, prompt, review taxonomy, and reviewer-only decision are **governed in the sibling `outcomeeng/plugins` repository and cross-referenced from this tree, never restated** (a product-level NEVER assertion enforces this). Treat these cross-references as intentional — do not ask this repo to consolidate them into a local PDR or to inline the governed content. Each concern has one canonical file:
-
-| Concern                                                   | Canonical file                                                                                                                                                                                     |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Review skill and prompt                                   | `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler/reviewing-changes.md` (prompt body: `src/plugins/spec-tree/skills/review-changes/references/review-prompt.md`) |
-| Review taxonomy and findings-only rule                    | `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md`                                                                                                                               |
-| Reviewer-only decision (reviewer reviews, author decides) | `plugins/spx/15-merging.pdr.md`                                                                                                                                                                    |
-| Agent and harness terminology                             | `plugins/spx/15-agent-tools.pdr.md`                                                                                                                                                                |
-| Test harness, generator, and fixture terminology          | `plugins/spx/31-outcomeeng.enabler/31-verification.enabler/31-test-verification.enabler/15-test-infrastructure.pdr.md`                                                                             |
-
-Path conventions for cross-references into the plugins repo: `plugins/spx/...` names a spec file in that repo's Spec Tree; `src/plugins/...` names a skill source file. Both resolve against the `outcomeeng/plugins` checkout, not against this repo. Before flagging a cross-repo path as unresolvable, resolve it against that checkout — a path that exists there is correct even though it is absent here. Citations name a specific file, never a bare directory node.
-
-## Validation
-
-- Run `actionlint .github/workflows/claude.yml .github/workflows/claude-code-review.yml .github/workflows/claude-repo.yml .github/workflows/claude-code-review-repo.yml examples/caller-workflows/claude.yml examples/caller-workflows/claude-code-review.yml` after workflow or example changes.
-- Run `git diff --check` before committing.
-- Use `dprint fmt <files>` for Markdown, YAML, JSON, HTML, CSS, JavaScript, and TypeScript formatting.
-- Do not use Prettier in this repository.
-
-<!-- BEGIN MANAGED SPEC TREE INSTRUCTIONS -->
-<!-- spec-tree-template-version: 0.21.5 -->
-<!-- spec-tree-template-source: spec-tree -->
-<!-- spec-tree-languages:  -->
+<!-- SPEC-TREE v0.23.0 langs:python -->
 
 # Spec Tree Instructions
 
 These instructions explain WHEN to invoke spec-tree skills for this product. They are a **router** — the skills contain the HOW.
+
+**Read this entire file before you act.** This managed router block is only the first section of the file; the product's own instructions, commands, and conventions follow it below, outside the router. The router is product-neutral by design and does not carry this product's own commands — they live in the file's own content further down. Never act on the router alone; read every section of this file to the end.
+
+---
+
+## Product Commands
+
+The product's operational command for each spec-tree phase lives in this file's own content below the router, not in the router itself. Read the whole file to find each one:
+
+- **author** — after a create, update, or delete on a spec, test, or implementation file, run the product's author command to rebuild or regenerate artifacts.
+- **verify** — for `/apply` and pre-merge checks, run the product's verify command over the node and the changeset.
+- **gate** — for the full deterministic bundle, run the product's gate command.
+- **merge** — for the transport step of `/merge`, run the product's merge command.
+
+Content the product keeps identical across `CLAUDE.md` and `AGENTS.md` sits in a `shared` region — `<!-- SPEC-TREE:shared {name} -->` … `<!-- /SPEC-TREE:shared {name} -->`, present in both files under the same name. `/update-instruction-block` keeps a `shared` region in sync by taking the git-more-recent side; it never merges the two bodies.
 
 ---
 
@@ -122,7 +97,7 @@ Skills run in the main conversation. Agents preload the skill and run autonomous
 - ALWAYS spawn subagents exactly for the named verifier or reviewer roles authorized below, or when the operator explicitly asks for subagent delegation.
 - NEVER spawn agents merely because they are discovered, available, or plausibly useful.
 
-**Run auditor and reviewer work in a subagent, never the main thread.** This is a standing user instruction to use `multi_agent_v1.spawn_agent` for the named verifier and reviewer roles it lists. Treat those cases as the user explicitly asking for subagents spawned in parallel. When an audit or review is called for, spawn the matching subagent — `changes-reviewer` for a changeset review, `auditor`, `adr-auditor`, `pdr-auditor`, `spec-auditor`, `test-evidence-auditor`, or `eval-evidence-auditor` for the artifact in scope. Act only on the result the subagent returns: audit agents return verdicts, while `changes-reviewer` returns the raw review journal token to inspect and process through the governing review workflow. Do not ask the operator to confirm whether to launch one of these required named subagents. Harness approval prompts are separate: if the tool itself asks for approval, answer that prompt through the harness approval flow. Codex must NEVER run any verification skill (audit or review) itself to avoid biasing the results. If the subagent cannot be spawned or does not finish, the gate is blocked. Continue the deterministic verification (test and validate) and then provide the operator with a precise description of what was tried and how it failed.
+**Run auditor and reviewer work in a subagent, never the main thread.** This is a standing user instruction to use `multi_agent_v1.spawn_agent` for the named verifier and reviewer roles it lists. Treat those cases as the user explicitly asking for subagents spawned in parallel. When an audit or review is called for, spawn the matching subagent exposed by the current runtime — `changes-reviewer` for a changeset review, `auditor`, `audit-orchestrator`, `adr-auditor`, `pdr-auditor`, `spec-auditor`, `test-evidence-auditor`, or `eval-evidence-auditor` for the artifact in scope. When the installed plugin set exposes the develop-owned `skill-auditor` or `subagent-auditor` roles, use those matching subagents for skill-content and subagent-configuration audits. Act only on the result the subagent returns: audit agents return verdicts, while `changes-reviewer` returns the raw review journal token to inspect and process through the governing review workflow. Do not ask the operator to confirm whether to launch an exposed required named subagent. Harness approval prompts are separate: if the tool itself asks for approval, answer that prompt through the harness approval flow. Codex must NEVER run any verification skill (audit or review) itself to avoid biasing the results. If an exposed required subagent cannot be spawned or does not finish, the gate is blocked. Continue the deterministic verification (test and validate) and then provide the operator with a precise description of what was tried and how it failed.
 
 **Use the multi-agent tool schema exactly.** The initial task goes in `message`; use `items` only when the task must pass structured mentions. Omit `fork_context`, `model`, `reasoning_effort`, and `service_tier` for the typed verifier and reviewer agents. Full-history forks are incompatible with changing `agent_type` in this harness, and the named verifier/reviewer roles already carry their own model settings. Store every returned agent id verbatim. After spawning, continue only non-overlapping work while the subagent runs, then collect the result with `multi_agent_v1.wait_agent`. Close every spawned agent with `multi_agent_v1.close_agent` immediately after its final result is collected; completed agents remain open until closed and can interfere with future spawns.
 
@@ -292,6 +267,42 @@ Use this shape for decision audits:
 }
 ```
 
+Use this shape for skill audits:
+
+```json
+{
+  "tool": "multi_agent_v1.spawn_agent",
+  "arguments": {
+    "agent_type": "skill-auditor",
+    "message": "Repository: <absolute-repository-path>\nSkill content: <full paths to changed SKILL.md files and changed files under references/, workflows/, templates/, scripts/, or other skill subdirectories>\nGoverning node(s): <full spx/... path(s) when known>\nDeterministic verification already run: <commands and results, or why this audit is being run before verification>\nTask: Audit the changed skill content for skill-authoring standards, agent-prompt standards, progressive disclosure, portability, voice, and structure. Return APPROVED or REJECTED. For REJECTED, list concrete findings with file paths, line numbers, governing rule, and required fix."
+  }
+}
+```
+
+Use this shape for subagent audits:
+
+```json
+{
+  "tool": "multi_agent_v1.spawn_agent",
+  "arguments": {
+    "agent_type": "subagent-auditor",
+    "message": "Repository: <absolute-repository-path>\nSubagent files: <full paths to changed agents/*.md files>\nGoverning node(s): <full spx/... path(s) when known>\nDeterministic verification already run: <commands and results, or why this audit is being run before verification>\nTask: Audit the changed subagent configuration for subagent-authoring standards, prompt voice, tool boundaries, model settings, skill preloads, and output contract. Return APPROVED or REJECTED. For REJECTED, list concrete findings with file paths, line numbers, governing rule, and required fix."
+  }
+}
+```
+
+Use this shape for audit journal orchestration:
+
+```json
+{
+  "tool": "multi_agent_v1.spawn_agent",
+  "arguments": {
+    "agent_type": "audit-orchestrator",
+    "message": "Repository: <absolute-repository-path>\nScope: <changed files, artifact paths, or diff range>\nGoverning node(s): <full spx/... path(s) when known>\nDeterministic verification already run: <commands and results, or why this audit is being run before verification>\nTask: Run the local audit workflow that carries findings through the audit journal run set. Return the audit journal result or blocked state exactly as the audit workflow specifies."
+  }
+}
+```
+
 | User Says...                               | Skill                  | Agent                   |
 | ------------------------------------------ | ---------------------- | ----------------------- |
 | "Implement this outcome"                   | `/contextualize`       | —                       |
@@ -312,11 +323,25 @@ Use this shape for decision audits:
 
 Per-language code, architecture, and test audits ship as `audit-{lang}*` skills that the generic artifact-type auditors **compose** for the language in scope — there is no per-language auditor agent. Dispatch the generic auditor; it invokes the matching language skill automatically:
 
+| User Says...            | Skill (composed)             | Composing agent             |
+| ----------------------- | ---------------------------- | --------------------------- |
+| "Audit this code"       | `/audit-python`              | `auditor` (`/audit` family) |
+| "Audit ADRs for Python" | `/audit-python-architecture` | `adr-auditor`               |
+| "Audit these tests"     | `/audit-python-tests`        | `test-evidence-auditor`     |
+
 ---
 
 ## Test Naming Convention
 
-Test level is encoded in the filename. The `{evidence}` segment is chosen by `/test` routing from the assertion type: `scenario`, `mapping`, `conformance`, `property`, or `compliance`. Universal assertions use `mapping`, `conformance`, `property`, or `compliance`; a universal is never `scenario`. This instruction block renders only the languages listed in its `languages` frontmatter; `/update-instruction-block` re-renders from the installed template when the methodology advances.
+Test level is encoded in the filename. The `{evidence}` segment is chosen by `/test` routing from the assertion type: `scenario`, `mapping`, `conformance`, `property`, or `compliance`. Universal assertions use `mapping`, `conformance`, `property`, or `compliance`; a universal is never `scenario`. This instruction block renders only the languages recorded in its opening `<!-- SPEC-TREE v{version} langs:{list} -->` marker; `/update-instruction-block` re-renders from the installed template when the methodology advances.
+
+### Python
+
+| Level | Pattern                           | Example                        |
+| ----- | --------------------------------- | ------------------------------ |
+| 1     | `test_{subject}.{evidence}.l1.py` | `test_parsing.scenario.l1.py`  |
+| 2     | `test_{subject}.{evidence}.l2.py` | `test_cli.mapping.l2.py`       |
+| 3     | `test_{subject}.{evidence}.l3.py` | `test_workflow.property.l3.py` |
 
 ---
 
@@ -324,4 +349,32 @@ Test level is encoded in the filename. The `{evidence}` segment is chosen by `/t
 
 Sessions are shared across every worktree. Each session must be handed off via `/handoff` so it can be resumed from any other worktree: the handoff leaves the worktree clean and persists all state on origin. Propose a handoff when the session's goal is met or the work must pause; resume one with `/pickup`. When a claimed session is complete and should leave the active queue, close it through `/handoff` or `/handoff --no-session` so claimed-session accounting archives it. To return a wrongly claimed session to the shared queue instead, run `spx session release <session-id>`.
 
-<!-- END MANAGED SPEC TREE INSTRUCTIONS -->
+<!-- /SPEC-TREE -->
+
+<!-- SPEC-TREE:shared repository-instructions -->
+
+# Repository Commands
+
+Run repository-local product commands through `just`.
+
+## Author
+
+- `just fmt`
+
+## Verify
+
+- `just check-verify`
+
+## Apply And Merge Readiness
+
+- `just check-apply-merge`
+
+## Workflow Check
+
+- `just check-workflows`
+
+## Diff Check
+
+- `just check-diff`
+
+<!-- /SPEC-TREE:shared repository-instructions -->

@@ -1,125 +1,23 @@
-# Outcome Engineering GitHub Actions
-
-Reusable GitHub Actions workflows for Claude Code integration.
-
-## Repository Structure
-
-```
-gh-actions/
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                        # actionlint + shellcheck on every push and PR
-│       ├── spec-tree.yml                 # @spec-tree mention handler (reusable)
-│       ├── spec-tree-review.yml          # PR review with REVIEW.md-aware prompt (reusable)
-│       ├── claude.yml                    # @claude mention handler (reusable)
-│       ├── claude-code-review.yml        # Generic Claude PR review (reusable)
-│       ├── spec-tree-repo.yml            # Self-test caller (spec-tree mention)
-│       ├── spec-tree-review-repo.yml     # Self-test caller (spec-tree review)
-│       ├── claude-repo.yml               # Self-test caller (Claude mention)
-│       └── claude-code-review-repo.yml   # Self-test caller (Claude review)
-├── examples/
-│   └── caller-workflows/                 # Copy-paste templates for downstream repos
-├── AGENTS.md                             # Cloud review guidance
-├── CLAUDE.md                             # This file
-├── ISSUES.md                             # Known issues / FOLLOW-UP findings from PR reviews (per spec-tree)
-├── Justfile                              # Local lint commands (mirror of ci.yml)
-├── README.md                             # User documentation
-└── renovate.json                         # SHA-pinning + tag-tracking for GitHub Actions and reusable workflows
-```
-
-## Workflow Design Principles
-
-1. **Reusable via `workflow_call`** - All workflows are designed to be called from other repos
-2. **Sensible defaults** - Work out of the box with minimal configuration
-3. **Security first** - Authorization checks prevent unauthorized access
-4. **Configurable** - All behavior can be customized via inputs
-
-## Making Changes
-
-### Testing Changes
-
-The `*-repo.yml` workflows in `.github/workflows/` are an in-repo self-test harness: each uses `uses: ./.github/workflows/<name>.yml` so a branch push exercises the reusables against this repository's own issues, comments, and PRs. Use this for fast-feedback testing; use an external test repo (steps below) to validate the `@<ref>` consumption path.
-
-1. Push changes to a branch
-2. Either (a) mention `@spec-tree` or `@claude` on an issue or PR in this repo (fires `spec-tree-repo.yml` or `claude-repo.yml`) / open a PR (fires `spec-tree-review-repo.yml` and `claude-code-review-repo.yml`), or (b) update an external test repo to use `@branch-name` instead of `@main`
-3. Trigger the workflow and verify behavior
-4. Merge to main when satisfied
-
-### Versioning
-
-Use tags for stable versions:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-Consumers can then use `@v1` for the latest v1.x.x.
-
-## Security
-
-The repo's security posture follows [GitHub's hardening guide](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions) and the OpenSSF baseline for GitHub Actions. The non-negotiables, in priority order:
-
-1. **Every third-party action and reusable workflow is pinned by full-length commit SHA**, not by `@v1` or `@main`. Tags and branches are mutable; a SHA is the only reference an attacker can't redirect after publication. Each pin carries a trailing comment naming the tag or branch the SHA tracks (`@<sha> # v1.2.3` or `@<sha> # main`); Renovate uses that comment to advance the pin on each release. **Documented exception**: consumer repos that act as upstream beta-testers under the same trust boundary as `outcomeeng/gh-actions` MAY pin to `@main` with an explicit `# BETA TESTER:` marker — see README "Security → Documented exception" for the conditions and limits. Inside this repo, SHA-pinning admits no exception.
-2. **Renovate is the single update mechanism**, configured at `renovate.json` with `helpers:pinGitHubActionDigests`. The earlier `.github/dependabot.yml` has been removed — running both creates conflicting PRs against the same lines. Renovate opens grouped PRs on a weekly cadence for ordinary actions, tracks `anthropics/claude-code-action` on its own weekday cadence, and fires security advisories immediately under `vulnerabilityAlerts`.
-3. **Top-level `permissions: {}`** on every reusable workflow (`spec-tree.yml`, `spec-tree-review.yml`, `claude.yml`, `claude-code-review.yml`) and on `ci.yml`. Jobs explicitly grant the narrow permissions they need, subject to the caller workflow's maximum grant. The caller workflow's permissions set the maximum; the reusable's per-job grants do the actual narrowing.
-4. **`persist-credentials: false`** on every `actions/checkout` step that does not push back to the same repository, except the Claude action workflows (`claude.yml`, `spec-tree.yml`, `claude-code-review.yml`, and `spec-tree-review.yml`). Those workflows intentionally keep checkout's default credentials because `anthropics/claude-code-action` performs an early PR-branch `git fetch` before configuring its own git auth. Keep the surrounding job permissions narrow when relying on that default.
-5. **Secrets reach the runner via the action's `with:` inputs or via job-level `env:` blocks** — never interpolated into a `run:` script body. The pattern is enforced by actionlint + shellcheck.
-6. **`actionlint` and `shellcheck` run on every push and PR** via `.github/workflows/ci.yml`. The same linters run locally via `just lint`. CI fails on any new warning.
-7. **Authorization** to trigger a mention or review job is gated by the repo-permissions API (`repos/{owner}/{repo}/collaborators/{actor}/permission`), not by `author_association`. Only actors with `admin`, `maintain`, or `write` permission pass the authorize job.
-
-### Updating action / reusable-workflow pins
-
-Renovate opens the PR. Reviewer responsibilities:
-
-1. Read the release notes linked in the Renovate PR body.
-2. Confirm the new SHA resolves to a tag — Renovate's PR title includes both. Sanity-check by clicking through to the release.
-3. Merge when CI is green. The Renovate PR title carries `ci(deps):` or `chore(deps):` per the `:semanticCommits` preset.
-
-For consumers of this repo (downstream `.github/workflows/*.yml` callers that reference `outcomeeng/gh-actions`), the same rule applies by default: pin by SHA, let Renovate advance. The one exception is beta-tester consumers under the shared trust boundary, who may pin to `@main` per the conditions in README "Security → Documented exception".
-
-Claude Code Action updates have two consumer paths:
-
-1. Beta consumers that reference `outcomeeng/gh-actions@main` receive the reviewed upstream action update as soon as the Renovate PR merges here.
-2. Release consumers that SHA-pin `outcomeeng/gh-actions` receive the upstream action update after this repository publishes a new release commit and their own Renovate PR advances their reusable-workflow SHA.
-
-Keep the upstream dependency pinned to an exact release tag comment such as `# v1.0.165`, not `# v1`, so Renovate can show the concrete upstream release being adopted.
-
-### Running lint locally
-
-macOS:
-
-```bash
-brew install just actionlint shellcheck
-just check
-```
-
-Linux (any distro — actionlint is not in apt; install via the same sha256-verified release path that CI uses):
-
-```bash
-sudo apt-get install -y just shellcheck
-
-ACTIONLINT_VERSION=1.7.12   # advance in lockstep with .github/workflows/ci.yml
-base=https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}
-curl -sSLO "${base}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-curl -sSLO "${base}/actionlint_${ACTIONLINT_VERSION}_checksums.txt"
-sha256sum --check --ignore-missing --strict "actionlint_${ACTIONLINT_VERSION}_checksums.txt"
-tar -xzf "actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" actionlint
-sudo install -m 0755 actionlint /usr/local/bin/actionlint
-
-just check
-```
-
-Both linters fail loudly on shell-injection-prone patterns (unquoted variables, `${var}` inside patterns, etc.) so `run:` blocks that handle user input get caught before merge.
-
-<!-- BEGIN MANAGED SPEC TREE INSTRUCTIONS -->
-<!-- spec-tree-template-version: 0.21.5 -->
-<!-- spec-tree-template-source: spec-tree -->
-<!-- spec-tree-languages:  -->
+<!-- SPEC-TREE v0.23.0 langs:python -->
 
 # Spec Tree Instructions
 
 These instructions explain WHEN to invoke spec-tree skills for this product. They are a **router** — the skills contain the HOW.
+
+**Read this entire file before you act.** This managed router block is only the first section of the file; the product's own instructions, commands, and conventions follow it below, outside the router. The router is product-neutral by design and does not carry this product's own commands — they live in the file's own content further down. Never act on the router alone; read every section of this file to the end.
+
+---
+
+## Product Commands
+
+The product's operational command for each spec-tree phase lives in this file's own content below the router, not in the router itself. Read the whole file to find each one:
+
+- **author** — after a create, update, or delete on a spec, test, or implementation file, run the product's author command to rebuild or regenerate artifacts.
+- **verify** — for `/apply` and pre-merge checks, run the product's verify command over the node and the changeset.
+- **gate** — for the full deterministic bundle, run the product's gate command.
+- **merge** — for the transport step of `/merge`, run the product's merge command.
+
+Content the product keeps identical across `CLAUDE.md` and `AGENTS.md` sits in a `shared` region — `<!-- SPEC-TREE:shared {name} -->` … `<!-- /SPEC-TREE:shared {name} -->`, present in both files under the same name. `/update-instruction-block` keeps a `shared` region in sync by taking the git-more-recent side; it never merges the two bodies.
 
 ---
 
@@ -214,11 +112,25 @@ Skills run in the main conversation. Agents preload the skill and run autonomous
 
 Per-language code, architecture, and test audits ship as `audit-{lang}*` skills that the generic artifact-type auditors **compose** for the language in scope — there is no per-language auditor agent. Dispatch the generic auditor; it invokes the matching language skill automatically:
 
+| User Says...            | Skill (composed)             | Composing agent             |
+| ----------------------- | ---------------------------- | --------------------------- |
+| "Audit this code"       | `/audit-python`              | `auditor` (`/audit` family) |
+| "Audit ADRs for Python" | `/audit-python-architecture` | `adr-auditor`               |
+| "Audit these tests"     | `/audit-python-tests`        | `test-evidence-auditor`     |
+
 ---
 
 ## Test Naming Convention
 
-Test level is encoded in the filename. The `{evidence}` segment is chosen by `/test` routing from the assertion type: `scenario`, `mapping`, `conformance`, `property`, or `compliance`. Universal assertions use `mapping`, `conformance`, `property`, or `compliance`; a universal is never `scenario`. This instruction block renders only the languages listed in its `languages` frontmatter; `/update-instruction-block` re-renders from the installed template when the methodology advances.
+Test level is encoded in the filename. The `{evidence}` segment is chosen by `/test` routing from the assertion type: `scenario`, `mapping`, `conformance`, `property`, or `compliance`. Universal assertions use `mapping`, `conformance`, `property`, or `compliance`; a universal is never `scenario`. This instruction block renders only the languages recorded in its opening `<!-- SPEC-TREE v{version} langs:{list} -->` marker; `/update-instruction-block` re-renders from the installed template when the methodology advances.
+
+### Python
+
+| Level | Pattern                           | Example                        |
+| ----- | --------------------------------- | ------------------------------ |
+| 1     | `test_{subject}.{evidence}.l1.py` | `test_parsing.scenario.l1.py`  |
+| 2     | `test_{subject}.{evidence}.l2.py` | `test_cli.mapping.l2.py`       |
+| 3     | `test_{subject}.{evidence}.l3.py` | `test_workflow.property.l3.py` |
 
 ---
 
@@ -226,4 +138,32 @@ Test level is encoded in the filename. The `{evidence}` segment is chosen by `/t
 
 Sessions are shared across every worktree. Each session must be handed off via `/handoff` so it can be resumed from any other worktree: the handoff leaves the worktree clean and persists all state on origin. Propose a handoff when the session's goal is met or the work must pause; resume one with `/pickup`. When a claimed session is complete and should leave the active queue, close it through `/handoff` or `/handoff --no-session` so claimed-session accounting archives it. To return a wrongly claimed session to the shared queue instead, run `spx session release <session-id>`.
 
-<!-- END MANAGED SPEC TREE INSTRUCTIONS -->
+<!-- /SPEC-TREE -->
+
+<!-- SPEC-TREE:shared repository-instructions -->
+
+# Repository Commands
+
+Run repository-local product commands through `just`.
+
+## Author
+
+- `just fmt`
+
+## Verify
+
+- `just check-verify`
+
+## Apply And Merge Readiness
+
+- `just check-apply-merge`
+
+## Workflow Check
+
+- `just check-workflows`
+
+## Diff Check
+
+- `just check-diff`
+
+<!-- /SPEC-TREE:shared repository-instructions -->
