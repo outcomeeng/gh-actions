@@ -8,7 +8,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from gh_actions.review_findings import DEFAULT_REVIEWER, build, parse_comment
+from gh_actions.review_findings import (
+    DEFAULT_REVIEWER,
+    Comment,
+    PathKind,
+    build,
+    parse_comment,
+)
 
 
 def _body(name: str) -> str:
@@ -27,6 +33,16 @@ def test_finding_comment_parses_into_records() -> None:
     assert findings[0].fields["required"].startswith("Either narrow the assertion")
 
 
+def test_debt_finding_carries_severity_concern_and_code_path_kind() -> None:
+    findings, is_clean = parse_comment(_body("debt_consistency.txt"))
+    assert not is_clean
+    assert findings[0].severity == "debt"
+    assert findings[0].concern == "consistency"
+    assert findings[0].file == "src/domains/verify/verify.ts"
+    assert findings[0].line == "351"
+    assert findings[0].path_kind is PathKind.CODE
+
+
 def test_no_findings_comment_is_a_clean_pass() -> None:
     findings, is_clean = parse_comment(_body("no_findings.txt"))
     assert findings == []
@@ -36,27 +52,27 @@ def test_no_findings_comment_is_a_clean_pass() -> None:
 def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
     comments = {
         7: [
-            {
-                "id": 1,
-                "created_at": "t",
-                "url": "u1",
-                "login": DEFAULT_REVIEWER,
-                "body": _body("blocking_evidence.txt"),
-            },
-            {
-                "id": 2,
-                "created_at": "t",
-                "url": "u2",
-                "login": "an-author",
-                "body": _body("debt_consistency.txt"),
-            },
-            {
-                "id": 3,
-                "created_at": "t",
-                "url": "u3",
-                "login": DEFAULT_REVIEWER,
-                "body": _body("no_findings.txt"),
-            },
+            Comment(
+                id=1,
+                created_at="t",
+                url="u1",
+                login=DEFAULT_REVIEWER,
+                body=_body("blocking_evidence.txt"),
+            ),
+            Comment(
+                id=2,
+                created_at="t",
+                url="u2",
+                login="an-author",
+                body=_body("debt_consistency.txt"),
+            ),
+            Comment(
+                id=3,
+                created_at="t",
+                url="u3",
+                login=DEFAULT_REVIEWER,
+                body=_body("no_findings.txt"),
+            ),
         ]
     }
     result = build("owner/repo", [7], fetch=lambda _repo, pr: comments[pr])
