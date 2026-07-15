@@ -84,6 +84,17 @@ class Finding:
     created_at: str | None = None
 
 
+@dataclass(frozen=True)
+class Comment:
+    """One pull-request issue comment — the input the extractor parses."""
+
+    id: int
+    created_at: str
+    url: str
+    login: str
+    body: str
+
+
 def classify_path(path: str) -> PathKind:
     """Bucket a cited path by artifact kind."""
     p = path.strip("`")
@@ -197,10 +208,10 @@ def classify(findings: list[Finding], clean_review_passes: int) -> dict:
 
 
 # Injectable fetcher signature so build() runs against fixtures in tests.
-Fetcher = Callable[[str, int], list[dict]]
+Fetcher = Callable[[str, int], list[Comment]]
 
 
-def fetch_pr_comments(repo: str, pr: int) -> list[dict]:
+def fetch_pr_comments(repo: str, pr: int) -> list[Comment]:
     """Fetch a pull request's issue comments through the gh CLI."""
     result = subprocess.run(
         [
@@ -209,14 +220,28 @@ def fetch_pr_comments(repo: str, pr: int) -> list[dict]:
             f"repos/{repo}/issues/{pr}/comments",
             "--paginate",
             "--jq",
-            ".[] | {id, created_at, url: .html_url, login: .user.login, body}",
+            ".[]",
         ],
         check=True,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+    comments: list[Comment] = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        raw = json.loads(line)
+        comments.append(
+            Comment(
+                id=raw["id"],
+                created_at=raw["created_at"],
+                url=raw["html_url"],
+                login=raw["user"]["login"],
+                body=raw["body"] or "",
+            )
+        )
+    return comments
 
 
 def build(
@@ -230,14 +255,14 @@ def build(
     clean_reviews: list[dict] = []
     for pr in prs:
         for comment in fetch(repo, pr):
-            if comment["login"] != reviewer:
+            if comment.login != reviewer:
                 continue
-            parsed, is_clean = parse_comment(comment["body"] or "")
+            parsed, is_clean = parse_comment(comment.body)
             context = {
                 "pr": pr,
-                "comment_id": comment["id"],
-                "url": comment["url"],
-                "created_at": comment["created_at"],
+                "comment_id": comment.id,
+                "url": comment.url,
+                "created_at": comment.created_at,
             }
             if is_clean and not parsed:
                 clean_reviews.append(dict(context))
