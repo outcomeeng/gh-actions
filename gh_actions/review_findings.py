@@ -275,7 +275,7 @@ def build(
     }
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, fetch: Fetcher = fetch_pr_comments) -> int:
     """Extract findings from the given pull requests and emit a JSON report."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("prs", nargs="+", type=int, help="pull-request numbers")
@@ -286,7 +286,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, help="write JSON here instead of stdout")
     args = parser.parse_args(argv)
 
-    report = build(args.repo, args.prs, args.reviewer)
+    report = build(args.repo, args.prs, args.reviewer, fetch=fetch)
     text = json.dumps(report, indent=2)
     if args.out is not None:
         args.out.write_text(text + "\n", encoding="utf-8")
