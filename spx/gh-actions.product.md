@@ -37,6 +37,7 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 - Consumer onboarding and configuration: copy-paste caller templates, repo-variable overrides, documentation
 - Self-test harness: in-repo callers exercising the reusables against this repository
 - Secret and credential provisioning tooling
+- Review-findings tooling: extraction and classification of the review gate's findings from a pull request for maintainer assessment
 
 ### What's excluded
 
