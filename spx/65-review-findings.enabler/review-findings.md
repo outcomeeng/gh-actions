@@ -11,6 +11,7 @@ CAN preserve and assess what the review gate catches across pull requests
 - Given a reviewer comment whose body carries finding entries, when the extractor parses it, then each entry becomes a record holding its severity, concern, cited location, file, and line ([test](tests/test_review_findings.scenario.l1.py))
 - Given a reviewer comment that opens with "No findings", when the extractor parses it, then the comment is recorded as a clean review pass carrying no findings ([test](tests/test_review_findings.scenario.l1.py))
 - Given comments across a set of pull requests, when the extractor builds its result, then it aggregates the findings and reports counts by severity, concern, cited-path kind, and pull request, counting only comments authored by the configured reviewer ([test](tests/test_review_findings.scenario.l1.py))
+- Given pull-request numbers and a repository, when the extractor runs at its command-line entrypoint, then it writes a JSON report of the findings and their classification ([test](tests/test_review_findings.scenario.l1.py))
 
 ### Mappings
 
