@@ -1,0 +1,274 @@
+"""Extract and classify spec-tree review-gate findings from pull-request comments.
+
+The spec-tree review gate posts each review as a bot pull-request comment whose
+body holds zero or more `### SEVERITY [concern]: location` finding entries. This
+module fetches those comments, parses each finding into a record, and summarises
+the set by severity, concern, cited-path kind, and pull request.
+
+It records whatever severity and concern labels a finding comment carries; the
+governed review taxonomy lives in the plugins spec tree
+(`plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md`) and is
+cross-referenced, never restated or validated against here.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+from collections import Counter, defaultdict
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, replace
+from enum import StrEnum
+from pathlib import Path
+from typing import Final
+
+DEFAULT_REVIEWER: Final = "claude[bot]"
+
+# A finding header: "### SEVERITY [concern]: location" (2-4 leading hashes seen in the wild).
+HEADER_RE: Final = re.compile(
+    r"^#{2,4}\s+([A-Z][A-Z-]+)\s+\[([a-z][a-z-]*)\]\s*:\s*(.*)$"
+)
+
+# Labelled body fields a finding entry may carry. BLOCKING/DEBT entries use
+# Evidence/Required; a FOLLOW-UP entry uses Issue/Track under.
+FIELD_LABELS: Final = (
+    "Reference",
+    "Evidence",
+    "Required",
+    "Issue",
+    "Track under",
+    "Track",
+)
+FIELD_RE: Final = re.compile(
+    r"^(%s)\s*:\s*(.*)$" % "|".join(re.escape(x) for x in FIELD_LABELS)
+)
+
+NO_FINDINGS_RE: Final = re.compile(r"^\s*no findings\b", re.IGNORECASE)
+
+# A trailing "path:line" or "path:line-range" on a location string.
+LOC_LINE_RE: Final = re.compile(
+    r"^(?P<file>[^\s`]+?):(?P<line>\d+(?:[-,]\d+)*)(?:\s|$)"
+)
+LOC_FILE_RE: Final = re.compile(r"^(?P<file>[^\s`]+)")
+
+
+class PathKind(StrEnum):
+    """Artifact kind a finding's cited path resolves to."""
+
+    DECISION_ADR = "decision-adr"
+    DECISION_PDR = "decision-pdr"
+    TEST = "test"
+    SPEC = "spec"
+    CODE = "code"
+    SPEC_TREE_OTHER = "spec-tree-other"
+    OTHER = "other"
+
+
+@dataclass(frozen=True)
+class Finding:
+    """One parsed finding entry, with the pull-request context build() fills in."""
+
+    severity: str
+    concern: str
+    location_raw: str
+    file: str | None
+    line: str | None
+    path_kind: PathKind | None
+    fields: dict[str, str]
+    raw: str
+    pr: int | None = None
+    comment_id: int | None = None
+    url: str | None = None
+    created_at: str | None = None
+
+
+def classify_path(path: str) -> PathKind:
+    """Bucket a cited path by artifact kind."""
+    p = path.strip("`")
+    if p.endswith(".adr.md"):
+        return PathKind.DECISION_ADR
+    if p.endswith(".pdr.md"):
+        return PathKind.DECISION_PDR
+    if ".test." in p or "/tests/" in p or p.startswith("testing/"):
+        return PathKind.TEST
+    if p.endswith(".md") and p.startswith("spx/"):
+        return PathKind.SPEC
+    if p.startswith("src/"):
+        return PathKind.CODE
+    if p.startswith("spx/"):
+        return PathKind.SPEC_TREE_OTHER
+    return PathKind.OTHER
+
+
+def parse_location(raw: str) -> tuple[str | None, str | None]:
+    """Split a location string into (file, line); line may be a range or None."""
+    loc = raw.strip().lstrip("`").strip()
+    if not loc:
+        return None, None
+    m = LOC_LINE_RE.match(loc)
+    if m:
+        return m.group("file").rstrip("`,;."), m.group("line")
+    m = LOC_FILE_RE.match(loc)
+    if m:
+        return m.group("file").rstrip("`,;."), None
+    return loc, None
+
+
+def parse_fields(block_lines: list[str]) -> dict[str, str]:
+    """Collect labelled fields from a finding block, preserving multi-line values."""
+    fields: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in block_lines:
+        m = FIELD_RE.match(line)
+        if m:
+            current = m.group(1).lower().replace(" ", "_")
+            fields[current] = [m.group(2)]
+        elif current is not None:
+            fields[current].append(line)
+    return {k: "\n".join(v).strip() for k, v in fields.items()}
+
+
+def build_finding(
+    severity: str, concern: str, loc_raw: str, block_lines: list[str]
+) -> Finding:
+    """Assemble one finding record from its header parts and body lines."""
+    file_, line_ = parse_location(loc_raw)
+    return Finding(
+        severity=severity.strip().lower(),
+        concern=concern.strip().lower(),
+        location_raw=loc_raw.strip(),
+        file=file_,
+        line=line_,
+        path_kind=classify_path(file_) if file_ else None,
+        fields=parse_fields(block_lines),
+        raw="",
+    )
+
+
+def parse_comment(body: str) -> tuple[list[Finding], bool]:
+    """Parse one comment body into (findings, is_clean_review).
+
+    A comment with no finding headers is a clean review only when it opens with
+    "No findings"; otherwise it carries no review findings at all.
+    """
+    lines = body.replace("\r\n", "\n").split("\n")
+    header_idx = [i for i, ln in enumerate(lines) if HEADER_RE.match(ln)]
+    if not header_idx:
+        return [], bool(NO_FINDINGS_RE.match(body))
+
+    findings: list[Finding] = []
+    for n, start in enumerate(header_idx):
+        end = header_idx[n + 1] if n + 1 < len(header_idx) else len(lines)
+        m = HEADER_RE.match(lines[start])
+        assert m is not None  # start came from HEADER_RE above
+        finding = build_finding(
+            m.group(1), m.group(2), m.group(3), lines[start + 1 : end]
+        )
+        findings.append(replace(finding, raw="\n".join(lines[start:end]).strip()))
+    return findings, False
+
+
+def classify(findings: list[Finding], clean_review_passes: int) -> dict:
+    """Summarise findings by severity, concern, cited-path kind, and pull request."""
+    by_sev = Counter(f.severity for f in findings)
+    by_concern = Counter(f.concern for f in findings)
+    by_kind = Counter((f.path_kind or "unknown") for f in findings)
+
+    by_sev_concern: dict[str, Counter] = defaultdict(Counter)
+    by_pr: dict[int, Counter] = defaultdict(Counter)
+    for f in findings:
+        by_sev_concern[f.severity][f.concern] += 1
+        if f.pr is not None:
+            by_pr[f.pr][f.severity] += 1
+
+    return {
+        "total_findings": len(findings),
+        "clean_review_passes": clean_review_passes,
+        "by_severity": dict(by_sev.most_common()),
+        "by_concern": dict(by_concern.most_common()),
+        "by_severity_and_concern": {
+            k: dict(v.most_common()) for k, v in by_sev_concern.items()
+        },
+        "by_path_kind": {str(k): n for k, n in by_kind.most_common()},
+        "by_pr": {str(k): dict(v.most_common()) for k, v in by_pr.items()},
+    }
+
+
+# Injectable fetcher signature so build() runs against fixtures in tests.
+Fetcher = Callable[[str, int], list[dict]]
+
+
+def fetch_pr_comments(repo: str, pr: int) -> list[dict]:
+    """Fetch a pull request's issue comments through the gh CLI."""
+    result = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{repo}/issues/{pr}/comments",
+            "--paginate",
+            "--jq",
+            ".[] | {id, created_at, url: .html_url, login: .user.login, body}",
+        ],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+
+
+def build(
+    repo: str,
+    prs: list[int],
+    reviewer: str = DEFAULT_REVIEWER,
+    fetch: Fetcher = fetch_pr_comments,
+) -> dict:
+    """Extract and classify every `reviewer` finding across `prs` in `repo`."""
+    findings: list[Finding] = []
+    clean_reviews: list[dict] = []
+    for pr in prs:
+        for comment in fetch(repo, pr):
+            if comment["login"] != reviewer:
+                continue
+            parsed, is_clean = parse_comment(comment["body"] or "")
+            context = {
+                "pr": pr,
+                "comment_id": comment["id"],
+                "url": comment["url"],
+                "created_at": comment["created_at"],
+            }
+            if is_clean and not parsed:
+                clean_reviews.append(dict(context))
+            findings.extend(replace(f, **context) for f in parsed)
+    return {
+        "meta": {"repo": repo, "reviewer": reviewer, "prs": prs},
+        "findings": [asdict(f) for f in findings],
+        "clean_reviews": clean_reviews,
+        "classification": classify(findings, len(clean_reviews)),
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Extract findings from the given pull requests and emit a JSON report."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("prs", nargs="+", type=int, help="pull-request numbers")
+    parser.add_argument("--repo", required=True, help="owner/name of the repository")
+    parser.add_argument(
+        "--reviewer", default=DEFAULT_REVIEWER, help="reviewer login to extract"
+    )
+    parser.add_argument("--out", type=Path, help="write JSON here instead of stdout")
+    args = parser.parse_args(argv)
+
+    report = build(args.repo, args.prs, args.reviewer)
+    text = json.dumps(report, indent=2)
+    if args.out is not None:
+        args.out.write_text(text + "\n", encoding="utf-8")
+    else:
+        print(text)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
