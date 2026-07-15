@@ -1,8 +1,10 @@
 """Compliance evidence: the extractor validates labels against no fixed set.
 
 `followup_security.txt` is a real reviewer comment carrying a `FOLLOW-UP [security]`
-entry — a severity outside the governed `{blocking, debt}` set. The extractor records
-whatever the reviewer wrote; it owns no taxonomy to gate labels against.
+entry — a legacy severity the current review taxonomy (governed in the plugins spec
+tree) no longer sanctions. The extractor records it verbatim rather than dropping or
+reclassifying it: it owns no taxonomy to gate labels against, so a non-governed label
+surfaces in the extracted output for a maintainer to notice instead of vanishing.
 """
 
 from __future__ import annotations
