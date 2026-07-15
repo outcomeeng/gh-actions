@@ -6,6 +6,7 @@ gate's own findings on outcomeeng/spx pull requests, read by path.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from gh_actions.review_findings import (
@@ -13,6 +14,7 @@ from gh_actions.review_findings import (
     Comment,
     PathKind,
     build,
+    main,
     parse_comment,
 )
 
@@ -83,3 +85,28 @@ def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
     assert classification["by_severity"] == {"blocking": 2}
     assert classification["by_pr"] == {"7": {"blocking": 2}}
     assert all(finding["pr"] == 7 for finding in result["findings"])
+
+
+def test_main_writes_a_json_report(tmp_path: Path) -> None:
+    out = tmp_path / "report.json"
+    comments = {
+        7: [
+            Comment(
+                id=1,
+                created_at="t",
+                url="u1",
+                login=DEFAULT_REVIEWER,
+                body=_body("blocking_evidence.txt"),
+            ),
+        ]
+    }
+
+    exit_code = main(
+        ["7", "--repo", "owner/repo", "--out", str(out)],
+        fetch=lambda _repo, pr: comments[pr],
+    )
+
+    assert exit_code == 0
+    report = json.loads(out.read_text(encoding="utf-8"))
+    assert report["meta"]["repo"] == "owner/repo"
+    assert report["classification"]["total_findings"] == 2
