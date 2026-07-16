@@ -56,6 +56,12 @@ FIELD_RE: Final = re.compile(
 
 NO_FINDINGS_RE: Final = re.compile(r"^\s*no findings\b", re.IGNORECASE)
 
+# A language's test-infrastructure home, which holds harnesses, generators, and
+# inert fixtures: `testing/` at the root for TypeScript, `<package>_testing/` for
+# Python (this repository's own `gh_actions_testing/`, per
+# `spx/15-evidence-model.adr.md`).
+TEST_HOME_RE: Final = re.compile(r"^(testing|[A-Za-z_][A-Za-z0-9_]*_testing)/")
+
 # A trailing "path:line" or "path:line-range" on a location string.
 LOC_LINE_RE: Final = re.compile(
     r"^(?P<file>[^\s`]+?):(?P<line>\d+(?:[-,]\d+)*)(?:\s|$)"
@@ -107,8 +113,9 @@ class Comment:
 def classify_path(path: str) -> PathKind:
     """Bucket a cited path by artifact kind, heuristically, from spec-tree path
     conventions: `.adr.md`/`.pdr.md` decisions, `spx/` specs and tree paths,
-    `/tests/`|`.test.`|`testing/` tests, and a `src/` or `gh_actions/` code root
-    (`src/` for most spec-tree products, `gh_actions/` for this repository per
+    `/tests/`|`.test.` tests alongside a language's test-infrastructure home
+    (`TEST_HOME_RE`), and a `src/` or `gh_actions/` code root (`src/` for most
+    spec-tree products, `gh_actions/` for this repository per
     `spx/15-evidence-model.adr.md`). Code laid out under any other root falls to
     OTHER.
     """
@@ -117,7 +124,7 @@ def classify_path(path: str) -> PathKind:
         return PathKind.DECISION_ADR
     if p.endswith(".pdr.md"):
         return PathKind.DECISION_PDR
-    if ".test." in p or "/tests/" in p or p.startswith("testing/"):
+    if ".test." in p or "/tests/" in p or TEST_HOME_RE.match(p):
         return PathKind.TEST
     if p.endswith(".md") and p.startswith("spx/"):
         return PathKind.SPEC

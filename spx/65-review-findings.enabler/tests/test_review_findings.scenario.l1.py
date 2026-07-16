@@ -54,6 +54,21 @@ def test_debt_comment_parses_both_entries_with_their_kinds() -> None:
     assert findings[1].path_kind is PathKind.TEST
 
 
+def test_backticked_location_parses_into_a_file_with_no_line() -> None:
+    """A backtick-wrapped location trailed by a symbol yields a bare file path.
+
+    `followup_security.txt` cites ``  `path` — `symbol` `` rather than the plain
+    `path:line` the other fixtures carry, so the record holds the stripped path,
+    no line, and the artifact kind that path resolves to.
+    """
+    findings, _ = parse_comment(fixture_body("followup_security.txt"))
+
+    assert findings[0].location_raw.startswith("`src/domains/release")
+    assert findings[0].file == "src/domains/release/release-notes.ts"
+    assert findings[0].line is None
+    assert findings[0].path_kind is PathKind.CODE
+
+
 def test_no_findings_comment_is_a_clean_pass() -> None:
     findings, is_clean = parse_comment(fixture_body("no_findings.txt"))
     assert findings == []

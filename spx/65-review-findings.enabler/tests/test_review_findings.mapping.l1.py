@@ -27,6 +27,10 @@ def test_cited_path_maps_to_each_artifact_kind() -> None:
     assert (
         classify_path("spx/34-verification.enabler/evidence-append.md") is PathKind.SPEC
     )
+    assert (
+        classify_path("gh_actions_testing/harnesses/review_comments.py")
+        is PathKind.TEST
+    )
     assert classify_path("src/domains/verify/verify.ts") is PathKind.CODE
     assert classify_path("gh_actions/review_findings.py") is PathKind.CODE
     assert (
