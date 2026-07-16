@@ -70,13 +70,6 @@ def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
                 body=_body("blocking_evidence.txt"),
             ),
             Comment(
-                id=2,
-                created_at="t",
-                url="u2",
-                login=DEFAULT_REVIEWER,
-                body=_body("debt_consistency.txt"),
-            ),
-            Comment(
                 id=3,
                 created_at="t",
                 url="u3",
@@ -90,21 +83,29 @@ def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
                 login="an-author",
                 body=_body("blocking_evidence.txt"),
             ),
-        ]
+        ],
+        9: [
+            Comment(
+                id=2,
+                created_at="t",
+                url="u2",
+                login=DEFAULT_REVIEWER,
+                body=_body("debt_consistency.txt"),
+            ),
+        ],
     }
-    result = build("owner/repo", [7], fetch=lambda _repo, pr: comments[pr])
+    result = build("owner/repo", [7, 9], fetch=lambda _repo, pr: comments[pr])
 
     classification = result["classification"]
-    # Only the three reviewer comments count: two blocking/evidence/spec entries
-    # and two debt entries (consistency/code and evidence/test); the non-reviewer
-    # comment's two entries are excluded.
+    # PR 7 contributes two blocking/evidence/spec entries; PR 9 two debt entries
+    # (consistency/code and evidence/test). The non-reviewer comment on PR 7 and
+    # PR 7's clean pass contribute no findings.
     assert classification["total_findings"] == 4
     assert classification["clean_review_passes"] == 1
     assert classification["by_severity"] == {"blocking": 2, "debt": 2}
     assert classification["by_concern"] == {"evidence": 3, "consistency": 1}
     assert classification["by_path_kind"] == {"spec": 2, "code": 1, "test": 1}
-    assert classification["by_pr"] == {"7": {"blocking": 2, "debt": 2}}
-    assert all(finding["pr"] == 7 for finding in result["findings"])
+    assert classification["by_pr"] == {"7": {"blocking": 2}, "9": {"debt": 2}}
 
 
 def test_main_writes_a_json_report(tmp_path: Path) -> None:
