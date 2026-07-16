@@ -110,6 +110,34 @@ def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
     assert classification["by_pr"] == {"7": {"blocking": 2}, "9": {"debt": 2}}
 
 
+def test_build_filters_by_an_explicitly_configured_reviewer() -> None:
+    """The filter follows the configured reviewer rather than the default.
+
+    The reviewer's own comment carries the blocking entries and the default
+    reviewer's carries the debt ones, so an extractor that compared against
+    `DEFAULT_REVIEWER` instead of the argument would report the other set.
+    """
+    reviewer = "a-different-reviewer"
+    comments = {
+        7: [
+            comment_from_fixture(
+                "blocking_evidence.txt", id=1, url="u1", login=reviewer
+            ),
+            comment_from_fixture(
+                "debt_consistency.txt", id=2, url="u2", login=DEFAULT_REVIEWER
+            ),
+        ]
+    }
+
+    result = build(
+        "owner/repo", [7], reviewer=reviewer, fetch=lambda _repo, pr: comments[pr]
+    )
+
+    assert result["meta"]["reviewer"] == reviewer
+    assert result["classification"]["total_findings"] == 2
+    assert result["classification"]["by_severity"] == {"blocking": 2}
+
+
 def test_build_counts_a_real_rest_payload_under_the_default_reviewer() -> None:
     """The default reviewer login matches the one the REST API really reports.
 
