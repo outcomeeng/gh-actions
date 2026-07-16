@@ -24,6 +24,15 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Final
 
+# The reviewer's login as the REST API reports it. `fetch_pr_comments` reads
+# `repos/{repo}/issues/{pr}/comments`, and REST names a GitHub App author in
+# `user.login` *with* the `[bot]` suffix. GraphQL (`gh pr view --json comments`)
+# names the same actor `claude`, *without* the suffix — so a login sampled from
+# GraphQL does not match what this module filters on, and substituting it here
+# silently yields zero findings against real data.
+# `gh_actions_testing/fixtures/rest_comment.json` is a real captured REST payload
+# carrying this suffixed login; the scenario lane runs `build()` over it with this
+# default, so the two cannot drift apart unnoticed.
 DEFAULT_REVIEWER: Final = "claude[bot]"
 
 # A finding header: "### SEVERITY [concern]: location" (2-4 leading hashes seen in the wild).
@@ -217,6 +226,21 @@ def classify(findings: list[Finding], clean_review_passes: int) -> dict:
 Fetcher = Callable[[str, int], list[Comment]]
 
 
+def comment_from_api(raw: dict) -> Comment:
+    """Map one REST issue-comment object onto a `Comment`.
+
+    `login` comes from `user.login`, which REST reports with the `[bot]` suffix for
+    a GitHub App author — see `DEFAULT_REVIEWER`.
+    """
+    return Comment(
+        id=raw["id"],
+        created_at=raw["created_at"],
+        url=raw["html_url"],
+        login=raw["user"]["login"],
+        body=raw["body"] or "",
+    )
+
+
 def fetch_pr_comments(repo: str, pr: int) -> list[Comment]:
     """Fetch a pull request's issue comments through the gh CLI."""
     result = subprocess.run(
@@ -233,21 +257,11 @@ def fetch_pr_comments(repo: str, pr: int) -> list[Comment]:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    comments: list[Comment] = []
-    for line in result.stdout.splitlines():
-        if not line.strip():
-            continue
-        raw = json.loads(line)
-        comments.append(
-            Comment(
-                id=raw["id"],
-                created_at=raw["created_at"],
-                url=raw["html_url"],
-                login=raw["user"]["login"],
-                body=raw["body"] or "",
-            )
-        )
-    return comments
+    return [
+        comment_from_api(json.loads(line))
+        for line in result.stdout.splitlines()
+        if line.strip()
+    ]
 
 
 def build(
