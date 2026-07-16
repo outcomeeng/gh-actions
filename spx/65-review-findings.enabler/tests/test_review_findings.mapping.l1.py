@@ -28,6 +28,7 @@ def test_cited_path_maps_to_each_artifact_kind() -> None:
         classify_path("spx/34-verification.enabler/evidence-append.md") is PathKind.SPEC
     )
     assert classify_path("src/domains/verify/verify.ts") is PathKind.CODE
+    assert classify_path("gh_actions/review_findings.py") is PathKind.CODE
     assert (
         classify_path("spx/17-file-inclusion.enabler/EXCLUDE")
         is PathKind.SPEC_TREE_OTHER

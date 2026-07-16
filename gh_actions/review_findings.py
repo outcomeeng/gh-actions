@@ -98,9 +98,10 @@ class Comment:
 def classify_path(path: str) -> PathKind:
     """Bucket a cited path by artifact kind, heuristically, from spec-tree path
     conventions: `.adr.md`/`.pdr.md` decisions, `spx/` specs and tree paths,
-    `/tests/`|`.test.`|`testing/` tests, and a `src/` code root. A path that
-    matches no convention (code laid out under a different root included) falls
-    to OTHER.
+    `/tests/`|`.test.`|`testing/` tests, and a `src/` or `gh_actions/` code root
+    (`src/` for most spec-tree products, `gh_actions/` for this repository per
+    `spx/15-evidence-model.adr.md`). Code laid out under any other root falls to
+    OTHER.
     """
     p = path.strip("`")
     if p.endswith(".adr.md"):
@@ -111,7 +112,7 @@ def classify_path(path: str) -> PathKind:
         return PathKind.TEST
     if p.endswith(".md") and p.startswith("spx/"):
         return PathKind.SPEC
-    if p.startswith("src/"):
+    if p.startswith("src/") or p.startswith("gh_actions/"):
         return PathKind.CODE
     if p.startswith("spx/"):
         return PathKind.SPEC_TREE_OTHER
