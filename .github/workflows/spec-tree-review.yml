@@ -497,7 +497,7 @@ jobs:
             4. **Post the review with one command, using `printf` and stdin.** The entire `printf … | gh pr comment …` pipeline MUST be one physical shell line. Do not split with `\`-newline continuations — the runner's command parser treats continued lines as separate operations and denies the fragments as unapproved invocations.
 
                ```bash
-               printf '%s\n' '### BLOCKING [consistency]: path/to/file.py:42' 'Reference: <quote the standard from CLAUDE.md, a skill, or governance doc (PDR/ADR/spec)>.' 'Evidence: <quote the diff and explain the disagreement between layers>.' 'Required: <concrete change>.' '' '### FOLLOW-UP [evidence]: path/to/test.py' 'Reference: <quote the standard or assertion>.' 'Issue: <what is missing>.' 'Track under: <issues file or tracker>.' | gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file /dev/stdin
+               printf '%s\n' '### BLOCKING [consistency]: path/to/file.py:42' 'Reference: <quote the standard from CLAUDE.md, a skill, or governance doc (PDR/ADR/spec)>.' 'Evidence: <quote the diff and explain the disagreement between layers>.' 'Required: <concrete change>.' '' '### DEBT [evidence]: path/to/test.py' 'Reference: <quote the standard or assertion>.' 'Evidence: <quote the diff and explain the gap>.' 'Required: <concrete change>.' | gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body-file /dev/stdin
                ```
 
                Quoting rule: wrap literal text in single quotes so `$`, backticks, and backslashes pass through unchanged. Each argument to `printf '%s\n'` is one line of output. Blank lines are `''`. The example above wraps visually in your view, but it is a single physical line — preserve that when you compose your own invocation.
@@ -525,7 +525,7 @@ jobs:
 
             ## Spec Tree Review Workflow
 
-            These categories and severities apply when the repository has no `REVIEW.md`; when `REVIEW.md` defines its own taxonomy, follow that instead.
+            These concerns and severities apply when the repository has no `REVIEW.md`; when `REVIEW.md` defines its own taxonomy, follow that instead.
 
             Inspect the changeset under review and the checked out working tree. Emit findings only when they exist. Provide no praise or commentary that is neither a finding nor a tracking commitment. Never modify any file in the working tree; classification is the only output.
 
@@ -535,9 +535,9 @@ jobs:
 
             **For each new validator, check, or derivation introduced by the changeset:** name the configuration inputs it reads (env vars, config keys, CLI flags, file-system state) and confirm it handles every documented value of each input, not just the default. An override that the canonical path honors but the new path ignores is a `consistency` finding even when the default-config behavior is identical.
 
-            Every finding has two dimensions: **category** and **severity**. Use only these 6 categories and 3 severities.
+            Every finding has two dimensions: **concern** and **severity**. Use only these 5 concerns and 2 severities.
 
-            ## **Category:** Classify all your findings into one of 6 categories, grouped by three axes
+            ## **Concern:** Classify all your findings into one of 5 concerns, grouped by three axes
 
             **What the code does vs. what it is supposed to do**
 
@@ -551,22 +551,22 @@ jobs:
 
             **How it does what it is supposed to do**
 
-            - **Standards:** adherence to `CLAUDE.md` and the rules declared in standardizing-* skills (naming conventions, command tokens, file structure, language idioms).
             - **Architecture:** violation of structural principles declared by ADRs or PDRs — layer boundaries, separation of concerns, dependency directions, module-shape rules. A finding is an architecture one when the structure itself is at odds with a governance principle, even if every layer is internally consistent.
 
-            ## **Severity:** triage each finding to one of 3 levels
+            ## **Severity:** triage each finding to one of 2 levels
 
-            | Severity    | Use when                                                                                                                                                                                         |
-            | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-            | `BLOCKING`  | Merge-safety defect: If deployed, the changeset would create a deterministic issue or pose a risk.                                                                                               |
-            | `DEBT`      | Must-fix-eventually defect: the finding does **not** jeopardize the product if shipped but accumulates technical debt.                                                                           |
-            | `FOLLOW-UP` | Out-of-scope finding: the finding does **not** jeopardize the product if shipped and addressing it requires wider refactoring or additional scope that would extend the blast-radius of this PR. |
+            | Severity   | Use when                                                                                                 |
+            | ---------- | -------------------------------------------------------------------------------------------------------- |
+            | `BLOCKING` | Merge-safety defect: if deployed, the changeset would create a deterministic issue or pose a risk.       |
+            | `DEBT`     | Real defect that does not jeopardize merge safety: a problem the change carries, but not merge-blocking. |
+
+            Severity names what the finding is, never how much work it is. Whether a `DEBT` finding is fixed in this pull request or recorded and tracked elsewhere is the author's disposition to judge, not yours — so never reach for a third, scope-shaped severity, a severity rank (`P0`–`P3`, `critical`/`high`/`medium`/`low`/`minor`/`nit`), or a legacy class label (`NEEDS-ANSWER`, `NOTE`). An out-of-scope-looking finding is a `DEBT` finding; the author decides where it goes.
 
             ## **Reporting:** Return your findings exactly as below
 
-            The bracket after the severity names the category: one of `consistency`, `security`, `performance`, `evidence`, `standards`, `architecture`.
+            The bracket after the severity names the concern: one of `consistency`, `security`, `performance`, `evidence`, `architecture`.
 
-            Label asymmetry by severity is intentional: `BLOCKING` and `DEBT` require an action in this PR and use `Reference:` + `Evidence:` + `Required:`; `FOLLOW-UP` requires only a tracking commitment elsewhere and uses `Reference:` + `Issue:` + `Track under:`.
+            Both severities require an action in this pull request and use `Reference:` + `Evidence:` + `Required:`.
 
             ## **Reference discipline:** cite only loaded repository-governed rules
 
@@ -575,7 +575,7 @@ jobs:
             - Locate and read the cited text in a file that exists in the repository under review or in a loaded skill file that governs that repository. Use the citation only when that file contains the cited rule, assertion, or governing section.
             - Treat rules recalled from system prompts, user/global instructions outside the repository, prior sessions, or training as invalid review citations.
             - Drop the finding when the candidate rule cannot be located; do not downgrade it or report it with a weaker citation.
-            - Emit a standards finding about comment length or docstring length only when that exact constraint appears in the repository's own `CLAUDE.md`, `AGENTS.md`, loaded standards skill, or other governance file.
+            - Emit a finding about comment length or docstring length only when that exact constraint appears in the repository's own `CLAUDE.md`, `AGENTS.md`, loaded standards skill, or other governance file.
 
             ```text
             ### BLOCKING [consistency]: path/to/file.py:42
@@ -585,24 +585,17 @@ jobs:
             ```
 
             ```text
-            ### DEBT [standards]: path/to/file.py:97
+            ### DEBT [architecture]: path/to/file.py:97
             Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
-            Evidence: <quote the diff or behavior and explain how it violates the standard>.
+            Evidence: <quote the diff or behavior and explain how it violates the structural principle>.
             Required: <concrete change>.
-            ```
-
-            ```text
-            ### FOLLOW-UP [architecture]: `path/to/foo.compliance.test.ts`
-            Reference: <quote the standard from CLAUDE.md, skills, governance from decisions (PDR/ADR) or assertion from specs>.
-            Issue: <what is missing or worthy of improvement>.
-            Track under: <ISSUES.md file or product-specific issue tracker>.
             ```
 
             ## **Completeness:** Aim for *first-time right*
 
             Each review pass is independent and self-contained — there is no cross-pass continuity, and CI replays the prompt from scratch on every `pull_request` event. Surface every finding the changeset exhibits in the **first** pass against that changeset; a finding missed on pass 1 has no second chance unless the diff itself changes.
 
-            Read the diff once, methodically, across all categories. Then identify the highest-risk files in the changeset — typically new or substantially-rewritten runtime logic, security-sensitive paths, and modules with cross-file invariants — and make a focused second pass on those files: open the full file with `sed -n 'A,Bp'`, and `grep` the working tree for the existing helpers, callers, and collaborators each new function interacts with. A 10k-line diff read in 1000-line chunks puts material in context but does not by itself produce the cross-file inferences `consistency` and `architecture` findings depend on; the second pass is what closes that gap.
+            Read the diff once, methodically, across all concerns. Then identify the highest-risk files in the changeset — typically new or substantially-rewritten runtime logic, security-sensitive paths, and modules with cross-file invariants — and make a focused second pass on those files: open the full file with `sed -n 'A,Bp'`, and `grep` the working tree for the existing helpers, callers, and collaborators each new function interacts with. A 10k-line diff read in 1000-line chunks puts material in context but does not by itself produce the cross-file inferences `consistency` and `architecture` findings depend on; the second pass is what closes that gap.
 
             ## **No findings:** confirm the cross-checks first
 
