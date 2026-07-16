@@ -114,8 +114,13 @@ def classify_path(path: str) -> PathKind:
 
 
 def parse_location(raw: str) -> tuple[str | None, str | None]:
-    """Split a location string into (file, line); line may be a range or None."""
-    loc = raw.strip().lstrip("`").strip()
+    """Split a location string into (file, line); line may be a range or None.
+
+    Backticks are markdown formatting, not part of a path, so they are removed
+    everywhere before matching — a backtick-quoted path immediately followed by
+    a `:line` suffix (`` `path`:42 ``) would otherwise drop its line.
+    """
+    loc = raw.strip().replace("`", "").strip()
     if not loc:
         return None, None
     m = LOC_LINE_RE.match(loc)
