@@ -20,4 +20,5 @@ CAN preserve and assess what the review gate catches across pull requests
 ### Compliance
 
 - ALWAYS: the extractor records whatever severity and concern labels a finding comment carries, without validating them against a fixed set — the label vocabulary it reads is the reviewer's output, not a contract this node owns ([test](tests/test_review_findings.compliance.l1.py))
+- ALWAYS: the extractor reads a pull request's comments through the `gh` CLI — its one external-interaction boundary — so that shell-out is evidenced by audit rather than the pytest lane, mirroring the secret-provisioning boundary of `spx/76-distribution.enabler/distribution.md`; the deterministic parsing and classification it feeds run through an injected fetcher and carry the pytest lane ([audit])
 - NEVER: this node restates or judges findings against the governed review taxonomy — the taxonomy is governed by `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md` and cross-referenced, never copied ([audit])
