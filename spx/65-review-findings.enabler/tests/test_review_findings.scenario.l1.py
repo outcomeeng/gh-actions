@@ -73,7 +73,7 @@ def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
                 id=2,
                 created_at="t",
                 url="u2",
-                login="an-author",
+                login=DEFAULT_REVIEWER,
                 body=_body("debt_consistency.txt"),
             ),
             Comment(
@@ -83,15 +83,27 @@ def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
                 login=DEFAULT_REVIEWER,
                 body=_body("no_findings.txt"),
             ),
+            Comment(
+                id=4,
+                created_at="t",
+                url="u4",
+                login="an-author",
+                body=_body("blocking_evidence.txt"),
+            ),
         ]
     }
     result = build("owner/repo", [7], fetch=lambda _repo, pr: comments[pr])
 
     classification = result["classification"]
-    assert classification["total_findings"] == 2
+    # Only the three reviewer comments count: two blocking/evidence/spec entries
+    # and two debt entries (consistency/code and evidence/test); the non-reviewer
+    # comment's two entries are excluded.
+    assert classification["total_findings"] == 4
     assert classification["clean_review_passes"] == 1
-    assert classification["by_severity"] == {"blocking": 2}
-    assert classification["by_pr"] == {"7": {"blocking": 2}}
+    assert classification["by_severity"] == {"blocking": 2, "debt": 2}
+    assert classification["by_concern"] == {"evidence": 3, "consistency": 1}
+    assert classification["by_path_kind"] == {"spec": 2, "code": 1, "test": 1}
+    assert classification["by_pr"] == {"7": {"blocking": 2, "debt": 2}}
     assert all(finding["pr"] == 7 for finding in result["findings"])
 
 

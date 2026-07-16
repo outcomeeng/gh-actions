@@ -1,9 +1,11 @@
 """Compliance evidence: the extractor validates labels against no fixed set.
 
-`followup_security.txt` is a real reviewer comment carrying a `FOLLOW-UP [security]`
-entry — a legacy severity the current review taxonomy (governed in the plugins spec
-tree) no longer sanctions. The extractor records it verbatim rather than dropping or
-reclassifying it: it owns no taxonomy to gate labels against, so a non-governed label
+The extractor gates neither the severity nor the concern label against a fixed set.
+`followup_security.txt` carries a non-governed severity (`FOLLOW-UP`, a legacy label
+the current taxonomy no longer sanctions) and `standards_concern.txt` a non-governed
+concern (`standards`, outside the five governed concerns); both are real reviewer
+comments. The extractor records each label verbatim rather than dropping or
+reclassifying it — it owns no taxonomy to gate against — so a non-governed label
 surfaces in the extracted output for a maintainer to notice instead of vanishing.
 """
 
@@ -25,3 +27,14 @@ def test_non_governed_severity_label_is_recorded_verbatim() -> None:
     assert len(findings) == 1
     assert findings[0].severity == "follow-up"
     assert findings[0].concern == "security"
+
+
+def test_non_governed_concern_label_is_recorded_verbatim() -> None:
+    body = (Path(__file__).parent / "fixtures" / "standards_concern.txt").read_text(
+        encoding="utf-8"
+    )
+
+    findings, _ = parse_comment(body)
+
+    assert findings[0].severity == "debt"
+    assert findings[0].concern == "standards"
