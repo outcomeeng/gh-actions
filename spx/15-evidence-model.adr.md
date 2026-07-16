@@ -12,7 +12,7 @@ Structural and security rules — SHA-pinning, no secrets in `run:` bodies, the 
 
 The self-test harness is this product's analog of a test runner: it invokes each reusable against this repository on the real event shapes, so a reusable's end-to-end behavior is exercised before it ships.
 
-Deterministic Python in the `gh_actions` package — the caller-workflow drift checks — is unit-testable and gets a pytest lane like any code. Secret provisioning reads the platform keystore and shells out to `gh`, so its behavior is evidenced by `[audit]` (`spx/76-distribution.enabler/distribution.md`) rather than a pytest lane.
+The `gh_actions` package's deterministic, unit-testable logic — such as the caller-workflow drift checks and the review-findings extractor — gets a pytest lane like any code. Secret provisioning reads the platform keystore and shells out to `gh`, so its behavior is evidenced by `[audit]` (`spx/76-distribution.enabler/distribution.md`) rather than a pytest lane.
 
 The model accepts that workflow behavior leans on `[audit]`, which CI does not enforce: the self-test harness and the `actionlint`/`shellcheck` conformance lane carry the falsifiable load, and audit covers only the residue no run or linter can falsify. It also accepts that the self-test harness's callers reference the reusables — a runtime consumer relationship — while the harness itself is foundational; testability leads, so every node is built and verified against the harness, and that consumer detail stays subordinate to the harness as the verification substrate (`spx/21-self-test-harness.enabler`).
 
