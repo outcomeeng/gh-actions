@@ -2,14 +2,14 @@
 
 ## Top-level composition (done)
 
-The top-level enablers sit in three dependency tiers. The product is
+The top-level enablers sit in four dependency tiers. The product is
 infrastructure, so the behavior-change bet stays in the product hypothesis and
 every top-level node is an enabler.
 
 - `spx/21-self-test-harness.enabler` — foundational testability; every other node is exercised against it.
 - `spx/32-security.enabler`, `spx/32-agent-invocation.enabler` — shared substrate (independent peers).
 - `spx/54-agent-trigger.enabler`, `spx/54-verification-gates.enabler` — surfaces that consume the substrate (independent peers).
-- `spx/65-review-findings.enabler` — extracts and classifies the review gate's findings for maintainer assessment.
+- `spx/65-review-findings.enabler` — consumes the review gate's output, extracting and classifying its findings for maintainer assessment.
 - `spx/76-distribution.enabler` — consumes the surface contracts (templates, repo-variable overrides, docs, secret provisioning).
 
 Reserved index gaps `43` and `87` hold space for future top-level insertion.
