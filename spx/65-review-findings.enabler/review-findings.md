@@ -15,7 +15,7 @@ CAN preserve and assess what the review gate catches across pull requests
 
 ### Mappings
 
-- A finding's cited path maps to its artifact kind — an ADR or PDR decision, a spec, a test, code, another spec-tree path, or other ([test](tests/test_review_findings.mapping.l1.py))
+- A finding's cited path maps by spec-tree path convention to an artifact-kind bucket — an ADR or PDR decision, a spec, a test, code under a `src/` root, another spec-tree path, or other for anything unrecognized ([test](tests/test_review_findings.mapping.l1.py))
 
 ### Compliance
 
