@@ -5,7 +5,7 @@
 # 2. (Optional) Provide a `REVIEW.md` at the repository root. The
 #    spec-tree-review prompt reads it as the finding-classification
 #    taxonomy and comment shape; absent the file, the embedded
-#    BLOCKING/DEBT/FOLLOW-UP taxonomy is used.
+#    BLOCKING/DEBT taxonomy is used.
 # 3. (Optional) Tune behavior via repo variables in Settings → Secrets and
 #    variables → Actions → Variables. See the `with:` block below — every
 #    entry reads a `vars.SPEC_TREE_REVIEW_*` value and falls back to the
