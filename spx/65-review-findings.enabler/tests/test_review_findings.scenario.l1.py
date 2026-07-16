@@ -16,6 +16,7 @@ from gh_actions.review_findings import (
     build,
     main,
     parse_comment,
+    parse_location,
 )
 
 
@@ -35,14 +36,28 @@ def test_finding_comment_parses_into_records() -> None:
     assert findings[0].fields["required"].startswith("Either narrow the assertion")
 
 
-def test_debt_finding_carries_severity_concern_and_code_path_kind() -> None:
+def test_debt_comment_parses_both_entries_with_their_kinds() -> None:
     findings, is_clean = parse_comment(_body("debt_consistency.txt"))
     assert not is_clean
+    assert len(findings) == 2
+
     assert findings[0].severity == "debt"
     assert findings[0].concern == "consistency"
     assert findings[0].file == "src/domains/verify/verify.ts"
     assert findings[0].line == "351"
     assert findings[0].path_kind is PathKind.CODE
+
+    assert findings[1].severity == "debt"
+    assert findings[1].concern == "evidence"
+    assert findings[1].file == "testing/generators/verify/verify.ts"
+    assert findings[1].line is None
+    assert findings[1].path_kind is PathKind.TEST
+
+
+def test_backtick_quoted_location_with_line_extracts_file_and_line() -> None:
+    file_, line_ = parse_location("`src/domains/release/release-notes.ts`:42")
+    assert file_ == "src/domains/release/release-notes.ts"
+    assert line_ == "42"
 
 
 def test_no_findings_comment_is_a_clean_pass() -> None:
