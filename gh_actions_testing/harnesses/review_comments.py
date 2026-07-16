@@ -11,9 +11,10 @@ verifies: parsing and classification stay in ``gh_actions.review_findings``.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from gh_actions.review_findings import Comment
+from gh_actions.review_findings import Comment, comment_from_api
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
@@ -21,6 +22,17 @@ FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 def fixture_body(name: str) -> str:
     """Read one captured reviewer-comment payload from the fixtures home by name."""
     return (FIXTURES_DIR / name).read_text(encoding="utf-8")
+
+
+def api_comment(name: str = "rest_comment.json") -> Comment:
+    """Load a captured REST issue-comment payload and map it through the source.
+
+    The mapping is ``gh_actions.review_findings.comment_from_api`` — the same one
+    ``fetch_pr_comments`` applies to live ``gh api`` output — so the login a test
+    sees is the one the REST API really reports, never a value this harness invents.
+    """
+    raw = json.loads((FIXTURES_DIR / name).read_text(encoding="utf-8"))
+    return comment_from_api(raw)
 
 
 def comment_from_fixture(

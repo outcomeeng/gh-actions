@@ -18,6 +18,7 @@ from gh_actions.review_findings import (
     parse_comment,
 )
 from gh_actions_testing.harnesses.review_comments import (
+    api_comment,
     comment_from_fixture,
     fixture_body,
 )
@@ -90,6 +91,24 @@ def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
     assert classification["by_concern"] == {"evidence": 3, "consistency": 1}
     assert classification["by_path_kind"] == {"spec": 2, "code": 1, "test": 1}
     assert classification["by_pr"] == {"7": {"blocking": 2}, "9": {"debt": 2}}
+
+
+def test_build_counts_a_real_rest_payload_under_the_default_reviewer() -> None:
+    """The default reviewer login matches the one the REST API really reports.
+
+    The payload is a real captured `repos/{repo}/issues/{pr}/comments` object whose
+    author login comes from the fixture rather than from `DEFAULT_REVIEWER`, and
+    `build()` runs with no explicit reviewer. If the default drifts from the login
+    REST attaches to the reviewer's comments — for instance to the unsuffixed login
+    GraphQL reports — the reviewer filter admits nothing and this reports zero.
+    """
+    comment = api_comment()
+
+    result = build("outcomeeng/spx", [137], fetch=lambda _repo, _pr: [comment])
+
+    assert result["meta"]["reviewer"] == comment.login
+    assert result["classification"]["total_findings"] == 3
+    assert result["classification"]["by_severity"] == {"debt": 2, "follow-up": 1}
 
 
 def test_main_writes_a_json_report(tmp_path: Path) -> None:
