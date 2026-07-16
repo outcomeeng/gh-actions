@@ -96,7 +96,12 @@ class Comment:
 
 
 def classify_path(path: str) -> PathKind:
-    """Bucket a cited path by artifact kind."""
+    """Bucket a cited path by artifact kind, heuristically, from spec-tree path
+    conventions: `.adr.md`/`.pdr.md` decisions, `spx/` specs and tree paths,
+    `/tests/`|`.test.`|`testing/` tests, and a `src/` code root. A path that
+    matches no convention (code laid out under a different root included) falls
+    to OTHER.
+    """
     p = path.strip("`")
     if p.endswith(".adr.md"):
         return PathKind.DECISION_ADR
@@ -114,13 +119,8 @@ def classify_path(path: str) -> PathKind:
 
 
 def parse_location(raw: str) -> tuple[str | None, str | None]:
-    """Split a location string into (file, line); line may be a range or None.
-
-    Backticks are markdown formatting, not part of a path, so they are removed
-    everywhere before matching — a backtick-quoted path immediately followed by
-    a `:line` suffix (`` `path`:42 ``) would otherwise drop its line.
-    """
-    loc = raw.strip().replace("`", "").strip()
+    """Split a location string into (file, line); line may be a range or None."""
+    loc = raw.strip().lstrip("`").strip()
     if not loc:
         return None, None
     m = LOC_LINE_RE.match(loc)
