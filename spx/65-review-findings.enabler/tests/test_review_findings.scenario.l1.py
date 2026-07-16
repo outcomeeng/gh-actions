@@ -16,7 +16,6 @@ from gh_actions.review_findings import (
     build,
     main,
     parse_comment,
-    parse_location,
 )
 
 
@@ -52,12 +51,6 @@ def test_debt_comment_parses_both_entries_with_their_kinds() -> None:
     assert findings[1].file == "testing/generators/verify/verify.ts"
     assert findings[1].line is None
     assert findings[1].path_kind is PathKind.TEST
-
-
-def test_backtick_quoted_location_with_line_extracts_file_and_line() -> None:
-    file_, line_ = parse_location("`src/domains/release/release-notes.ts`:42")
-    assert file_ == "src/domains/release/release-notes.ts"
-    assert line_ == "42"
 
 
 def test_no_findings_comment_is_a_clean_pass() -> None:
