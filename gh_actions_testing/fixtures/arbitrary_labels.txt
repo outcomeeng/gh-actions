@@ -1,0 +1,4 @@
+### NITPICK [triage]: tools/scratch/notes.txt:3
+Reference: A review convention this extractor has never seen.
+Evidence: The label pair on the header above belongs to no taxonomy any spec tree governs — the severity `NITPICK` and the concern `triage` are authored for this fixture precisely because nothing sanctions them. Every captured fixture beside this one carries labels some taxonomy does sanction, so none of them can tell a extractor that gates against a fixed vocabulary apart from one that gates against nothing.
+Required: The extractor records both labels verbatim, rather than dropping the entry or normalising it toward a label it recognises.
