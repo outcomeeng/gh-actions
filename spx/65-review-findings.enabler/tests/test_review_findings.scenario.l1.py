@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from gh_actions.review_findings import (
     DEFAULT_REVIEWER,
     PathKind,
@@ -143,5 +145,27 @@ def test_main_writes_a_json_report(tmp_path: Path) -> None:
 
     assert exit_code == 0
     report = json.loads(out.read_text(encoding="utf-8"))
+    assert report["meta"]["repo"] == "owner/repo"
+    assert report["classification"]["total_findings"] == 2
+
+
+def test_main_prints_the_json_report_when_no_out_path_is_given(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Without `--out` the entrypoint writes the same report to stdout."""
+    comments = {
+        7: [
+            comment_from_fixture(
+                "blocking_evidence.txt", id=1, url="u1", login=DEFAULT_REVIEWER
+            ),
+        ]
+    }
+
+    exit_code = main(
+        ["7", "--repo", "owner/repo"], fetch=lambda _repo, pr: comments[pr]
+    )
+
+    assert exit_code == 0
+    report = json.loads(capsys.readouterr().out)
     assert report["meta"]["repo"] == "owner/repo"
     assert report["classification"]["total_findings"] == 2
