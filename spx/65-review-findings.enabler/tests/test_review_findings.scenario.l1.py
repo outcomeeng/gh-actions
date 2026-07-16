@@ -1,7 +1,8 @@
 """Scenario evidence: end-to-end extraction over real reviewer comment bodies.
 
 The comment payloads are inert fixture files captured from the spec-tree review
-gate's own findings on outcomeeng/spx pull requests, read by path.
+gate's own findings on outcomeeng/spx pull requests, loaded through the
+``gh_actions_testing`` review-comments harness.
 """
 
 from __future__ import annotations
@@ -11,20 +12,19 @@ from pathlib import Path
 
 from gh_actions.review_findings import (
     DEFAULT_REVIEWER,
-    Comment,
     PathKind,
     build,
     main,
     parse_comment,
 )
-
-
-def _body(name: str) -> str:
-    return (Path(__file__).parent / "fixtures" / name).read_text(encoding="utf-8")
+from gh_actions_testing.harnesses.review_comments import (
+    comment_from_fixture,
+    fixture_body,
+)
 
 
 def test_finding_comment_parses_into_records() -> None:
-    findings, is_clean = parse_comment(_body("blocking_evidence.txt"))
+    findings, is_clean = parse_comment(fixture_body("blocking_evidence.txt"))
     assert not is_clean
     assert len(findings) == 2
     assert all(f.severity == "blocking" and f.concern == "evidence" for f in findings)
@@ -36,7 +36,7 @@ def test_finding_comment_parses_into_records() -> None:
 
 
 def test_debt_comment_parses_both_entries_with_their_kinds() -> None:
-    findings, is_clean = parse_comment(_body("debt_consistency.txt"))
+    findings, is_clean = parse_comment(fixture_body("debt_consistency.txt"))
     assert not is_clean
     assert len(findings) == 2
 
@@ -54,7 +54,7 @@ def test_debt_comment_parses_both_entries_with_their_kinds() -> None:
 
 
 def test_no_findings_comment_is_a_clean_pass() -> None:
-    findings, is_clean = parse_comment(_body("no_findings.txt"))
+    findings, is_clean = parse_comment(fixture_body("no_findings.txt"))
     assert findings == []
     assert is_clean is True
 
@@ -62,35 +62,19 @@ def test_no_findings_comment_is_a_clean_pass() -> None:
 def test_build_aggregates_counting_only_the_configured_reviewer() -> None:
     comments = {
         7: [
-            Comment(
-                id=1,
-                created_at="t",
-                url="u1",
-                login=DEFAULT_REVIEWER,
-                body=_body("blocking_evidence.txt"),
+            comment_from_fixture(
+                "blocking_evidence.txt", id=1, url="u1", login=DEFAULT_REVIEWER
             ),
-            Comment(
-                id=3,
-                created_at="t",
-                url="u3",
-                login=DEFAULT_REVIEWER,
-                body=_body("no_findings.txt"),
+            comment_from_fixture(
+                "no_findings.txt", id=3, url="u3", login=DEFAULT_REVIEWER
             ),
-            Comment(
-                id=4,
-                created_at="t",
-                url="u4",
-                login="an-author",
-                body=_body("blocking_evidence.txt"),
+            comment_from_fixture(
+                "blocking_evidence.txt", id=4, url="u4", login="an-author"
             ),
         ],
         9: [
-            Comment(
-                id=2,
-                created_at="t",
-                url="u2",
-                login=DEFAULT_REVIEWER,
-                body=_body("debt_consistency.txt"),
+            comment_from_fixture(
+                "debt_consistency.txt", id=2, url="u2", login=DEFAULT_REVIEWER
             ),
         ],
     }
@@ -112,12 +96,8 @@ def test_main_writes_a_json_report(tmp_path: Path) -> None:
     out = tmp_path / "report.json"
     comments = {
         7: [
-            Comment(
-                id=1,
-                created_at="t",
-                url="u1",
-                login=DEFAULT_REVIEWER,
-                body=_body("blocking_evidence.txt"),
+            comment_from_fixture(
+                "blocking_evidence.txt", id=1, url="u1", login=DEFAULT_REVIEWER
             ),
         ]
     }

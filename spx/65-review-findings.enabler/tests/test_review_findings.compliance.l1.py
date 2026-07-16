@@ -11,17 +11,12 @@ surfaces in the extracted output for a maintainer to notice instead of vanishing
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from gh_actions.review_findings import parse_comment
+from gh_actions_testing.harnesses.review_comments import fixture_body
 
 
 def test_non_governed_severity_label_is_recorded_verbatim() -> None:
-    body = (Path(__file__).parent / "fixtures" / "followup_security.txt").read_text(
-        encoding="utf-8"
-    )
-
-    findings, is_clean = parse_comment(body)
+    findings, is_clean = parse_comment(fixture_body("followup_security.txt"))
 
     assert not is_clean
     assert len(findings) == 1
@@ -30,11 +25,7 @@ def test_non_governed_severity_label_is_recorded_verbatim() -> None:
 
 
 def test_non_governed_concern_label_is_recorded_verbatim() -> None:
-    body = (Path(__file__).parent / "fixtures" / "standards_concern.txt").read_text(
-        encoding="utf-8"
-    )
-
-    findings, _ = parse_comment(body)
+    findings, _ = parse_comment(fixture_body("standards_concern.txt"))
 
     assert findings[0].severity == "debt"
     assert findings[0].concern == "standards"
