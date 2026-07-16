@@ -35,7 +35,11 @@ from typing import Final
 # default, so the two cannot drift apart unnoticed.
 DEFAULT_REVIEWER: Final = "claude[bot]"
 
-# A finding header: "### SEVERITY [concern]: location" (2-4 leading hashes seen in the wild).
+# A finding header: "### SEVERITY [concern]: location" (2-4 leading hashes seen in
+# the wild). The shape is read off the reviewer's emitted output; no contract is
+# shared with the prompt that writes it, which lives in the spec tree the module
+# docstring cross-references. Should that prompt's wording, hash count, or field
+# labels drift, a comment parses to no findings rather than raising.
 HEADER_RE: Final = re.compile(
     r"^#{2,4}\s+([A-Z][A-Z-]+)\s+\[([a-z][a-z-]*)\]\s*:\s*(.*)$"
 )
@@ -62,7 +66,10 @@ NO_FINDINGS_RE: Final = re.compile(r"^\s*no findings\b", re.IGNORECASE)
 # `spx/15-evidence-model.adr.md`).
 TEST_HOME_RE: Final = re.compile(r"^(testing|[A-Za-z_][A-Za-z0-9_]*_testing)/")
 
-# A trailing "path:line" or "path:line-range" on a location string.
+# A trailing "path:line" or "path:line-range" on a location string. A reviewer
+# cites `path/to/file:42` — the only line-bearing shape the review format emits,
+# across every finding on outcomeeng/spx#366 and #137. A lint-tool `path:line:col`
+# location is not part of that format and is deliberately not parsed as one.
 LOC_LINE_RE: Final = re.compile(
     r"^(?P<file>[^\s`]+?):(?P<line>\d+(?:[-,]\d+)*)(?:\s|$)"
 )
@@ -144,9 +151,8 @@ def parse_location(raw: str) -> tuple[str | None, str | None]:
     if m:
         return m.group("file").rstrip("`,;."), m.group("line")
     m = LOC_FILE_RE.match(loc)
-    if m:
-        return m.group("file").rstrip("`,;."), None
-    return loc, None
+    assert m is not None  # loc is non-empty and opens with neither space nor backtick
+    return m.group("file").rstrip("`,;."), None
 
 
 def parse_fields(block_lines: list[str]) -> dict[str, str]:
@@ -164,9 +170,9 @@ def parse_fields(block_lines: list[str]) -> dict[str, str]:
 
 
 def build_finding(
-    severity: str, concern: str, loc_raw: str, block_lines: list[str]
+    severity: str, concern: str, loc_raw: str, block_lines: list[str], raw: str
 ) -> Finding:
-    """Assemble one finding record from its header parts and body lines."""
+    """Assemble one finding record from its header parts, body lines, and raw text."""
     file_, line_ = parse_location(loc_raw)
     return Finding(
         severity=severity.strip().lower(),
@@ -176,7 +182,7 @@ def build_finding(
         line=line_,
         path_kind=classify_path(file_) if file_ else None,
         fields=parse_fields(block_lines),
-        raw="",
+        raw=raw,
     )
 
 
@@ -196,10 +202,15 @@ def parse_comment(body: str) -> tuple[list[Finding], bool]:
         end = header_idx[n + 1] if n + 1 < len(header_idx) else len(lines)
         m = HEADER_RE.match(lines[start])
         assert m is not None  # start came from HEADER_RE above
-        finding = build_finding(
-            m.group(1), m.group(2), m.group(3), lines[start + 1 : end]
+        findings.append(
+            build_finding(
+                m.group(1),
+                m.group(2),
+                m.group(3),
+                lines[start + 1 : end],
+                raw="\n".join(lines[start:end]).strip(),
+            )
         )
-        findings.append(replace(finding, raw="\n".join(lines[start:end]).strip()))
     return findings, False
 
 
@@ -249,7 +260,13 @@ def comment_from_api(raw: dict) -> Comment:
 
 
 def fetch_pr_comments(repo: str, pr: int) -> list[Comment]:
-    """Fetch a pull request's issue comments through the gh CLI."""
+    """Fetch a pull request's issue comments through the gh CLI.
+
+    The gh invocation is spelled out here rather than shared with `run_gh` in
+    `gh_actions/push_secrets.py`: that module is a self-contained `uv run` script
+    (PEP 723), which resolves no sibling package module when invoked by path, so
+    importing across the two would break its documented standalone usage.
+    """
     result = subprocess.run(
         [
             "gh",
