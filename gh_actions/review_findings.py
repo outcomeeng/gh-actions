@@ -44,8 +44,12 @@ HEADER_RE: Final = re.compile(
     r"^#{2,4}\s+([A-Z][A-Z-]+)\s+\[([a-z][a-z-]*)\]\s*:\s*(.*)$"
 )
 
-# Labelled body fields a finding entry may carry. BLOCKING/DEBT entries use
-# Evidence/Required; a FOLLOW-UP entry uses Issue/Track under.
+# Labelled body fields a finding entry may carry. Which labels an entry uses
+# follows from the reviewer's own format, which this module reads rather than
+# defines. The set spans every shape the captured comments carry, including
+# entries whose format a reviewer has since stopped emitting — the extractor
+# reads pull requests as far back as they go, so a retired label still has
+# history to parse.
 FIELD_LABELS: Final = (
     "Reference",
     "Evidence",
