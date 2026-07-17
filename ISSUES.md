@@ -6,10 +6,4 @@ Following the spec-tree methodology, this file records quality observations agai
 
 ## Open
 
-### README generic Claude variable tables
-
-Evidence: `README.md` states that the generic Claude examples mirror the spec-tree repo-variable shape with `vars.CLAUDE_*` and `vars.CLAUDE_REVIEW_*`, but the README only provides full lookup tables for `SPEC_TREE_*` and `SPEC_TREE_REVIEW_*`.
-
-Impact: Downstream callers can still use the examples directly, but readers must open `examples/caller-workflows/claude.yml` or `examples/caller-workflows/claude-code-review.yml` to discover the generic Claude variable names.
-
-Handling: Add `CLAUDE_*` and `CLAUDE_REVIEW_*` tables to README "Per-environment overrides via repo variables", mirroring the existing spec-tree tables.
+*None.*

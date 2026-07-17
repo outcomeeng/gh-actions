@@ -241,7 +241,7 @@ Secret required by the first Claude Code host slice: either `ANTHROPIC_API_KEY` 
 
 The example caller templates are **drop-in**: copy the file, set the repository secret, and the workflow runs with sensible defaults. To tune behavior per-environment, set the corresponding repository variable in Settings → Secrets and variables → Actions → Variables. The `with:` block in each template is active and reads `vars.SPEC_TREE_*` (mention) or `vars.SPEC_TREE_REVIEW_*` (review) values, falling back to the reusable's documented default when the variable is unset — no edits to the workflow file are needed.
 
-The generic Claude examples mirror the same shape with `vars.CLAUDE_*` for mentions and `vars.CLAUDE_REVIEW_*` for reviews.
+The generic Claude examples mirror the same shape with `vars.CLAUDE_*` for mentions and `vars.CLAUDE_REVIEW_*` for reviews; their tables follow the spec-tree ones below.
 
 Mention workflow (`spec-tree.yml`):
 
@@ -270,6 +270,35 @@ Review workflow (`spec-tree-review.yml`):
 | `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST`   | `append_allow_list`   | (empty)          | Comma-separated patterns appended to the baked-in spec-tree review baseline (`Bash(gh ...) + Bash(sed:*),Bash(grep:*),Bash(head:*)`). Widen when opting in to project plugins.                |
 | `SPEC_TREE_REVIEW_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install project plugins; pair with `SPEC_TREE_REVIEW_APPEND_ALLOW_LIST` so the plugin's tools are reachable.                                                                  |
 | `SPEC_TREE_REVIEW_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Same warning as mention.                                                                                                                                                                      |
+
+Mention workflow (`claude.yml`):
+
+| Repo variable                | Maps to               | Default if unset | Notes                                                                                                         |
+| ---------------------------- | --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE_RUNNER`              | `runner`              | `ubuntu-slim`    | Same form as the spec-tree mention runner.                                                                    |
+| `CLAUDE_TRIGGER_PHRASE`      | `trigger_phrase`      | `@claude`        | Mention text the workflow listens for; the generic default differs from `@spec-tree`.                         |
+| `CLAUDE_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Set the string `'false'` to opt out of cancel-on-new.                                                         |
+| `CLAUDE_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Wall-clock budget in minutes (quoted string).                                                                 |
+| `CLAUDE_MODEL`               | `model`               | (action default) | Claude model id; folded into `claude_args` as `--model <id>`.                                                 |
+| `CLAUDE_ARGS`                | `claude_args`         | (empty)          | Extra CLI args. Note the name: `CLAUDE_ARGS`, not `CLAUDE_CLAUDE_ARGS`.                                       |
+| `CLAUDE_CUSTOM_PROMPT`       | `custom_prompt`       | (empty)          | Single-line custom prompt; edit the workflow file directly for multi-line prompts.                            |
+| `CLAUDE_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install plugins declared in `.claude/settings.json`.                                          |
+| `CLAUDE_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Set `'true'` to stream per-turn JSON to the job log. WARNING: may expose secrets in tool outputs. Debug only. |
+
+Review workflow (`claude-code-review.yml`):
+
+| Repo variable                       | Maps to               | Default if unset | Notes                                                                                                                     |
+| ----------------------------------- | --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE_REVIEW_RUNNER`              | `runner`              | `ubuntu-slim`    | Same form as mention.                                                                                                     |
+| `CLAUDE_REVIEW_TRIGGER_PHRASE`      | `trigger_phrase`      | `@claude`        | Forwarded for content matching; review fires on every `pull_request` event regardless.                                    |
+| `CLAUDE_REVIEW_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Same semantics as mention.                                                                                                |
+| `CLAUDE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | The generic review budget is `'15'`, where `SPEC_TREE_REVIEW_TIMEOUT_MINUTES` defaults to `'30'`.                         |
+| `CLAUDE_REVIEW_MODEL`               | `model`               | (action default) | Same.                                                                                                                     |
+| `CLAUDE_REVIEW_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args OTHER than `--allowed-tools`. Note the name carries `CLAUDE_` twice.                                       |
+| `CLAUDE_REVIEW_CUSTOM_PROMPT`       | `custom_prompt`       | (empty)          | Single-line custom prompt.                                                                                                |
+| `CLAUDE_REVIEW_APPEND_ALLOW_LIST`   | `append_allow_list`   | (empty)          | Comma-separated patterns appended to the reusable's baseline allowlist.                                                   |
+| `CLAUDE_REVIEW_USE_PROJECT_PLUGINS` | `use_project_plugins` | `false`          | Set `'true'` to install project plugins; pair with `CLAUDE_REVIEW_APPEND_ALLOW_LIST` so the plugin's tools are reachable. |
+| `CLAUDE_REVIEW_SHOW_FULL_OUTPUT`    | `show_full_output`    | `false`          | Same warning as mention.                                                                                                  |
 
 Inputs **left commented in the example template** (active when uncommented):
 
