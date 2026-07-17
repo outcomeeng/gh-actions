@@ -566,7 +566,7 @@ jobs:
 
             The bracket after the severity names the concern: one of `consistency`, `security`, `performance`, `evidence`, `architecture`.
 
-            Both severities require an action in this pull request and use `Reference:` + `Evidence:` + `Required:`.
+            Both severities use the same fields: `Reference:` + `Evidence:` + `Required:`. `Required:` names the change the finding asks for; whether that change lands in this pull request or is recorded and tracked is the author's to decide, not something the field shape settles.
 
             ## **Reference discipline:** cite only loaded repository-governed rules
 
