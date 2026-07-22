@@ -1,10 +1,9 @@
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 import pytest
 
 from gh_actions import caller_workflows
-
 
 EXPECTED_SHA = "a" * 40
 OTHER_SHA = "b" * 40
@@ -377,7 +376,7 @@ def test_workspace_reports_missing_readme_snippet(tmp_path: Path) -> None:
 
 def test_workspace_reports_reusable_timeout_default_drift(tmp_path: Path) -> None:
     workflow = _workflow(Path("examples/caller-workflows/example.yml"))
-    _write_workspace_fixture(tmp_path, workflow, EXPECTED_SHA, reusable_timeout="20")
+    _write_workspace_fixture(tmp_path, workflow, EXPECTED_SHA, reusable_timeout="30")
     _write_readme(tmp_path, workflow, EXPECTED_SHA)
 
     assert caller_workflows.check_workspace(tmp_path, EXPECTED_SHA) == [

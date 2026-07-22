@@ -233,7 +233,7 @@ The review prompt and baseline allowlist intentionally differ:
 | `allow_branch_preview` | `false`                 | Allows a same-repo beta caller with the marker comment to use a floating skill ref.                          |
 | `spx_version`          | `0.6.7`                 | Version of `@outcomeeng/spx` to install.                                                                     |
 | `claude_code_version`  | `2.1.195`               | Version of `@anthropic-ai/claude-code` to install.                                                           |
-| `timeout_minutes`      | `"20"`                  | Wall-clock budget for the verification skill run.                                                            |
+| `timeout_minutes`      | `"30"`                  | Wall-clock budget for the verification skill run.                                                            |
 
 Secret required by the first Claude Code host slice: either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. When `ANTHROPIC_API_KEY` is set, the host passes `--bare`; when only `CLAUDE_CODE_OAUTH_TOKEN` is set, the host omits `--bare` and passes that token through the scrubbed process environment.
 
