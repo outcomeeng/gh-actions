@@ -29,7 +29,7 @@ jobs:
       # (Settings → Secrets and variables → Actions → Variables). The
       # reusable input is typed as string so `vars.*` (always a string) and
       # the quoted fallback both pass through unchanged.
-      timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '15' }}
+      timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '30' }}
       # gh-actions's own .claude/settings.json enables prose@outcomeeng and
       # spec-tree@outcomeeng, but `use_project_plugins` defaults to false on
       # `spec-tree.yml`, so this self-test exercises the trigger/auth

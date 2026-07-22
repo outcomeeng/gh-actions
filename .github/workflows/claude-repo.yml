@@ -29,4 +29,4 @@ jobs:
       # (Settings -> Secrets and variables -> Actions -> Variables). The
       # reusable input is typed as string so `vars.*` (always a string) and
       # the quoted fallback both pass through unchanged.
-      timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '15' }}
+      timeout_minutes: ${{ vars.CLAUDE_TIMEOUT_MINUTES || '30' }}

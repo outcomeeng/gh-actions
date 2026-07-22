@@ -28,5 +28,5 @@ jobs:
       skill_path: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_PATH || 'src/plugins/spec-tree' }}
       model: ${{ vars.SPEC_TREE_VERIFICATION_MODEL || '' }}
       paths: ${{ vars.SPEC_TREE_VERIFICATION_PATHS || '' }}
-      timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '20' }}
+      timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '30' }}
       allow_branch_preview: true

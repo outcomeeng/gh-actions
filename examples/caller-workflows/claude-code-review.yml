@@ -59,7 +59,7 @@ jobs:
       concurrency_cancel: ${{ vars.CLAUDE_REVIEW_CONCURRENCY_CANCEL != 'false' }}
 
       # Wall-clock budget (minutes) for the Run Claude Code Review step.
-      timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || '15' }}
+      timeout_minutes: ${{ vars.CLAUDE_REVIEW_TIMEOUT_MINUTES || '30' }}
 
       # Claude model id (e.g. `claude-opus-4-7`). Empty = action default.
       model: ${{ vars.CLAUDE_REVIEW_MODEL || '' }}

@@ -74,7 +74,7 @@ jobs:
       claude_code_version: ${{ vars.SPEC_TREE_VERIFICATION_CLAUDE_CODE_VERSION || '2.1.195' }}
 
       # Wall-clock budget (minutes) for the verification skill run.
-      timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '20' }}
+      timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '30' }}
 
       # Beta-only escape hatch. Production callers leave this false.
       allow_branch_preview: ${{ vars.SPEC_TREE_VERIFICATION_ALLOW_BRANCH_PREVIEW == 'true' }}
