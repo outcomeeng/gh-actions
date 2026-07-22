@@ -61,7 +61,7 @@ on:
       timeout_minutes:
         description: "Wall-clock budget in minutes for the agent step."
         type: string
-        default: "20"
+        default: "30"
     secrets:
       ANTHROPIC_API_KEY:
         description: "Anthropic API key used by Claude Code in --bare mode."

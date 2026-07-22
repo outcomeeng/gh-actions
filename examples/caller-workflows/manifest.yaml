@@ -7,17 +7,17 @@ workflows:
     example: examples/caller-workflows/claude.yml
     reusable: .github/workflows/claude.yml
     timeout_var: CLAUDE_TIMEOUT_MINUTES
-    timeout_default: "15"
+    timeout_default: "30"
   - id: claude-code-review
     example: examples/caller-workflows/claude-code-review.yml
     reusable: .github/workflows/claude-code-review.yml
     timeout_var: CLAUDE_REVIEW_TIMEOUT_MINUTES
-    timeout_default: "15"
+    timeout_default: "30"
   - id: spec-tree
     example: examples/caller-workflows/spec-tree.yml
     reusable: .github/workflows/spec-tree.yml
     timeout_var: SPEC_TREE_TIMEOUT_MINUTES
-    timeout_default: "15"
+    timeout_default: "30"
   - id: spec-tree-review
     example: examples/caller-workflows/spec-tree-review.yml
     reusable: .github/workflows/spec-tree-review.yml

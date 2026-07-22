@@ -187,7 +187,7 @@ The Claude-compatible variants are direct, self-contained reusables. They do not
 | `plugin_marketplaces` | (empty)                  | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in                                         |
 | `extra_plugins`       | (empty)                  | Space-separated plugins to install; appends to project list when opted in                                                              |
 | `show_full_output`    | `false`                  | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                                       |
-| `timeout_minutes`     | `"15"`                   | Wall-clock budget (minutes) for the Run Claude Code step; cancels the step when exceeded (minimum 1)                                   |
+| `timeout_minutes`     | `"30"`                   | Wall-clock budget (minutes) for the Run Claude Code step; cancels the step when exceeded (minimum 1)                                   |
 
 ### Review workflow inputs (`spec-tree-review.yml` and `claude-code-review.yml`)
 
@@ -198,24 +198,24 @@ The review prompt and baseline allowlist intentionally differ:
 - `spec-tree-review.yml` bakes in a `REVIEW.md`-aware review prompt and a baseline allowlist for diff chunking: `Bash(gh ...)` plus `Bash(sed:*),Bash(grep:*),Bash(head:*)`.
 - `claude-code-review.yml` uses a compact generic Claude review prompt, exposes `custom_prompt`, and defaults to the `Bash(gh ...)` tools needed to read PR context and post the review comment.
 
-| Input                 | Default                                                                | Description                                                                                                                                                                  |
-| --------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `runner`              | `ubuntu-slim`                                                          | Runner selection. Single label or JSON array (see mention table above)                                                                                                       |
-| `trigger_phrase`      | `@spec-tree` / `@claude`                                               | Trigger phrase forwarded to the action (review does not use this to gate the run). Default is `@spec-tree` on `spec-tree-review.yml`, `@claude` on `claude-code-review.yml`. |
-| `concurrency_cancel`  | `true`                                                                 | Cancel in-progress reviews on new PR update                                                                                                                                  |
-| `custom_prompt`       | (empty)                                                                | `claude-code-review.yml` only. Replaces the default generic review prompt. `spec-tree-review.yml` keeps its baked-in `REVIEW.md` prompt.                                     |
-| `model`               | (empty)                                                                | Claude model id; folded into `claude_args` as `--model`. Empty = action default                                                                                              |
-| `claude_args`         | (empty)                                                                | Extra Claude Code CLI args OTHER than `--allowed-tools` (use `append_allow_list` / `override_allow_list` for tools)                                                          |
-| `append_allow_list`   | (empty)                                                                | Comma-separated tool patterns appended to that workflow's baseline allowlist                                                                                                 |
-| `override_allow_list` | (empty)                                                                | Comma-separated tool patterns that REPLACE that workflow's baseline allowlist entirely                                                                                       |
-| `use_bedrock`         | `false`                                                                | Route Claude through Amazon Bedrock                                                                                                                                          |
-| `use_vertex`          | `false`                                                                | Route Claude through Google Vertex AI                                                                                                                                        |
-| `additional_env`      | `{}`                                                                   | JSON object string of env vars set on the claude-code-action step                                                                                                            |
-| `use_project_plugins` | `false`                                                                | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below)                                                                               |
-| `plugin_marketplaces` | (empty)                                                                | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in                                                                               |
-| `extra_plugins`       | (empty)                                                                | Space-separated plugins to install; appends to project list when opted in                                                                                                    |
-| `show_full_output`    | `false`                                                                | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                                                                             |
-| `timeout_minutes`     | `"30"` for `spec-tree-review.yml`; `"15"` for `claude-code-review.yml` | Wall-clock budget (minutes) for the Run Claude Code Review step (minimum 1)                                                                                                  |
+| Input                 | Default                  | Description                                                                                                                                                                  |
+| --------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runner`              | `ubuntu-slim`            | Runner selection. Single label or JSON array (see mention table above)                                                                                                       |
+| `trigger_phrase`      | `@spec-tree` / `@claude` | Trigger phrase forwarded to the action (review does not use this to gate the run). Default is `@spec-tree` on `spec-tree-review.yml`, `@claude` on `claude-code-review.yml`. |
+| `concurrency_cancel`  | `true`                   | Cancel in-progress reviews on new PR update                                                                                                                                  |
+| `custom_prompt`       | (empty)                  | `claude-code-review.yml` only. Replaces the default generic review prompt. `spec-tree-review.yml` keeps its baked-in `REVIEW.md` prompt.                                     |
+| `model`               | (empty)                  | Claude model id; folded into `claude_args` as `--model`. Empty = action default                                                                                              |
+| `claude_args`         | (empty)                  | Extra Claude Code CLI args OTHER than `--allowed-tools` (use `append_allow_list` / `override_allow_list` for tools)                                                          |
+| `append_allow_list`   | (empty)                  | Comma-separated tool patterns appended to that workflow's baseline allowlist                                                                                                 |
+| `override_allow_list` | (empty)                  | Comma-separated tool patterns that REPLACE that workflow's baseline allowlist entirely                                                                                       |
+| `use_bedrock`         | `false`                  | Route Claude through Amazon Bedrock                                                                                                                                          |
+| `use_vertex`          | `false`                  | Route Claude through Google Vertex AI                                                                                                                                        |
+| `additional_env`      | `{}`                     | JSON object string of env vars set on the claude-code-action step                                                                                                            |
+| `use_project_plugins` | `false`                  | Install plugins and marketplaces from the caller's `.claude/settings.json` (see section below)                                                                               |
+| `plugin_marketplaces` | (empty)                  | Space-separated marketplaces to register (`owner/repo`); appends to project list when opted in                                                                               |
+| `extra_plugins`       | (empty)                  | Space-separated plugins to install; appends to project list when opted in                                                                                                    |
+| `show_full_output`    | `false`                  | Stream full per-turn Claude JSON to the job log (debug only — may expose secrets in tool output)                                                                             |
+| `timeout_minutes`     | `"30"`                   | Wall-clock budget (minutes) for the Run Claude Code Review step (minimum 1)                                                                                                  |
 
 ### Verification host inputs (`spec-tree-verification.yml`)
 
@@ -250,7 +250,7 @@ Mention workflow (`spec-tree.yml`):
 | `SPEC_TREE_RUNNER`              | `runner`              | `ubuntu-slim`    | Single label or JSON-array string. `'["self-hosted","laptop"]'` is one literal string.                                          |
 | `SPEC_TREE_TRIGGER_PHRASE`      | `trigger_phrase`      | `@spec-tree`     | Mention text the workflow listens for. The reusable's authorize job rejects empty or whitespace-only values with a clear error. |
 | `SPEC_TREE_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Set the string `'false'` to opt out of cancel-on-new. Any other value preserves cancel behavior.                                |
-| `SPEC_TREE_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Wall-clock budget in minutes (quoted string).                                                                                   |
+| `SPEC_TREE_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'30'`           | Wall-clock budget in minutes (quoted string).                                                                                   |
 | `SPEC_TREE_MODEL`               | `model`               | (action default) | Claude model id (e.g. `claude-opus-4-7`); folded into `claude_args` as `--model <id>`.                                          |
 | `SPEC_TREE_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args, e.g. `--max-turns 20 --allowed-tools "Read,Grep,Bash(gh pr:*)"`.                                                |
 | `SPEC_TREE_CUSTOM_PROMPT`       | `custom_prompt`       | (empty)          | Single-line custom prompt. Multi-line prompts are awkward in repo vars; edit the workflow file directly for those.              |
@@ -278,7 +278,7 @@ Mention workflow (`claude.yml`):
 | `CLAUDE_RUNNER`              | `runner`              | `ubuntu-slim`    | Same form as the spec-tree mention runner.                                                                    |
 | `CLAUDE_TRIGGER_PHRASE`      | `trigger_phrase`      | `@claude`        | Mention text the workflow listens for; the generic default differs from `@spec-tree`.                         |
 | `CLAUDE_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Set the string `'false'` to opt out of cancel-on-new.                                                         |
-| `CLAUDE_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | Wall-clock budget in minutes (quoted string).                                                                 |
+| `CLAUDE_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'30'`           | Wall-clock budget in minutes (quoted string).                                                                 |
 | `CLAUDE_MODEL`               | `model`               | (action default) | Claude model id; folded into `claude_args` as `--model <id>`.                                                 |
 | `CLAUDE_ARGS`                | `claude_args`         | (empty)          | Extra CLI args. Note the name: `CLAUDE_ARGS`, not `CLAUDE_CLAUDE_ARGS`.                                       |
 | `CLAUDE_CUSTOM_PROMPT`       | `custom_prompt`       | (empty)          | Single-line custom prompt; edit the workflow file directly for multi-line prompts.                            |
@@ -292,7 +292,7 @@ Review workflow (`claude-code-review.yml`):
 | `CLAUDE_REVIEW_RUNNER`              | `runner`              | `ubuntu-slim`    | Same form as mention.                                                                                                     |
 | `CLAUDE_REVIEW_TRIGGER_PHRASE`      | `trigger_phrase`      | `@claude`        | Forwarded for content matching; review fires on every `pull_request` event regardless.                                    |
 | `CLAUDE_REVIEW_CONCURRENCY_CANCEL`  | `concurrency_cancel`  | `true`           | Same semantics as mention.                                                                                                |
-| `CLAUDE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'15'`           | The generic review budget is `'15'`, where `SPEC_TREE_REVIEW_TIMEOUT_MINUTES` defaults to `'30'`.                         |
+| `CLAUDE_REVIEW_TIMEOUT_MINUTES`     | `timeout_minutes`     | `'30'`           | Wall-clock budget in minutes (quoted string).                                                                             |
 | `CLAUDE_REVIEW_MODEL`               | `model`               | (action default) | Same.                                                                                                                     |
 | `CLAUDE_REVIEW_CLAUDE_ARGS`         | `claude_args`         | (empty)          | Extra CLI args OTHER than `--allowed-tools`. Note the name carries `CLAUDE_` twice.                                       |
 | `CLAUDE_REVIEW_CUSTOM_PROMPT`       | `custom_prompt`       | (empty)          | Single-line custom prompt.                                                                                                |
