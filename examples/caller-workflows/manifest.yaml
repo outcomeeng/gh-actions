@@ -27,4 +27,4 @@ workflows:
     example: examples/caller-workflows/spec-tree-verification.yml
     reusable: .github/workflows/spec-tree-verification.yml
     timeout_var: SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES
-    timeout_default: "20"
+    timeout_default: "30"
