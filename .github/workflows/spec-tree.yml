@@ -356,8 +356,8 @@ jobs:
         id: claude
         # `inputs.timeout_minutes` is declared as a string (so callers can
         # forward a `vars.*` value directly), but step-level `timeout-minutes:`
-        # rejects string values outright. fromJSON() parses "15" back to the
-        # integer 15 that the field expects. The `|| '15'` fallback covers
+        # rejects string values outright. fromJSON() parses "30" back to the
+        # integer 30 that the field expects. The `|| '30'` fallback covers
         # the edge case where a caller passes `timeout_minutes: ""`
         # explicitly (which overrides the input default) — without it,
         # fromJSON("") would throw an opaque workflow error.
