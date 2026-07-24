@@ -262,6 +262,18 @@ def check_example(
                     message=f"timeout_minutes default is {reusable_default}, expected manifest {workflow.timeout_default}",
                 )
             )
+    try:
+        reusable_fallback = read_reusable_timeout_fallback(repo_root, workflow)
+    except ValueError as exc:
+        drifts.append(Drift(path=Path(workflow.reusable), message=str(exc)))
+    else:
+        if reusable_fallback != workflow.timeout_default:
+            drifts.append(
+                Drift(
+                    path=Path(workflow.reusable),
+                    message=f"timeout_minutes fallback is {reusable_fallback}, expected manifest {workflow.timeout_default}",
+                )
+            )
     return drifts
 
 
@@ -301,6 +313,18 @@ def read_reusable_timeout_default(repo_root: Path, workflow: CallerWorkflow) -> 
     )
     if match is None:
         msg = f"{workflow.reusable} missing timeout_minutes default"
+        raise ValueError(msg)
+    return match.group("value")
+
+
+def read_reusable_timeout_fallback(repo_root: Path, workflow: CallerWorkflow) -> str:
+    text = (repo_root / workflow.reusable).read_text(encoding="utf-8")
+    match = re.search(
+        r"fromJSON\(inputs\.timeout_minutes\s*\|\|\s*['\"](?P<value>[^'\"]+)['\"]\)",
+        text,
+    )
+    if match is None:
+        msg = f"{workflow.reusable} missing timeout_minutes fallback"
         raise ValueError(msg)
     return match.group("value")
 

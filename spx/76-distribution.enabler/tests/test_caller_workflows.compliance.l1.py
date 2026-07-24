@@ -211,6 +211,10 @@ def test_workspace_reports_manifest_reusable_without_workflow_call(
             path=Path(workflow.reusable),
             message=f"{workflow.reusable} missing timeout_minutes default",
         ),
+        caller_workflows.Drift(
+            path=Path(workflow.reusable),
+            message=f"{workflow.reusable} missing timeout_minutes fallback",
+        ),
     ]
 
 
@@ -387,6 +391,24 @@ def test_workspace_reports_reusable_timeout_default_drift(tmp_path: Path) -> Non
     ]
 
 
+def test_workspace_reports_reusable_timeout_fallback_drift(tmp_path: Path) -> None:
+    workflow = _workflow(Path("examples/caller-workflows/example.yml"))
+    _write_workspace_fixture(
+        tmp_path,
+        workflow,
+        EXPECTED_SHA,
+        reusable_fallback="20",
+    )
+    _write_readme(tmp_path, workflow, EXPECTED_SHA)
+
+    assert caller_workflows.check_workspace(tmp_path, EXPECTED_SHA) == [
+        caller_workflows.Drift(
+            path=Path(workflow.reusable),
+            message="timeout_minutes fallback is 20, expected manifest 15",
+        )
+    ]
+
+
 def test_write_workspace_updates_examples_and_manifest(tmp_path: Path) -> None:
     workflow = _workflow(Path("examples/caller-workflows/example.yml"))
     examples_dir = _write_workspace_fixture(tmp_path, workflow, EXPECTED_SHA)
@@ -464,6 +486,7 @@ def _write_workspace_fixture(
     sha: str,
     *,
     reusable_timeout: str = "15",
+    reusable_fallback: str = "15",
     write_reusable: bool = True,
 ) -> Path:
     examples_dir = tmp_path / "examples" / "caller-workflows"
@@ -475,7 +498,12 @@ def _write_workspace_fixture(
         _manifest_text(workflow), encoding="utf-8"
     )
     if write_reusable:
-        _write_reusable(tmp_path, workflow, reusable_timeout)
+        _write_reusable(
+            tmp_path,
+            workflow,
+            reusable_timeout,
+            reusable_fallback,
+        )
     return examples_dir
 
 
@@ -483,12 +511,17 @@ def _write_reusable(
     tmp_path: Path,
     workflow: caller_workflows.CallerWorkflow,
     reusable_timeout: str = "15",
+    reusable_fallback: str = "15",
 ) -> None:
     reusable_path = tmp_path / workflow.reusable
-    _write_workflow_call(reusable_path, reusable_timeout)
+    _write_workflow_call(reusable_path, reusable_timeout, reusable_fallback)
 
 
-def _write_workflow_call(reusable_path: Path, reusable_timeout: str = "15") -> None:
+def _write_workflow_call(
+    reusable_path: Path,
+    reusable_timeout: str = "15",
+    reusable_fallback: str = "15",
+) -> None:
     reusable_path.parent.mkdir(parents=True, exist_ok=True)
     reusable_path.write_text(
         "\n".join(
@@ -500,6 +533,10 @@ def _write_workflow_call(reusable_path: Path, reusable_timeout: str = "15") -> N
                 "        required: false",
                 "        type: string",
                 f'        default: "{reusable_timeout}"',
+                "jobs:",
+                "  invoke:",
+                "    steps:",
+                f"      - timeout-minutes: ${{{{ fromJSON(inputs.timeout_minutes || '{reusable_fallback}') }}}}",
                 "",
             ]
         ),
