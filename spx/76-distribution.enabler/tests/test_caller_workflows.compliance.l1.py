@@ -384,6 +384,28 @@ def test_workspace_reports_missing_readme_snippet(tmp_path: Path) -> None:
     ]
 
 
+def test_readme_drift_rejects_tracked_ref_comment_prefix_match(
+    tmp_path: Path,
+) -> None:
+    workflow = _workflow(Path("examples/caller-workflows/example.yml"))
+    manifest = caller_workflows.CallerManifest(
+        repository="outcomeeng/gh-actions",
+        tracked_ref="release",
+        default_expected_sha=EXPECTED_SHA,
+        workflows=(workflow,),
+    )
+    _write_readme(tmp_path, workflow, EXPECTED_SHA)
+
+    assert caller_workflows.check_readme_snippets(
+        tmp_path, manifest, workflow, EXPECTED_SHA
+    ) == [
+        caller_workflows.Drift(
+            path=caller_workflows.README_PATH,
+            message=f"README missing release-lane snippet for {workflow.reusable}",
+        )
+    ]
+
+
 def test_workspace_reports_reusable_timeout_default_drift(tmp_path: Path) -> None:
     workflow = _workflow(Path("examples/caller-workflows/example.yml"))
     _write_workspace_fixture(tmp_path, workflow, EXPECTED_SHA, reusable_timeout="20")
