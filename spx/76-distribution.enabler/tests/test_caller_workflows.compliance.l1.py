@@ -110,13 +110,19 @@ def test_drift_reports_each_stale_executable_uses_line(tmp_path: Path) -> None:
 
 def test_drift_rejects_tracked_ref_comment_prefix_match(tmp_path: Path) -> None:
     workflow = _workflow()
+    manifest = caller_workflows.CallerManifest(
+        repository="outcomeeng/gh-actions",
+        tracked_ref="release",
+        default_expected_sha=EXPECTED_SHA,
+        workflows=(workflow,),
+    )
     _write_reusable(tmp_path, workflow)
     (tmp_path / workflow.example).write_text(
         "\n".join(
             [
                 "jobs:",
                 "  call:",
-                f"    uses: outcomeeng/gh-actions/{workflow.reusable}@{EXPECTED_SHA} # maintainer note",
+                f"    uses: outcomeeng/gh-actions/{workflow.reusable}@{EXPECTED_SHA} # main",
                 "    with:",
                 "      timeout_minutes: ${{ vars.TEST_TIMEOUT || '15' }}",
                 "",
@@ -126,7 +132,7 @@ def test_drift_rejects_tracked_ref_comment_prefix_match(tmp_path: Path) -> None:
     )
 
     drifts = caller_workflows.check_example(
-        tmp_path, _manifest(workflow), workflow, EXPECTED_SHA
+        tmp_path, manifest, workflow, EXPECTED_SHA
     )
 
     assert drifts == [
