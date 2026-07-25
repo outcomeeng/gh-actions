@@ -1,6 +1,6 @@
 # Agent Invocation
 
-PROVIDES a common agent-run setup — coding-agent selection (Claude Code, Codex, Gemini), provider and runtime routing (Anthropic API, Bedrock, Vertex, OpenAI / cloud review, and further providers), subscription-backed agent authentication, agent plugin and marketplace installation, and tool-allowlist composition
+PROVIDES a common agent-run setup — coding-agent selection (Claude Code, Codex, Gemini), provider and runtime routing (Anthropic API, Bedrock, Vertex, OpenAI / cloud review, and further providers), subscription-backed agent authentication, agent plugin and marketplace installation, and tool-boundary composition
 SO THAT this product's agent-surface nodes
 CAN invoke an AI coding agent through one configurable shape regardless of agent and provider, with the required plugins installed and the matching tools allowed
 

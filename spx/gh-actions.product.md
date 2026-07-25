@@ -33,7 +33,7 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 - Provider and runtime integration: Anthropic (API, Bedrock, Vertex), OpenAI / cloud review, and further providers behind a common invocation shape
 - Supply-chain security and least privilege: full-SHA pinning, Renovate-managed updates, top-level `permissions: {}` with explicit per-job grants, secrets that never cross a `run:` body
 - Authorization and workflow-validation gating: collaborator-permission gate, caller-workflow byte-match validation
-- Agent and plugin provisioning: plugin and marketplace install, tool-allowlist composition
+- Agent and plugin provisioning: plugin and marketplace install, tool-boundary composition
 - Consumer onboarding and configuration: copy-paste caller templates, repo-variable overrides, documentation
 - Self-test harness: in-repo callers exercising the reusables against this repository
 - Secret and credential provisioning tooling
