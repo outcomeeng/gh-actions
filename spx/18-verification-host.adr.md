@@ -14,7 +14,7 @@ The Codex adapter uses ChatGPT-managed subscription authentication rather than a
 
 Authorization and filtering are pre-agent concerns: the host verifies that the pull-request author is a trusted repository actor, then decides whether a verdict is warranted from the changed-file set before paying for an agent run. An untrusted author, empty change, or out-of-scope change starts no agent.
 
-The sanitized-launch discipline is specific to the verification host because its verdict skill must stay CI-agnostic. It does not extend to the mention and general-review surfaces, whose documented contract requires the runner-injected credentials `anthropics/claude-code-action` reads for its early PR-branch `git fetch` (CLAUDE.md Security section); those surfaces are contained at the job-permissions layer, not by an environment scrub.
+The sanitized-launch discipline is specific to the verification host because its verdict skill must stay CI-agnostic. It does not extend to the mention and general-review surfaces, whose `anthropics/claude-code-action` invocation reads runner-injected credentials while fetching the PR branch; those surfaces are contained at the job-permissions layer, not by an environment scrub.
 
 Alternatives rejected:
 
