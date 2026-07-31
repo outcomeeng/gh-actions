@@ -65,3 +65,29 @@ that reflects `is_error`, or if the verification host of
 `spx/18-verification-host.adr.md` supersedes these action-based surfaces —
 that host invokes the agent CLI directly and owns its own outcome resolution,
 so it never inherits this defect.
+
+## 5. The outcome-resolution check has no regression evidence for its failure branches
+
+The completion check of Issue 4 is inline shell in four workflow files. The
+self-test harness exercises it end to end on every pull request, but only ever
+along its success branch — a real agent run that completes. Its failure
+branches (absent record, malformed record, no result entry, a result reporting
+an error) run in no automated evidence lane, so a future edit to the shell can
+silently stop rejecting the case the check exists to reject, which is the
+original false-green failure mode wearing a different hat.
+
+`spx/15-evidence-model.adr.md` scopes the pytest `[test]` lane to deterministic
+Python in the top-level `gh_actions` package and forbids a workflow node
+carrying a `[test]` assertion over workflow YAML. Inline workflow shell falls
+between those: executing the extracted block against fixtures would assert real
+behavior rather than YAML strings, but it is not `gh_actions` package Python and
+the ADR admits no lane for it. Moving the logic into that package is not
+available either — a consumer pins the reusable workflow alone, and this
+product's workflows are deliberately self-contained so no second checkout of
+`outcomeeng/gh-actions` is required at runtime.
+
+Resolve at the ADR: decide whether the evidence model gains a lane for inline
+workflow shell executed against fixtures, or whether `[audit]` plus the
+success-path self-test is the accepted evidence for this class. Until then the
+failure branches carry the fixtures recorded in the pull request that
+introduced them and no checked-in lane.
