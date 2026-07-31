@@ -408,7 +408,7 @@ jobs:
           # would make that reader throw. Reject both here so every malformed
           # record produces the same actionable message rather than a raw jq
           # error under `set -e`.
-          if ! jq -e 'type == "array"' "$EXECUTION_FILE" >/dev/null 2>&1; then
+          if ! jq -e 'type == "array" and all(.[]; type == "object")' "$EXECUTION_FILE" >/dev/null 2>&1; then
             echo "::error::The agent's execution record is not a JSON array of messages, so the run ended before finishing its log. Inspect the preceding step's log." >&2
             exit 1
           fi
@@ -432,6 +432,9 @@ jobs:
             # One turn at zero cost means the run was rejected before it did any
             # work; that is an authentication result, not a review outcome, and
             # it needs different remediation than a run that worked and failed.
+            # This reads only inside the failure branch above, so a legitimate
+            # run that happens to finish in one turn at no cost never reaches
+            # it — such a run reports no error and passes further up.
             turns=$(printf '%s' "$result" | jq -r '.num_turns // 0')
             cost=$(printf '%s' "$result" | jq -r '.total_cost_usd // 0')
             if [[ "$turns" -le 1 ]] && [[ "$cost" == "0" ]]; then
