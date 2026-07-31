@@ -403,6 +403,14 @@ jobs:
             exit 1
           fi
 
+          # A run killed mid-write leaves a truncated record. Reject it with the
+          # same actionable message shape as every other branch rather than
+          # letting jq surface a raw parse error under `set -e`.
+          if ! jq empty "$EXECUTION_FILE" 2>/dev/null; then
+            echo "::error::The agent's execution record is not valid JSON, so the run ended before finishing its log. Inspect the preceding step's log." >&2
+            exit 1
+          fi
+
           result=$(jq -c 'map(select(.type == "result")) | last // empty' "$EXECUTION_FILE")
           if [[ -z "$result" ]]; then
             echo "::error::The agent's execution record carries no result entry, so the run ended before reporting an outcome. Inspect the preceding step's log." >&2
