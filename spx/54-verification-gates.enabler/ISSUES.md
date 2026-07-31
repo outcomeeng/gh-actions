@@ -59,6 +59,21 @@ The action is an upstream dependency this product consumes and does not build
 here. Each agent-invoking workflow instead resolves its own outcome from the
 run's execution record, per the product-level assertions on outcome resolution.
 
+**The output the check reads.** `execution_file` is a declared output of the
+pinned action, not an internal detail: `action.yml` at
+`558b1d6cab4085c7753fe402c10bef0fbb92ac7a` declares it as "Path to the Claude
+Code execution output file". `base-action/src/run-claude-sdk.ts` writes the
+record unconditionally on every run and `base-action/src/execution-file.ts`
+sets the output whenever that file exists; neither path is gated by
+`show_full_output`, which controls only whether per-turn output is streamed to
+the job log. The self-test harness confirms this on every pull request — the
+check runs against a real invocation with `show_full_output` at its default and
+reads real turn and cost values, so an output that vanished or fell empty would
+fail this repository's own pull requests before reaching a consumer. Because
+the output is a pinned dependency's surface rather than a documented
+compatibility contract, an action-version bump is the point at which it is
+re-confirmed.
+
 **Resolution path.** The local check is a defence against a specific upstream
 defect, not product truth of its own. Retire it if the action gains an outcome
 that reflects `is_error`, or if the verification host of
