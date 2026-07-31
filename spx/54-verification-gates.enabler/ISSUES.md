@@ -34,3 +34,34 @@ tracked in Issue 2: add the host-owned persistence step to
 `.github/workflows/spec-tree-verification.yml`, set the `SPX_VERDICT_*` sink
 contract only on that step, and keep the agent subprocess free of sink routing
 and write credentials per `spx/18-verification-host.adr.md`.
+
+## 4. The invoking action reports success for an agent run that errored
+
+`anthropics/claude-code-action` derives a run's outcome from the result
+record's `subtype` alone and does not consult `is_error`
+(`base-action/src/run-claude-sdk.ts`, pinned at
+`558b1d6cab4085c7753fe402c10bef0fbb92ac7a`):
+
+```ts
+const isSuccess = resultMessage.subtype === "success";
+result.conclusion = isSuccess ? "success" : "failure";
+```
+
+A run rejected before it does any work still emits
+`{"subtype": "success", "is_error": true, "num_turns": 1, "total_cost_usd": 0}`,
+so the action concludes success, the step stays green, and the gate's check
+reports a review that never ran. An expired agent credential reproduces it in
+under two seconds. Observed on a consumer repository, where three consecutive
+runs reported a passing review check while posting no review.
+
+The action is an upstream dependency this product consumes and does not build
+(`spx/gh-actions.product.md`, excluded scope), so the root cause is not fixable
+here. Each agent-invoking workflow instead resolves its own outcome from the
+run's execution record, per the product-level assertions on outcome resolution.
+
+**Resolution path.** The local check is a defence against a specific upstream
+defect, not product truth of its own. Retire it if the action gains an outcome
+that reflects `is_error`, or if the verification host of
+`spx/18-verification-host.adr.md` supersedes these action-based surfaces —
+that host invokes the agent CLI directly and owns its own outcome resolution,
+so it never inherits this defect.
