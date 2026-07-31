@@ -56,6 +56,8 @@ CONTRIBUTING TO lower CI-maintenance and security-regression cost and consistent
 - ALWAYS: declare top-level `permissions: {}` and grant each job only the permissions it needs — least privilege bounds the blast radius of a compromised step ([audit])
 - ALWAYS: gate every agent-invoking job behind an authorization check against the repository collaborator-permission API — only `admin`, `maintain`, or `write` actors trigger an agent run ([audit])
 - NEVER: interpolate a secret or user-controlled input into a `run:` script body — interpolation resolves before the shell parses the line and enables injection ([audit])
+- ALWAYS: an agent-invoking job resolves its own outcome from the agent run's result record and fails when that record is absent or reports an error — a job that adopts the invoking action's verdict reports a passing check for a run that produced nothing, and a consumer reads that check as verification it never received ([audit])
+- NEVER: that outcome check reads the agent's findings or verdict — it resolves completion alone, so a completed run reporting no findings passes exactly as one reporting many, preserving the findings-only boundary of `spx/18-verification-host.adr.md` ([audit])
 - NEVER: restate the agent skill and prompt governance (governed at `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler/reviewing-changes.md`), the review taxonomy (governed at `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/reviewing.md`), or the reviewer-only decision (governed at `plugins/spx/15-merging.pdr.md`) — cross-reference them so the two surfaces cannot drift ([audit])
 
 ## Open decisions
