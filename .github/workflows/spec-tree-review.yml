@@ -600,3 +600,53 @@ jobs:
             ## **No findings:** confirm the cross-checks first
 
             Before posting "no findings", for each substantially new runtime function the changeset introduces, state internally which existing collaborator or canonical helper it must agree with, and confirm the agreement by reading both with `sed` and `grep`. A single satisfied sub-check — for example, an env-var override at one layer — does not clear the area; name the collaborator and verify the relationship explicitly. When every such cross-check passes, post a one-line comment saying so. NEVER invent lower-priority findings to prove the review happened, and NEVER generalize "no gap here" from one verified relationship to the whole area.
+
+      - name: Verify the agent run completed
+        # The invoking action derives its own outcome from the result record's
+        # `subtype` and does not consult `is_error`, so a run that aborted
+        # still leaves the step green — an expired credential produces
+        # `{"subtype": "success", "is_error": true, "num_turns": 1,
+        # "total_cost_usd": 0}` in under two seconds. Without this step the
+        # check reports a completed agent run that never happened.
+        #
+        # This resolves completion only. It never reads the agent's findings:
+        # a run that completes and reports nothing passes exactly like one
+        # that reports many, so the findings-only boundary is preserved.
+        env:
+          EXECUTION_FILE: ${{ steps.claude-review.outputs.execution_file }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${EXECUTION_FILE:-}" || ! -f "$EXECUTION_FILE" ]]; then
+            echo "::error::The agent wrote no execution record, so this check cannot stand for a completed agent run. Inspect the preceding step's log." >&2
+            exit 1
+          fi
+
+          result=$(jq -c 'map(select(.type == "result")) | last // empty' "$EXECUTION_FILE")
+          if [[ -z "$result" ]]; then
+            echo "::error::The agent's execution record carries no result entry, so the run ended before reporting an outcome. Inspect the preceding step's log." >&2
+            exit 1
+          fi
+
+          is_error=$(printf '%s' "$result" | jq -r '.is_error // false')
+          subtype=$(printf '%s' "$result" | jq -r '.subtype // ""')
+
+          if [[ "$is_error" == "true" || "$subtype" != "success" ]]; then
+            printf '%s\n' "$result" | jq -r '
+              "Agent run did not complete: subtype=\(.subtype // "none") " +
+              "is_error=\(.is_error // false) turns=\(.num_turns // 0) " +
+              "cost_usd=\(.total_cost_usd // 0) duration_ms=\(.duration_ms // 0)"
+            ' >&2
+            echo "::error::The agent run reported an error, so this check does not stand for a completed agent run." >&2
+            # One turn at zero cost means the run was rejected before it did any
+            # work; that is an authentication result, not a review outcome, and
+            # it needs different remediation than a run that worked and failed.
+            turns=$(printf '%s' "$result" | jq -r '.num_turns // 0')
+            cost=$(printf '%s' "$result" | jq -r '.total_cost_usd // 0')
+            if [[ "$turns" -le 1 ]] && [[ "$cost" == "0" ]]; then
+              echo "::error::The run was rejected before it began — one turn at zero cost. Verify the agent credential this workflow receives is present and unexpired." >&2
+            fi
+            exit 1
+          fi
+
+          echo "Agent run completed: $(printf '%s' "$result" | jq -r '"turns=\(.num_turns // 0) cost_usd=\(.total_cost_usd // 0)"')"
