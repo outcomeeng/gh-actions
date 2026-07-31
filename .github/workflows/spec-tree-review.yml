@@ -622,11 +622,13 @@ jobs:
             exit 1
           fi
 
-          # A run killed mid-write leaves a truncated record. Reject it with the
-          # same actionable message shape as every other branch rather than
-          # letting jq surface a raw parse error under `set -e`.
-          if ! jq empty "$EXECUTION_FILE" 2>/dev/null; then
-            echo "::error::The agent's execution record is not valid JSON, so the run ended before finishing its log. Inspect the preceding step's log." >&2
+          # A run killed mid-write leaves a truncated record, and a record whose
+          # top level is not the array of messages the reader below iterates
+          # would make that reader throw. Reject both here so every malformed
+          # record produces the same actionable message rather than a raw jq
+          # error under `set -e`.
+          if ! jq -e 'type == "array"' "$EXECUTION_FILE" >/dev/null 2>&1; then
+            echo "::error::The agent's execution record is not a JSON array of messages, so the run ended before finishing its log. Inspect the preceding step's log." >&2
             exit 1
           fi
 
