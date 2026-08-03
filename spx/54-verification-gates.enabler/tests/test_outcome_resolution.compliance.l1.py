@@ -106,18 +106,31 @@ def test_incomplete_run_fails(workflow: str, fixture: str, condition: str) -> No
 
 @pytest.mark.parametrize("workflow", WORKFLOWS)
 def test_absent_record_fails(workflow: str, tmp_path) -> None:
-    """A record the agent never wrote fails the job."""
+    """A record the agent never wrote fails the job with an actionable message."""
     result = _run(workflow, str(tmp_path / "claude-execution-output.json"))
 
     assert result.returncode != 0, f"{workflow}: accepted an absent record"
+    assert "::error::" in result.stderr, (
+        f"{workflow}: rejected an absent record without an actionable message\n"
+        f"stderr: {result.stderr}"
+    )
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS)
 def test_unset_record_path_fails(workflow: str) -> None:
-    """An empty record path fails the job rather than reading an unrelated file."""
+    """An empty record path fails the job rather than reading an unrelated file.
+
+    The rejection carries an actionable message like every other: an operator
+    facing an unset output should be pointed at the preceding step's log, not
+    left with a bare non-zero exit.
+    """
     result = _run(workflow, "")
 
     assert result.returncode != 0, f"{workflow}: accepted an empty record path"
+    assert "::error::" in result.stderr, (
+        f"{workflow}: rejected an empty record path without an actionable "
+        f"message\nstderr: {result.stderr}"
+    )
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS)
