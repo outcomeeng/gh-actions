@@ -30,6 +30,10 @@ Alternatives rejected:
 
 ## Verification
 
+### Testing
+
+- ALWAYS: structural and shell-injection rules (SHA-pinning, no secrets in `run:`, the `permissions:` shape) are evidenced by `actionlint` + `shellcheck` conformance in `ci.yml` ([conformance])
+
 ### Audit
 
 - ALWAYS: a `[test]` assertion in the tree targets either deterministic Python in the top-level `gh_actions` package or a workflow step's inline shell executed against fixture inputs, its test co-located at the serving node's `spx/<node>/tests/` and named per the canonical `test_<subject>.<evidence>.<level>.py` convention ([audit])
@@ -37,7 +41,6 @@ Alternatives rejected:
 - ALWAYS: a step whose inline shell is duplicated across workflow files carries evidence that every copy agrees, since nothing else establishes that a fix applied to one reached the others ([audit])
 - ALWAYS: the `gh_actions` package's pytest-lane test infrastructure — harnesses, generators, and inert fixtures such as captured reviewer-comment payloads — lives at `gh_actions_testing/{harnesses,generators,fixtures}/`, outside `spx/` and outside any `tests/` directory, per `plugins/spx/31-outcomeeng.enabler/31-verification.enabler/31-test-verification.enabler/15-test-infrastructure.pdr.md`; a `tests/` directory holds only typed assertion files ([audit])
 - ALWAYS: a reusable workflow's end-to-end behavior is evidenced by a self-test caller in `spx/21-self-test-harness.enabler`, not by an assertion over its YAML ([audit])
-- ALWAYS: structural and shell-injection rules (SHA-pinning, no secrets in `run:`, the `permissions:` shape) are evidenced by `actionlint` + `shellcheck` conformance in `ci.yml` ([audit])
 - NEVER: a workflow node carries a `[test]` assertion that asserts over workflow YAML strings rather than executing something — matching the text of a step, its keys, or its ordering is formatting evidence, and the extracted-shell lane above is admitted only because it runs the step's logic and observes what that logic does ([audit])
 - NEVER: the product fabricates a top-level `infrastructure → testing → {generators, fixtures, harnesses}` *spec subtree* solely because test infrastructure exists — the infrastructure is governed by the node whose assertions depend on it and implemented at the `gh_actions_testing/` home above; the self-test harness enabler is the testing-infrastructure analog for workflow behavior ([audit])
 - NEVER: an assertion carries `[eval]` — this product ships no LLM-graded output of its own; the agent's review behavior is governed by `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler/reviewing-changes.md` and cross-referenced, so the `[audit]`, `actionlint`/`shellcheck` conformance, and `gh_actions`-package-scoped `[test]` lanes above cover every assertion ([audit])
