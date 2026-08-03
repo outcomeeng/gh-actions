@@ -48,6 +48,26 @@ def workflow_path(workflow: str) -> Path:
     return repository_root() / ".github" / "workflows" / workflow
 
 
+def workflows_carrying_step(step_name: str) -> list[str]:
+    """Name every workflow file whose jobs carry a step with this name.
+
+    The carrying set is discovered rather than listed by hand, so a workflow
+    that gains the step later is covered without anyone remembering to add it.
+    A caller that requires the step to exist must assert the result is
+    non-empty: a renamed or deleted step yields an empty discovery, and a
+    parametrization over an empty list would otherwise pass by running nothing.
+    """
+    workflows_dir = repository_root() / ".github" / "workflows"
+    carrying = []
+    for path in sorted(workflows_dir.glob("*.yml")):
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for job in (document.get("jobs") or {}).values():
+            if any(step.get("name") == step_name for step in job.get("steps") or []):
+                carrying.append(path.name)
+                break
+    return carrying
+
+
 def read_step_shell(workflow: str, step_name: str) -> StepShell:
     """Return the named step's inline shell from the given workflow file.
 

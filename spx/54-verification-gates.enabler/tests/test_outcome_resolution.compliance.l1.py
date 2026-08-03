@@ -28,16 +28,29 @@ from gh_actions_testing.harnesses.workflow_steps import (
     fixture_path,
     read_step_shell,
     run_step_shell,
+    workflows_carrying_step,
 )
 
 STEP_NAME = "Verify the agent run completed"
 
-WORKFLOWS = [
-    "spec-tree-review.yml",
-    "claude-code-review.yml",
-    "claude.yml",
-    "spec-tree.yml",
-]
+# Discovered, not listed by hand, so a workflow that gains the step later is
+# covered without anyone remembering to add it here. test_step_is_carried
+# guards the discovery: an empty list would let every parametrized case pass
+# by running nothing.
+WORKFLOWS = workflows_carrying_step(STEP_NAME)
+
+
+def test_step_is_carried() -> None:
+    """The step exists somewhere, so the parametrized evidence runs at all.
+
+    A renamed or deleted step yields an empty discovery; without this guard the
+    suite would go green while exercising nothing.
+    """
+    assert WORKFLOWS, (
+        f"no workflow carries a step named {STEP_NAME!r}; the parametrized "
+        "cases below would all pass vacuously"
+    )
+
 
 PASSING_RECORDS = [
     ("execution_completed.json", "a completed run reporting no findings"),
