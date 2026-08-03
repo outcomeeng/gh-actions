@@ -2,7 +2,7 @@
   {
     "type": "result",
     "subtype": "error_max_turns",
-    "is_error": true,
+    "is_error": false,
     "duration_ms": 921004,
     "num_turns": 50,
     "total_cost_usd": 3.2041

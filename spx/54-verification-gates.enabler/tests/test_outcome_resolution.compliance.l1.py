@@ -2,9 +2,13 @@
 
 The rule is a boundary, so the cases are the records that must be rejected: a
 record that is absent, unreadable as the array of messages the step iterates,
-carrying no result entry, or carrying a result that reports an error. One record
-stands for the passing side so the rejection cannot be produced by a step that
-rejects everything.
+carrying no result entry, or carrying a result that reports an error. The
+passing side is a differential pair — a completed run reporting nothing and a
+completed run reporting many findings — so the rejection cannot be produced by
+a step that rejects everything, and a step that started reading findings could
+not treat the two alike. The two error records isolate one disjunct each:
+`execution_error_flag.json` raises only the error flag and
+`execution_error_subtype.json` only the non-success subtype.
 
 `execution_completed.json` and `execution_error_flag.json` are real records
 captured from live runs — the second is the one that produced a passing check
@@ -35,9 +39,14 @@ WORKFLOWS = [
     "spec-tree.yml",
 ]
 
+PASSING_RECORDS = [
+    ("execution_completed.json", "a completed run reporting no findings"),
+    ("execution_completed_findings.json", "a completed run reporting findings"),
+]
+
 REJECTED_RECORDS = [
-    ("execution_error_flag.json", "a result reporting an error"),
-    ("execution_error_subtype.json", "a result whose subtype is not success"),
+    ("execution_error_flag.json", "a result raising only the error flag"),
+    ("execution_error_subtype.json", "a result with only a non-success subtype"),
     ("execution_no_result.json", "no result entry"),
     ("execution_no_messages.json", "no messages at all"),
     ("execution_truncated.json", "a record truncated mid-write"),
@@ -55,12 +64,18 @@ def _run(workflow: str, execution_file: str):
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS)
-def test_completed_run_passes(workflow: str) -> None:
-    """A record showing the run completed leaves the job passing."""
-    result = _run(workflow, str(fixture_path("execution_completed.json")))
+@pytest.mark.parametrize("fixture,condition", PASSING_RECORDS)
+def test_completed_run_passes(workflow: str, fixture: str, condition: str) -> None:
+    """A record showing the run completed leaves the job passing.
+
+    The two records agree on completion and differ only in the findings they
+    carry, so a step that passes one and not the other has started reading
+    findings — the boundary the check must never cross.
+    """
+    result = _run(workflow, str(fixture_path(fixture)))
 
     assert result.returncode == 0, (
-        f"{workflow}: a completed run was rejected\n{result.stderr}"
+        f"{workflow}: rejected {condition} ({fixture})\n{result.stderr}"
     )
 
 

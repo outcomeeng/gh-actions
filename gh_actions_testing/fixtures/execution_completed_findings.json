@@ -1,0 +1,22 @@
+[
+  {
+    "type": "system",
+    "subtype": "init",
+    "message": "Claude Code initialized",
+    "model": "claude-sonnet-5"
+  },
+  {
+    "type": "assistant",
+    "message": "Reviewed the diff and reporting three findings."
+  },
+  {
+    "type": "result",
+    "subtype": "success",
+    "is_error": false,
+    "duration_ms": 301882,
+    "num_turns": 31,
+    "total_cost_usd": 1.1930055,
+    "permission_denials_count": 0,
+    "result": "BLOCKING: secret interpolated into a run: body\nBLOCKING: action reference is not SHA-pinned\nDEBT: job lacks a timeout-minutes bound"
+  }
+]
