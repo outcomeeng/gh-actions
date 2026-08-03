@@ -1,7 +1,7 @@
 # Reusable Spec Tree verification host.
 #
 # Runs a caller-selected marketplace skill against a pull request through a
-# sanitized Claude Code CLI subprocess. The workflow owns GitHub plumbing,
+# sanitized coding-agent CLI subprocess. The workflow owns GitHub plumbing,
 # checkout, authorization, filtering, and summaries; verdict judgment stays in
 # the installed skill.
 
@@ -27,15 +27,15 @@ on:
         type: string
         required: true
       skill_path:
-        description: "Path within the skill repository to the Claude plugin directory."
+        description: "Path within the skill repository to the agent plugin directory."
         type: string
         default: src/plugins/spec-tree
       agent:
-        description: "Agent adapter. Only claude-code is implemented in this first host slice."
+        description: "Agent adapter. Supported values: claude-code, codex."
         type: string
         default: claude-code
       model:
-        description: "Claude model id. Empty means defer to the CLI default."
+        description: "Agent model id. Empty means defer to the selected CLI default."
         type: string
         default: ""
       paths:
@@ -58,6 +58,10 @@ on:
         description: "Version of @anthropic-ai/claude-code to install."
         type: string
         default: "2.1.195" # renovate: datasource=npm depName=@anthropic-ai/claude-code
+      codex_version:
+        description: "Version of @openai/codex to install."
+        type: string
+        default: "0.146.0" # renovate: datasource=npm depName=@openai/codex
       timeout_minutes:
         description: "Wall-clock budget in minutes for the agent step."
         type: string
@@ -68,6 +72,9 @@ on:
         required: false
       CLAUDE_CODE_OAUTH_TOKEN:
         description: "Claude Code OAuth token used when ANTHROPIC_API_KEY is not set."
+        required: false
+      CODEX_ACCESS_TOKEN:
+        description: "Codex access token for ChatGPT-workspace subscription authentication."
         required: false
 
 permissions: {}
@@ -374,13 +381,32 @@ jobs:
 
       - name: Install verification CLIs
         env:
+          AGENT: ${{ inputs.agent }}
           SPX_VERSION: ${{ inputs.spx_version }}
           CLAUDE_CODE_VERSION: ${{ inputs.claude_code_version }}
+          CODEX_VERSION: ${{ inputs.codex_version }}
         run: |
           set -euo pipefail
-          npm install --global "@outcomeeng/spx@$SPX_VERSION" "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
+          packages=("@outcomeeng/spx@$SPX_VERSION")
+          case "$AGENT" in
+            claude-code)
+              packages+=("@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION")
+              ;;
+            codex)
+              packages+=("@openai/codex@$CODEX_VERSION")
+              ;;
+            *)
+              echo "::error::Unsupported verification agent '$AGENT'. Supported values: claude-code, codex."
+              exit 1
+              ;;
+          esac
+          npm install --global "${packages[@]}"
           spx --version
-          claude --version
+          if [[ "$AGENT" == "claude-code" ]]; then
+            claude --version
+          else
+            codex --version
+          fi
 
       - name: Validate verification inputs
         env:
@@ -390,12 +416,9 @@ jobs:
           SKILL_SOURCE_ROOT: ${{ runner.temp }}/verification-skill-source
           ANTHROPIC_API_KEY_VALUE: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN_VALUE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          CODEX_ACCESS_TOKEN_VALUE: ${{ secrets.CODEX_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ "$AGENT" != "claude-code" ]]; then
-            echo "::error::Unsupported verification agent '$AGENT'. This host slice implements claude-code only."
-            exit 1
-          fi
           if ! [[ "$SKILL" =~ ^[A-Za-z0-9_-]+$ ]]; then
             echo "::error::skill must contain only letters, numbers, underscores, or hyphens."
             exit 1
@@ -404,18 +427,69 @@ jobs:
             echo "::error::skill_path must be a relative path within the skill repository and must not contain '..'."
             exit 1
           fi
-          if [[ ! -f "$SKILL_SOURCE_ROOT/$SKILL_PATH/.claude-plugin/plugin.json" ]]; then
-            echo "::error::Skill plugin path '$SKILL_PATH' does not contain .claude-plugin/plugin.json."
-            exit 1
-          fi
           if [[ ! -d "$SKILL_SOURCE_ROOT/$SKILL_PATH/skills/$SKILL" ]]; then
             echo "::error::Skill '$SKILL' was not found under '$SKILL_PATH/skills'."
             exit 1
           fi
-          if [[ -z "${ANTHROPIC_API_KEY_VALUE//[[:space:]]/}" && -z "${CLAUDE_CODE_OAUTH_TOKEN_VALUE//[[:space:]]/}" ]]; then
-            echo "::error::The verification host requires either ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN for Claude Code."
-            exit 1
-          fi
+          case "$AGENT" in
+            claude-code)
+              if [[ ! -f "$SKILL_SOURCE_ROOT/$SKILL_PATH/.claude-plugin/plugin.json" ]]; then
+                echo "::error::Skill plugin path '$SKILL_PATH' does not contain .claude-plugin/plugin.json."
+                exit 1
+              fi
+              if [[ -z "${ANTHROPIC_API_KEY_VALUE//[[:space:]]/}" && -z "${CLAUDE_CODE_OAUTH_TOKEN_VALUE//[[:space:]]/}" ]]; then
+                echo "::error::The verification host requires either ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN for Claude Code."
+                exit 1
+              fi
+              ;;
+            codex)
+              if [[ ! -f "$SKILL_SOURCE_ROOT/$SKILL_PATH/.codex-plugin/plugin.json" ]]; then
+                echo "::error::Skill plugin path '$SKILL_PATH' does not contain .codex-plugin/plugin.json."
+                exit 1
+              fi
+              if [[ ! -f "$SKILL_SOURCE_ROOT/.agents/plugins/marketplace.json" ]]; then
+                echo "::error::The skill repository does not contain .agents/plugins/marketplace.json for Codex-native installation."
+                exit 1
+              fi
+              plugin_name=$(jq -er '.name' "$SKILL_SOURCE_ROOT/$SKILL_PATH/.codex-plugin/plugin.json")
+              plugin_source_path=$(jq -er --arg name "$plugin_name" '.plugins[] | select(.name == $name) | .source.path' "$SKILL_SOURCE_ROOT/.agents/plugins/marketplace.json")
+              if [[ "$plugin_source_path" != ./* || "$plugin_source_path" == *..* ]]; then
+                echo "::error::Codex marketplace source for plugin '$plugin_name' must be a repository-relative local path without '..'."
+                exit 1
+              fi
+              if [[ ! -d "$SKILL_SOURCE_ROOT/${plugin_source_path#./}/skills/$SKILL" ]]; then
+                echo "::error::Codex marketplace plugin '$plugin_name' does not contain skill '$SKILL' at its packaged source path."
+                exit 1
+              fi
+              if [[ -z "${CODEX_ACCESS_TOKEN_VALUE//[[:space:]]/}" ]]; then
+                echo "::error::The verification host requires CODEX_ACCESS_TOKEN for subscription-backed Codex authentication."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Unsupported verification agent '$AGENT'. Supported values: claude-code, codex."
+              exit 1
+              ;;
+          esac
+
+      - name: Prepare Codex adapter
+        if: inputs.agent == 'codex'
+        env:
+          CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
+          CODEX_HOME: ${{ runner.temp }}/verification-codex-home
+          SKILL_PATH: ${{ inputs.skill_path }}
+          SKILL_SOURCE_ROOT: ${{ runner.temp }}/verification-skill-source
+        run: |
+          set -euo pipefail
+          umask 077
+          rm -rf "$CODEX_HOME"
+          mkdir -p "$CODEX_HOME"
+          printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
+
+          marketplace_name=$(jq -er '.name' "$SKILL_SOURCE_ROOT/.agents/plugins/marketplace.json")
+          plugin_name=$(jq -er '.name' "$SKILL_SOURCE_ROOT/$SKILL_PATH/.codex-plugin/plugin.json")
+          codex plugin marketplace add "$SKILL_SOURCE_ROOT" --json
+          codex plugin add "$plugin_name@$marketplace_name" --json
 
       - name: Create verification context
         env:
@@ -436,8 +510,10 @@ jobs:
         id: verify
         timeout-minutes: ${{ fromJSON(inputs.timeout_minutes || '30') }}
         env:
+          AGENT: ${{ inputs.agent }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          CODEX_HOME: ${{ runner.temp }}/verification-codex-home
           MODEL: ${{ inputs.model }}
           SKILL: ${{ inputs.skill }}
           SKILL_PATH: ${{ inputs.skill_path }}
@@ -449,8 +525,14 @@ jobs:
           set -euo pipefail
           work_home="$RUNNER_TEMP/verification-home"
           mkdir -p "$work_home"
+          if [[ "$AGENT" == "codex" ]]; then
+            plugin_name=$(jq -er '.name' "$SKILL_SOURCE_ROOT/$SKILL_PATH/.codex-plugin/plugin.json")
+            skill_invocation="\$${plugin_name}:${SKILL}"
+          else
+            skill_invocation="/$SKILL"
+          fi
           prompt=$(printf '%s\n' \
-            "Run /$SKILL against this checked out pull request." \
+            "Run $skill_invocation against this checked out pull request." \
             "" \
             "Scope:" \
             "- Base ref: $BASE_REF" \
@@ -461,33 +543,61 @@ jobs:
             '```' \
             "" \
             "Use the skill's journal workflow. Print the raw run token the skill produces.")
-          args=(
-            --print
-            --no-session-persistence
-            --plugin-dir "$SKILL_SOURCE_ROOT/$SKILL_PATH"
-            --tools "Read,Grep,Glob,Bash"
-            --allowedTools "Read,Grep,Glob,Bash(date:*),Bash(mktemp:*),Bash(printf:*),Bash(python3:*),Bash(rm -rf:*),Bash(spx journal open:*),Bash(spx journal append:*),Bash(spx journal read:*),Bash(spx journal seal:*),Bash(spx journal render:*)"
-          )
-          auth_env=()
-          if [[ -n "${ANTHROPIC_API_KEY//[[:space:]]/}" ]]; then
-            args=(--bare "${args[@]}")
-            auth_env+=(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY")
-          elif [[ -n "${CLAUDE_CODE_OAUTH_TOKEN//[[:space:]]/}" ]]; then
-            auth_env+=(CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN")
-          fi
-          if [[ -n "${MODEL//[[:space:]]/}" ]]; then
-            args+=(--model "$MODEL")
-          fi
           cd "$GITHUB_WORKSPACE"
-          env -i \
-            PATH="$PATH" \
-            HOME="$work_home" \
-            TMPDIR="$RUNNER_TEMP" \
-            TMP="$RUNNER_TEMP" \
-            "${auth_env[@]}" \
-            SPX_VERIFY_BASE_REF="$BASE_REF" \
-            SPX_VERIFY_HEAD_REF="$HEAD_REF" \
-            claude "${args[@]}" -- "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
+          if [[ "$AGENT" == "claude-code" ]]; then
+            args=(
+              --print
+              --no-session-persistence
+              --plugin-dir "$SKILL_SOURCE_ROOT/$SKILL_PATH"
+              --tools "Read,Grep,Glob,Bash"
+              --allowedTools "Read,Grep,Glob,Bash(date:*),Bash(mktemp:*),Bash(printf:*),Bash(python3:*),Bash(rm -rf:*),Bash(spx journal open:*),Bash(spx journal append:*),Bash(spx journal read:*),Bash(spx journal seal:*),Bash(spx journal render:*)"
+            )
+            auth_env=()
+            if [[ -n "${ANTHROPIC_API_KEY//[[:space:]]/}" ]]; then
+              args=(--bare "${args[@]}")
+              auth_env+=(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY")
+            elif [[ -n "${CLAUDE_CODE_OAUTH_TOKEN//[[:space:]]/}" ]]; then
+              auth_env+=(CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN")
+            fi
+            if [[ -n "${MODEL//[[:space:]]/}" ]]; then
+              args+=(--model "$MODEL")
+            fi
+            env -i \
+              PATH="$PATH" \
+              HOME="$work_home" \
+              TMPDIR="$RUNNER_TEMP" \
+              TMP="$RUNNER_TEMP" \
+              "${auth_env[@]}" \
+              SPX_VERIFY_BASE_REF="$BASE_REF" \
+              SPX_VERIFY_HEAD_REF="$HEAD_REF" \
+              claude "${args[@]}" -- "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
+          else
+            args=(
+              exec
+              --ephemeral
+              --sandbox workspace-write
+            )
+            if [[ -n "${MODEL//[[:space:]]/}" ]]; then
+              args+=(--model "$MODEL")
+            fi
+            env -i \
+              PATH="$PATH" \
+              HOME="$work_home" \
+              CODEX_HOME="$CODEX_HOME" \
+              TMPDIR="$RUNNER_TEMP" \
+              TMP="$RUNNER_TEMP" \
+              SPX_VERIFY_BASE_REF="$BASE_REF" \
+              SPX_VERIFY_HEAD_REF="$HEAD_REF" \
+              codex "${args[@]}" "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
+          fi
+
+      - name: Clean up Codex adapter
+        if: always() && inputs.agent == 'codex'
+        env:
+          CODEX_HOME: ${{ runner.temp }}/verification-codex-home
+        run: |
+          set -euo pipefail
+          rm -rf "$CODEX_HOME"
 
       - name: Publish job summary
         if: always()
