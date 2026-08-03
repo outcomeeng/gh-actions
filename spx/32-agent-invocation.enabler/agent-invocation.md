@@ -16,3 +16,5 @@ CAN invoke an AI coding agent through one configurable shape regardless of agent
 - ALWAYS: plugin and marketplace installation composes from caller inputs and, when opted in, the consumer's agent-native project configuration, and the tool boundary is composed to match the installed tools ([audit])
 - NEVER: a surface embeds provider-specific invocation logic that bypasses this shared setup — provider variation lives here ([audit])
 - NEVER: a surface embeds agent-specific invocation logic that bypasses this shared setup — agent variation lives here ([audit])
+- ALWAYS: an agent-invoking job fails unless the agent run's execution record shows a completed run — an absent, truncated, non-array, result-less, or error-reporting record is rejected with an actionable message ([test](tests/test_outcome_resolution.compliance.l1.py))
+- ALWAYS: the outcome-resolution step's inline shell agrees across every workflow file that carries it ([test](tests/test_outcome_resolution.compliance.l1.py))
