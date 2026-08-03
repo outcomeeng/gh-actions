@@ -2,7 +2,8 @@
   "enabledPlugins": {
     "prose@outcomeeng": true,
     "python@outcomeeng": true,
-    "spec-tree@outcomeeng": true
+    "spec-tree@outcomeeng": true,
+    "instructions@outcomeeng": true
   },
   "extraKnownMarketplaces": {
     "outcomeeng": {
