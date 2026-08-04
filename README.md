@@ -1,6 +1,6 @@
 # Outcome Engineering GitHub Actions
 
-Reusable GitHub Actions workflows for Claude Code integration.
+Reusable GitHub Actions workflows for coding-agent integration.
 
 ## Available Workflows
 
@@ -95,9 +95,11 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
     with:
       # Production callers must pin the skill source ref as well.
       ref: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REF || '1a0a2474c50c2f60344e772576a0341fc3b4f8dd' }}
+      agent: ${{ vars.SPEC_TREE_VERIFICATION_AGENT || 'claude-code' }}
 ```
 
 **For generic `@claude` mentions** — create `.github/workflows/claude.yml`:
@@ -160,7 +162,7 @@ For a generic Claude Code review, use the same `pull_request` trigger shape and 
 
 ### Branch-preview verification
 
-`spec-tree-verification.yml` is the preview host for skill-based verification runs. It checks out a caller-selected skill source ref, loads the requested Claude Code plugin directory, launches Claude Code with a scrubbed process environment, and lets the skill write its `spx journal` output. When `ANTHROPIC_API_KEY` is present the host runs Claude Code in `--bare` mode; otherwise it omits `--bare` and passes `CLAUDE_CODE_OAUTH_TOKEN` when that secret is present. This preview host currently publishes the captured skill output to the job summary; hosted pull-request comment persistence waits on the `spx` hosted PR delivery command tracked in `spx/54-verification-gates.enabler/ISSUES.md`.
+`spec-tree-verification.yml` is the preview host for skill-based verification runs. It checks out a caller-selected skill source ref, installs the selected adapter's native plugin, launches the selected CLI with a scrubbed process environment, and lets the skill write its `spx journal` output. Claude Code accepts `ANTHROPIC_API_KEY` in `--bare` mode or `CLAUDE_CODE_OAUTH_TOKEN` without `--bare`. Codex accepts `CODEX_ACCESS_TOKEN` through `codex login --with-access-token`, stores the resulting subscription-authenticated state in a job-scoped `CODEX_HOME`, runs without the raw token in its environment, and deletes that state after the run. This preview host currently publishes the captured skill output to the job summary; hosted pull-request comment persistence waits on the `spx` hosted PR delivery command tracked in `spx/54-verification-gates.enabler/ISSUES.md`.
 
 This repository's `.github/workflows/spec-tree-verification-repo.yml` caller is intentionally branch-preview only. It passes `allow_branch_preview: true` and carries the required `# BETA TESTER:` marker, so maintainers can set `vars.SPEC_TREE_VERIFICATION_SKILL_REF` to a skill branch while testing this workflow branch. Production callers must keep the workflow and skill refs SHA-pinned.
 
@@ -225,17 +227,18 @@ The review prompt and baseline allowlist intentionally differ:
 | `skill`                | `review-changes`        | Skill name to invoke, without a leading slash.                                                               |
 | `skill_repository`     | `outcomeeng/plugins`    | GitHub repository containing the plugin source.                                                              |
 | `ref`                  | required                | Skill source ref. Production callers pass a full commit SHA; branch refs require the beta-preview exception. |
-| `skill_path`           | `src/plugins/spec-tree` | Path within the skill repository to the Claude plugin directory.                                             |
-| `agent`                | `claude-code`           | Agent adapter. The first slice supports Claude Code only.                                                    |
-| `model`                | (empty)                 | Claude model id. Empty = CLI default.                                                                        |
+| `skill_path`           | `src/plugins/spec-tree` | Path within the skill repository to the selected agent's plugin directory.                                   |
+| `agent`                | `claude-code`           | Agent adapter. Supported values: `claude-code`, `codex`.                                                     |
+| `model`                | (empty)                 | Model id for the selected adapter. Empty = CLI default.                                                      |
 | `paths`                | (empty)                 | Optional newline-separated changed-path globs. Empty = every PR change is in scope.                          |
 | `concurrency_suffix`   | (empty)                 | Optional discriminator when one caller runs the same skill more than once on a PR.                           |
 | `allow_branch_preview` | `false`                 | Allows a same-repo beta caller with the marker comment to use a floating skill ref.                          |
 | `spx_version`          | `0.6.7`                 | Version of `@outcomeeng/spx` to install.                                                                     |
 | `claude_code_version`  | `2.1.195`               | Version of `@anthropic-ai/claude-code` to install.                                                           |
+| `codex_version`        | `0.146.0`               | Version of `@openai/codex` to install when `agent` is `codex`.                                               |
 | `timeout_minutes`      | `"30"`                  | Wall-clock budget for the verification skill run.                                                            |
 
-Secret required by the first Claude Code host slice: either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. When `ANTHROPIC_API_KEY` is set, the host passes `--bare`; when only `CLAUDE_CODE_OAUTH_TOKEN` is set, the host omits `--bare` and passes that token through the scrubbed process environment.
+Claude Code requires either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. When `ANTHROPIC_API_KEY` is set, the host passes `--bare`; when only `CLAUDE_CODE_OAUTH_TOKEN` is set, the host omits `--bare` and passes that token through the scrubbed process environment. Subscription-backed Codex requires `CODEX_ACCESS_TOKEN`; the host consumes it during login, then launches Codex with only the resulting job-scoped authenticated state.
 
 ### Per-environment overrides via repo variables
 
