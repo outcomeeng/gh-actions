@@ -483,9 +483,9 @@ jobs:
           set -euo pipefail
           umask 077
           rm -rf "$CODEX_HOME"
-          mkdir -p "$CODEX_HOME"
+          mkdir -p "$CODEX_HOME/rules"
           printf '%s\n' \
-            'approval_policy = "never"' \
+            'approval_policy = "untrusted"' \
             'default_permissions = "verification"' \
             '' \
             '[permissions.verification.filesystem]' \
@@ -495,6 +495,16 @@ jobs:
             '"." = "read"' \
             '".spx" = "write"' \
             > "$CODEX_HOME/config.toml"
+          printf '%s\n' \
+            'prefix_rule(pattern = ["spx", "journal", ["open", "append", "read", "seal", "render", "list"]], decision = "allow")' \
+            'prefix_rule(pattern = ["date"], decision = "allow")' \
+            'prefix_rule(pattern = ["mktemp"], decision = "allow")' \
+            'prefix_rule(pattern = ["printf"], decision = "allow")' \
+            'prefix_rule(pattern = ["python3"], decision = "allow")' \
+            'prefix_rule(pattern = ["rm", "-rf"], decision = "allow")' \
+            'prefix_rule(pattern = [["cat", "sed", "rg"]], decision = "allow")' \
+            'prefix_rule(pattern = ["git", ["diff", "status", "rev-parse"]], decision = "allow")' \
+            > "$CODEX_HOME/rules/verification.rules"
           printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
 
           marketplace_name=$(jq -er '.name' "$SKILL_SOURCE_ROOT/.agents/plugins/marketplace.json")
@@ -608,9 +618,10 @@ jobs:
         if: always() && inputs.agent == 'codex'
         env:
           CODEX_HOME: ${{ runner.temp }}/verification-codex-home
+          CODEX_TMPDIR: ${{ github.workspace }}/.spx/tmp
         run: |
           set -euo pipefail
-          rm -rf "$CODEX_HOME"
+          rm -rf "$CODEX_HOME" "$CODEX_TMPDIR"
 
       - name: Publish job summary
         if: always()
