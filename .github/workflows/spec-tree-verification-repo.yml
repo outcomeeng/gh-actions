@@ -21,12 +21,15 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
     with:
       skill: ${{ vars.SPEC_TREE_VERIFICATION_SKILL || 'review-changes' }}
       skill_repository: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REPOSITORY || 'outcomeeng/plugins' }}
       ref: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REF || 'main' }}
       skill_path: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_PATH || 'src/plugins/spec-tree' }}
+      agent: ${{ vars.SPEC_TREE_VERIFICATION_AGENT || 'claude-code' }}
       model: ${{ vars.SPEC_TREE_VERIFICATION_MODEL || '' }}
       paths: ${{ vars.SPEC_TREE_VERIFICATION_PATHS || '' }}
+      codex_version: ${{ vars.SPEC_TREE_VERIFICATION_CODEX_VERSION || '0.146.0' }}
       timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '30' }}
       allow_branch_preview: true
