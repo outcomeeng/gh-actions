@@ -490,6 +490,7 @@ jobs:
             '' \
             '[permissions.verification.filesystem]' \
             '":minimal" = "read"' \
+            '":tmpdir" = "write"' \
             '' \
             '[permissions.verification.filesystem.":workspace_roots"]' \
             '"." = "read"' \
