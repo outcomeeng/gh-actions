@@ -9,18 +9,18 @@ implementation per `spx/15-evidence-model.adr.md`, specifically for the three
 declared-but-not-built verification gates (`validation`, `test`, `audit`) once
 they carry specs and tests.
 
-## 2. Codex adapter and OpenAI / cloud-review provider routing not yet implemented
+## 2. OpenAI / cloud-review provider routing remains incomplete
 
 `spx/32-agent-invocation.enabler` PROVIDES "Anthropic API, Bedrock, Vertex,
 OpenAI / cloud review, and further providers" and subscription-backed Codex
 authentication — declaring the full provider and agent scope from the product
-hypothesis. The verification host implements only its Claude Code adapter, and
-the other reusable workflows (`spec-tree.yml`, `spec-tree-review.yml`,
-`claude.yml`, `claude-code-review.yml`) carry `use_bedrock`, `use_vertex`, and
-`model` inputs but no structured OpenAI routing input. The first closure step is
-the verification host's Codex adapter governed by
-`spx/18-verification-host.adr.md`; the remaining code-in-violation gap closes
-when the other applicable OpenAI invocation paths land.
+hypothesis. The verification host implements its Claude Code and
+subscription-backed Codex adapters, while the other reusable workflows
+(`spec-tree.yml`, `spec-tree-review.yml`, `claude.yml`,
+`claude-code-review.yml`) carry `use_bedrock`, `use_vertex`, and
+`model` inputs but no structured OpenAI routing input. The remaining
+code-in-violation gap closes when the other applicable OpenAI invocation paths
+land.
 
 ## 3. Managed instruction blocks blur eval-evidence routing against this product's evidence model
 
