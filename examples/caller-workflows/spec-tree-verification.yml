@@ -1,7 +1,9 @@
 # Copy this file to .github/workflows/spec-tree-verification.yml in your repository
 #
 # Required setup:
-# 1. Add ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN to repository secrets.
+# 1. Add the credential for the selected adapter to repository secrets:
+#    ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN for Claude Code, or
+#    CODEX_ACCESS_TOKEN for subscription-backed Codex.
 # 2. Keep `ref` pinned to a full-length commit SHA for production callers.
 # 3. (Optional) Tune behavior via repo variables in Settings -> Secrets and
 #    variables -> Actions -> Variables. See the `with:` block below; every
@@ -31,6 +33,7 @@ jobs:
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
 
     # Authorization is automatic: the verification runs only when the PR
     # author has admin, maintain, or write permission on this repository
@@ -55,10 +58,10 @@ jobs:
       ref: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_REF || '1a0a2474c50c2f60344e772576a0341fc3b4f8dd' }}
       skill_path: ${{ vars.SPEC_TREE_VERIFICATION_SKILL_PATH || 'src/plugins/spec-tree' }}
 
-      # Agent adapter. The current host slice implements Claude Code.
+      # Agent adapter. Supported values: claude-code, codex.
       agent: ${{ vars.SPEC_TREE_VERIFICATION_AGENT || 'claude-code' }}
 
-      # Claude model id. Empty = CLI default.
+      # Model id for the selected adapter. Empty = CLI default.
       model: ${{ vars.SPEC_TREE_VERIFICATION_MODEL || '' }}
 
       # Optional newline-separated changed-path globs. Empty = every PR
@@ -72,6 +75,7 @@ jobs:
       # Version pins for the verification host's CLIs.
       spx_version: ${{ vars.SPEC_TREE_VERIFICATION_SPX_VERSION || '0.6.7' }}
       claude_code_version: ${{ vars.SPEC_TREE_VERIFICATION_CLAUDE_CODE_VERSION || '2.1.195' }}
+      codex_version: ${{ vars.SPEC_TREE_VERIFICATION_CODEX_VERSION || '0.146.0' }}
 
       # Wall-clock budget (minutes) for the verification skill run.
       timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '30' }}
