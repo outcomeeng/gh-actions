@@ -496,16 +496,16 @@ jobs:
             '".spx" = "write"' \
             > "$CODEX_HOME/config.toml"
           printf '%s\n' \
-            'prefix_rule(pattern = ["spx", "journal", ["open", "append", "read", "seal", "render", "list"]], decision = "allow")' \
+            'prefix_rule(pattern = ["spx", "journal", ["open", "append", "read", "seal", "render"]], decision = "allow")' \
             'prefix_rule(pattern = ["date"], decision = "allow")' \
             'prefix_rule(pattern = ["mktemp"], decision = "allow")' \
             'prefix_rule(pattern = ["printf"], decision = "allow")' \
             'prefix_rule(pattern = ["python3"], decision = "allow")' \
             'prefix_rule(pattern = ["rm", "-rf"], decision = "allow")' \
             'prefix_rule(pattern = [["cat", "sed", "rg"]], decision = "allow")' \
-            'prefix_rule(pattern = ["git", ["diff", "status", "rev-parse"]], decision = "allow")' \
             > "$CODEX_HOME/rules/verification.rules"
           printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
+          unset CODEX_ACCESS_TOKEN
 
           marketplace_name=$(jq -er '.name' "$SKILL_SOURCE_ROOT/.agents/plugins/marketplace.json")
           plugin_name=$(jq -er '.name' "$SKILL_SOURCE_ROOT/$SKILL_PATH/.codex-plugin/plugin.json")
