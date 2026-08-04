@@ -484,6 +484,17 @@ jobs:
           umask 077
           rm -rf "$CODEX_HOME"
           mkdir -p "$CODEX_HOME"
+          printf '%s\n' \
+            'approval_policy = "never"' \
+            'default_permissions = "verification"' \
+            '' \
+            '[permissions.verification.filesystem]' \
+            '":minimal" = "read"' \
+            '' \
+            '[permissions.verification.filesystem.":workspace_roots"]' \
+            '"." = "read"' \
+            '".spx" = "write"' \
+            > "$CODEX_HOME/config.toml"
           printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
 
           marketplace_name=$(jq -er '.name' "$SKILL_SOURCE_ROOT/.agents/plugins/marketplace.json")
@@ -572,10 +583,12 @@ jobs:
               SPX_VERIFY_HEAD_REF="$HEAD_REF" \
               claude "${args[@]}" -- "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
           else
+            codex_tmpdir="$GITHUB_WORKSPACE/.spx/tmp"
+            mkdir -p "$codex_tmpdir"
             args=(
               exec
               --ephemeral
-              --sandbox workspace-write
+              --strict-config
             )
             if [[ -n "${MODEL//[[:space:]]/}" ]]; then
               args+=(--model "$MODEL")
@@ -584,8 +597,8 @@ jobs:
               PATH="$PATH" \
               HOME="$work_home" \
               CODEX_HOME="$CODEX_HOME" \
-              TMPDIR="$RUNNER_TEMP" \
-              TMP="$RUNNER_TEMP" \
+              TMPDIR="$codex_tmpdir" \
+              TMP="$codex_tmpdir" \
               SPX_VERIFY_BASE_REF="$BASE_REF" \
               SPX_VERIFY_HEAD_REF="$HEAD_REF" \
               codex "${args[@]}" "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
