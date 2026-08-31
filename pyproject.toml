@@ -7,7 +7,7 @@ name = "outcomeeng-gh-actions-maintenance"
 version = "0.0.0"
 requires-python = ">=3.11"
 dependencies = [
-  "PyYAML==6.0.2",
+  "PyYAML==6.0.3",
 ]
 
 [project.optional-dependencies]
