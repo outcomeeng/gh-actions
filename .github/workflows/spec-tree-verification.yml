@@ -61,7 +61,7 @@ on:
       codex_version:
         description: "Version of @openai/codex to install."
         type: string
-        default: "0.146.0" # renovate: datasource=npm depName=@openai/codex
+        default: "0.153.4" # renovate: datasource=npm depName=@openai/codex
       timeout_minutes:
         description: "Wall-clock budget in minutes for the agent step."
         type: string
