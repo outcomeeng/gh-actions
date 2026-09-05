@@ -53,7 +53,7 @@ on:
       spx_version:
         description: "Version of @outcomeeng/spx to install."
         type: string
-        default: "0.6.7" # renovate: datasource=npm depName=@outcomeeng/spx
+        default: "0.6.26" # renovate: datasource=npm depName=@outcomeeng/spx
       claude_code_version:
         description: "Version of @anthropic-ai/claude-code to install."
         type: string
