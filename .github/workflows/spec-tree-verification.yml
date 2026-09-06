@@ -57,7 +57,7 @@ on:
       claude_code_version:
         description: "Version of @anthropic-ai/claude-code to install."
         type: string
-        default: "2.1.195" # renovate: datasource=npm depName=@anthropic-ai/claude-code
+        default: "2.1.263" # renovate: datasource=npm depName=@anthropic-ai/claude-code
       codex_version:
         description: "Version of @openai/codex to install."
         type: string
