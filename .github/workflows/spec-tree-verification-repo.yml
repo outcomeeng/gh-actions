@@ -30,6 +30,5 @@ jobs:
       agent: ${{ vars.SPEC_TREE_VERIFICATION_AGENT || 'claude-code' }}
       model: ${{ vars.SPEC_TREE_VERIFICATION_MODEL || '' }}
       paths: ${{ vars.SPEC_TREE_VERIFICATION_PATHS || '' }}
-      codex_version: ${{ vars.SPEC_TREE_VERIFICATION_CODEX_VERSION || '0.146.0' }}
       timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '30' }}
       allow_branch_preview: true
