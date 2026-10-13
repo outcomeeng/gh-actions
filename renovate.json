@@ -49,6 +49,14 @@
       "matchStrings": [
         "default: \"(?<currentValue>[^\"]+)\" # renovate: datasource=(?<datasource>[^ ]+) depName=(?<depName>[^ \\n]+)"
       ]
+    },
+    {
+      "description": "Track the npm CLI version fallbacks in the spec-tree-verification caller template, so they move in the same update PR as the reusable workflow's defaults.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^examples/caller-workflows/spec-tree-verification\\.yml$/"],
+      "matchStrings": [
+        "\\|\\| '(?<currentValue>[^']+)' \\}\\} # renovate: datasource=(?<datasource>[^ ]+) depName=(?<depName>[^ \\n]+)"
+      ]
     }
   ],
   "vulnerabilityAlerts": {

@@ -233,10 +233,12 @@ The review prompt and baseline allowlist intentionally differ:
 | `paths`                | (empty)                 | Optional newline-separated changed-path globs. Empty = every PR change is in scope.                          |
 | `concurrency_suffix`   | (empty)                 | Optional discriminator when one caller runs the same skill more than once on a PR.                           |
 | `allow_branch_preview` | `false`                 | Allows a same-repo beta caller with the marker comment to use a floating skill ref.                          |
-| `spx_version`          | `0.6.7`                 | Version of `@outcomeeng/spx` to install.                                                                     |
-| `claude_code_version`  | `2.1.195`               | Version of `@anthropic-ai/claude-code` to install.                                                           |
-| `codex_version`        | `0.146.0`               | Version of `@openai/codex` to install when `agent` is `codex`.                                               |
+| `spx_version`          | Renovate-managed        | Version of `@outcomeeng/spx` to install.                                                                     |
+| `claude_code_version`  | Renovate-managed        | Version of `@anthropic-ai/claude-code` to install.                                                           |
+| `codex_version`        | Renovate-managed        | Version of `@openai/codex` to install when `agent` is `codex`.                                               |
 | `timeout_minutes`      | `"30"`                  | Wall-clock budget for the verification skill run.                                                            |
+
+The three CLI version defaults live in `.github/workflows/spec-tree-verification.yml`, where Renovate keeps them current. The example caller template's fallbacks carry the same versions and move with them.
 
 Claude Code requires either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`. When `ANTHROPIC_API_KEY` is set, the host passes `--bare`; when only `CLAUDE_CODE_OAUTH_TOKEN` is set, the host omits `--bare` and passes that token through the scrubbed process environment. Subscription-backed Codex requires `CODEX_ACCESS_TOKEN`; the host consumes it during login, then launches Codex with only the resulting job-scoped authenticated state.
 
