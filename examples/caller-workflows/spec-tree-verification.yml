@@ -72,10 +72,11 @@ jobs:
       # once on one pull request.
       concurrency_suffix: ${{ vars.SPEC_TREE_VERIFICATION_CONCURRENCY_SUFFIX || '' }}
 
-      # Version pins for the verification host's CLIs.
-      spx_version: ${{ vars.SPEC_TREE_VERIFICATION_SPX_VERSION || '0.6.7' }}
-      claude_code_version: ${{ vars.SPEC_TREE_VERIFICATION_CLAUDE_CODE_VERSION || '2.1.195' }}
-      codex_version: ${{ vars.SPEC_TREE_VERIFICATION_CODEX_VERSION || '0.146.0' }}
+      # Version pins for the verification host's CLIs. Renovate updates these
+      # fallbacks together with the reusable workflow's defaults.
+      spx_version: ${{ vars.SPEC_TREE_VERIFICATION_SPX_VERSION || '0.9.0' }} # renovate: datasource=npm depName=@outcomeeng/spx
+      claude_code_version: ${{ vars.SPEC_TREE_VERIFICATION_CLAUDE_CODE_VERSION || '2.1.296' }} # renovate: datasource=npm depName=@anthropic-ai/claude-code
+      codex_version: ${{ vars.SPEC_TREE_VERIFICATION_CODEX_VERSION || '0.162.1' }} # renovate: datasource=npm depName=@openai/codex
 
       # Wall-clock budget (minutes) for the verification skill run.
       timeout_minutes: ${{ vars.SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES || '30' }}
