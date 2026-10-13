@@ -11,6 +11,9 @@
   "labels": ["dependencies"],
   "prHourlyLimit": 4,
   "prConcurrentLimit": 10,
+  "automerge": true,
+  "automergeType": "pr",
+  "platformAutomerge": true,
   "packageRules": [
     {
       "description": "Group GitHub Actions and reusable-workflow updates. Digest pinning itself is already enforced by the helpers:pinGitHubActionDigests preset above; this rule only adds the grouping.",
@@ -23,6 +26,11 @@
       "matchPackageNames": ["anthropics/claude-code-action"],
       "groupName": "claude-code-action",
       "schedule": ["before 6am every weekday"]
+    },
+    {
+      "description": "Hold major updates for a maintainer; patch and minor updates merge automatically.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
     }
   ],
   "customManagers": [
