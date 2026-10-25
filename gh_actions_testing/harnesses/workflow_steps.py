@@ -98,13 +98,17 @@ def read_step_shell(workflow: str, step_name: str) -> StepShell:
 
 
 def run_step_shell(
-    step: StepShell, environment: dict[str, str]
+    step: StepShell,
+    environment: dict[str, str],
+    working_directory: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Execute the step's shell with the supplied environment.
 
     The environment is passed whole rather than merged over the caller's, so a
     variable the step reads is present only when the case under test supplies
-    it. PATH is carried through because the body invokes jq.
+    it. PATH is carried through because the body invokes jq. A step that reads
+    the caller repository's checkout runs in the directory the case supplies,
+    as it runs in the caller's workspace.
     """
     import os
 
@@ -116,5 +120,6 @@ def run_step_shell(
         capture_output=True,
         text=True,
         env=env,
+        cwd=working_directory,
         check=False,
     )

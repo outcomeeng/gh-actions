@@ -337,7 +337,9 @@ jobs:
             marketplaces=$(printf '%s\n%s' "$marketplaces" "https://github.com/${repo}.git")
           done
 
-          plugins=$(echo "$plugins" | sed '/^$/d')
+          # The catalog renamed spec-tree to product-tree. Map the retired id so a
+          # consumer or caller that still lists it installs its successor once.
+          plugins=$(echo "$plugins" | sed -e '/^$/d' -e 's/^spec-tree@outcomeeng$/product-tree@outcomeeng/' | awk '!seen[$0]++')
           marketplaces=$(echo "$marketplaces" | sed '/^$/d')
 
           delim="MULTILINE_${RANDOM}${RANDOM}${RANDOM}"
