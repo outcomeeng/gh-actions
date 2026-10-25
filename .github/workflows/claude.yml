@@ -253,15 +253,17 @@ jobs:
           # Quoted array expansion so the documented space-separated inputs
           # are tokenised without pathname expansion or word-splitting surprises
           # (a stray `*` or unintended IFS character in the input would otherwise
-          # glob against the workspace).
+          # glob against the workspace). The `${arr[@]+...}` guard keeps an
+          # empty input from tripping `set -u` on bash before 4.4, which a
+          # self-hosted macOS runner still ships as /bin/bash.
           read -ra extras <<< "$EXTRA_PLUGINS"
-          for p in "${extras[@]}"; do
+          for p in ${extras[@]+"${extras[@]}"}; do
             [[ -z "$p" ]] && continue
             plugins=$(printf '%s\n%s' "$plugins" "$p")
           done
 
           read -ra markets <<< "$PLUGIN_MARKETPLACES"
-          for m in "${markets[@]}"; do
+          for m in ${markets[@]+"${markets[@]}"}; do
             [[ -z "$m" ]] && continue
             repo=${m%@*}
             marketplaces=$(printf '%s\n%s' "$marketplaces" "https://github.com/${repo}.git")
