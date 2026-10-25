@@ -97,6 +97,21 @@ def read_step_shell(workflow: str, step_name: str) -> StepShell:
     raise LookupError(f"{workflow}: no step named {step_name!r}")
 
 
+def drifted_copies(step_name: str, workflows: list[str]) -> list[str]:
+    """Name each workflow whose copy of the step differs from the first one's.
+
+    The first workflow is the reference copy. The caller decides what an
+    empty or non-empty result means; this reports which copies differ.
+    """
+    if not workflows:
+        return []
+    bodies = {
+        workflow: read_step_shell(workflow, step_name).body for workflow in workflows
+    }
+    reference = bodies[workflows[0]]
+    return [workflow for workflow, body in bodies.items() if body != reference]
+
+
 def run_step_shell(
     step: StepShell,
     environment: dict[str, str],
