@@ -463,7 +463,7 @@ jobs:
         # explicitly (which overrides the input default) — without it,
         # fromJSON("") would throw an opaque workflow error.
         timeout-minutes: ${{ fromJSON(inputs.timeout_minutes || '30') }}
-        uses: anthropics/claude-code-action@ae68417a745a5df4b2124873632bd73a2255e6f6 # v1.0.259
+        uses: anthropics/claude-code-action@925afb53776cf1a2b738c6bdbed37b4d4000ef13 # v1.0.262
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: ${{ steps.claude-args.outputs.args }}
