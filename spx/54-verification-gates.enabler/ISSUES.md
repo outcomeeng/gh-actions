@@ -1,16 +1,16 @@
 # ISSUES — verification-gates
 
-## 1. Pre-host `spec-tree-review.yml` still carries a baked-in prompt restatement
+## 1. Pre-host `product-tree-review.yml` still carries a baked-in prompt restatement
 
-`spx/54-verification-gates.enabler` declares that this product cross-references the governed review prompt rather than restating it. The canonical prompt lives in `outcomeeng/plugins` at `src/plugins/spec-tree/skills/review-changes/references/review-prompt.md`, governed by `plugins/spx/21-spec-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler/reviewing-changes.md`.
+`spx/54-verification-gates.enabler` declares that this product cross-references the governed review prompt rather than restating it. The canonical prompt lives in `outcomeeng/plugins` at `src/plugins/product-tree/skills/review-changes/references/review-prompt.md`, governed by `plugins/spx/21-product-tree.enabler/68-reviewing.enabler/21-reviewing-changes.enabler/reviewing-changes.md`.
 
-The canonical prompt has been hardened against phantom standards citations, and `.github/workflows/spec-tree-review.yml` now carries the same citation-discipline rule in its baked-in pre-host prompt. The remaining issue is the baked-in restatement itself: any future canonical prompt change still requires manual synchronization here until the host replacement removes the copy.
+The canonical prompt has been hardened against phantom standards citations, and `.github/workflows/product-tree-review.yml` now carries the same citation-discipline rule in its baked-in pre-host prompt. The remaining issue is the baked-in restatement itself: any future canonical prompt change still requires manual synchronization here until the host replacement removes the copy.
 
-**Resolution path.** `spx/18-verification-host.adr.md` declares the resolution: the verification host installs the governed skill instead of restating its prompt, so the baked-in copy is removed when the host supersedes `spec-tree-review.yml`. This follow-on stays open until that replacement lands.
+**Resolution path.** [`spx/18-verification-host.adr.md`](spx/18-verification-host.adr.md) declares the resolution: the verification host installs the governed skill instead of restating its prompt, so the baked-in copy is removed when the host supersedes `product-tree-review.yml`. This follow-on stays open until that replacement lands.
 
 ## 2. `SPX_VERDICT_*` sink contract is not canonically declared across both repos
 
-`spx/18-verification-host.adr.md` declares the host's side of the `SPX_VERDICT_*`
+[`spx/18-verification-host.adr.md`](spx/18-verification-host.adr.md) declares the host's side of the `SPX_VERDICT_*`
 sink contract — the variable names and the write credential. The same names are
 read by the `spx` CLI (`outcomeeng/spx`), whose hosted-pull-request verdict-delivery
 command — the command that posts a rendered verdict back to the pull request — does
@@ -20,7 +20,7 @@ pull-request mutation to a separate, not-yet-built command.
 
 Resolve when the `spx` CLI gains that hosted-PR verdict-delivery command: declare the
 `SPX_VERDICT_*` contract canonically in that command's spec node in `outcomeeng/spx`,
-then cite that path from `spx/18-verification-host.adr.md` so the host and the CLI
+then cite that path from [`spx/18-verification-host.adr.md`](spx/18-verification-host.adr.md) so the host and the CLI
 cannot drift on the names. This entry tracks that gap; it is not itself the contract.
 
 ## 3. Verification-host PR comment persistence waits on hosted delivery
@@ -31,9 +31,9 @@ journal-rendered output to the GitHub Actions job summary. It does not set
 
 Resolve when the `spx` CLI has the hosted-pull-request verdict-delivery command
 tracked in Issue 2: add the host-owned persistence step to
-`.github/workflows/spec-tree-verification.yml`, set the `SPX_VERDICT_*` sink
+`.github/workflows/product-tree-verification.yml`, set the `SPX_VERDICT_*` sink
 contract only on that step, and keep the agent subprocess free of sink routing
-and write credentials per `spx/18-verification-host.adr.md`.
+and write credentials per [`spx/18-verification-host.adr.md`](spx/18-verification-host.adr.md).
 
 ## 4. The invoking action reports success for an agent run that errored
 
@@ -77,6 +77,6 @@ re-confirmed.
 **Resolution path.** The local check is a defence against a specific upstream
 defect, not product truth of its own. Retire it if the action gains an outcome
 that reflects `is_error`, or if the verification host of
-`spx/18-verification-host.adr.md` supersedes these action-based surfaces —
+[`spx/18-verification-host.adr.md`](spx/18-verification-host.adr.md) supersedes these action-based surfaces —
 that host invokes the agent CLI directly and owns its own outcome resolution,
 so it never inherits this defect.
