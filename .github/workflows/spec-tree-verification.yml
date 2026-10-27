@@ -589,7 +589,7 @@ jobs:
               HOME="$work_home" \
               TMPDIR="$RUNNER_TEMP" \
               TMP="$RUNNER_TEMP" \
-              "${auth_env[@]}" \
+              ${auth_env[@]+"${auth_env[@]}"} \
               SPX_VERIFY_BASE_REF="$BASE_REF" \
               SPX_VERIFY_HEAD_REF="$HEAD_REF" \
               claude "${args[@]}" -- "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"

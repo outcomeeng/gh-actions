@@ -25,6 +25,7 @@ from __future__ import annotations
 import pytest
 
 from gh_actions_testing.harnesses.workflow_steps import (
+    drifted_copies,
     fixture_path,
     read_step_shell,
     run_step_shell,
@@ -158,10 +159,7 @@ def test_every_copy_of_the_step_is_identical() -> None:
     The step is duplicated so a consumer pins one self-contained file. Nothing
     else establishes that a fix applied to one copy reached the others.
     """
-    bodies = {w: read_step_shell(w, STEP_NAME).body for w in WORKFLOWS}
-    reference = bodies[WORKFLOWS[0]]
-
-    drifted = [w for w, body in bodies.items() if body != reference]
+    drifted = drifted_copies(STEP_NAME, WORKFLOWS)
 
     assert not drifted, (
         f"the step's shell differs in {drifted} from {WORKFLOWS[0]}, so a change "

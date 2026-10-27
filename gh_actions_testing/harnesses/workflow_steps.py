@@ -97,14 +97,33 @@ def read_step_shell(workflow: str, step_name: str) -> StepShell:
     raise LookupError(f"{workflow}: no step named {step_name!r}")
 
 
+def drifted_copies(step_name: str, workflows: list[str]) -> list[str]:
+    """Name each workflow whose copy of the step differs from the first one's.
+
+    The first workflow is the reference copy. The caller decides what an
+    empty or non-empty result means; this reports which copies differ.
+    """
+    if not workflows:
+        return []
+    bodies = {
+        workflow: read_step_shell(workflow, step_name).body for workflow in workflows
+    }
+    reference = bodies[workflows[0]]
+    return [workflow for workflow, body in bodies.items() if body != reference]
+
+
 def run_step_shell(
-    step: StepShell, environment: dict[str, str]
+    step: StepShell,
+    environment: dict[str, str],
+    working_directory: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Execute the step's shell with the supplied environment.
 
     The environment is passed whole rather than merged over the caller's, so a
     variable the step reads is present only when the case under test supplies
-    it. PATH is carried through because the body invokes jq.
+    it. PATH is carried through because the body invokes jq. A step that reads
+    the caller repository's checkout runs in the directory the case supplies,
+    as it runs in the caller's workspace.
     """
     import os
 
@@ -116,5 +135,6 @@ def run_step_shell(
         capture_output=True,
         text=True,
         env=env,
+        cwd=working_directory,
         check=False,
     )

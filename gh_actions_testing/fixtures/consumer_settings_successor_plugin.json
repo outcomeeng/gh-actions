@@ -1,0 +1,17 @@
+{
+  "enabledPlugins": {
+    "prose@outcomeeng": true,
+    "python@outcomeeng": true,
+    "product-tree@outcomeeng": true,
+    "instructions@outcomeeng": true
+  },
+  "extraKnownMarketplaces": {
+    "outcomeeng": {
+      "source": {
+        "source": "github",
+        "repo": "outcomeeng/plugins"
+      },
+      "autoUpdate": true
+    }
+  }
+}
