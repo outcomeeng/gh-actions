@@ -1,7 +1,7 @@
-# Reusable Spec Tree Review workflow.
+# Reusable Product Tree Review workflow.
 #
 # Runs anthropics/claude-code-action on every pull_request with a
-# REVIEW.md-aware review prompt and a spec-tree-tuned allowlist
+# REVIEW.md-aware review prompt and a product-tree-tuned allowlist
 # (`Bash(sed:*),Bash(grep:*),Bash(head:*)` on top of the
 # `Bash(gh ...)` baseline used for fetching PR context and posting the
 # comment). Bootstrap steps (plugin derivation, claude_args composition,
@@ -17,8 +17,8 @@
 #       types: [opened, synchronize, reopened]
 #
 #   jobs:
-#     spec-tree-review:
-#       uses: outcomeeng/gh-actions/.github/workflows/spec-tree-review.yml@<full-commit-sha> # main
+#     product-tree-review:
+#       uses: outcomeeng/gh-actions/.github/workflows/product-tree-review.yml@<full-commit-sha> # main
 #       secrets:
 #         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 #
@@ -27,7 +27,7 @@
 # already reviewed (no commits land at the draft→ready transition), so
 # subscribing to it would burn a redundant review on every promotion.
 
-name: Spec Tree Review
+name: Product Tree Review
 
 on:
   workflow_call:
@@ -60,7 +60,7 @@ on:
         description: |
           Comma-separated tool patterns appended to the workflow's baseline
           allowlist (the `Bash(gh ...)` patterns used for PR context plus the
-          spec-tree defaults `Bash(sed:*),Bash(grep:*),Bash(head:*)`). Use
+          product-tree defaults `Bash(sed:*),Bash(grep:*),Bash(head:*)`). Use
           Claude Code's --allowed-tools pattern syntax. Example:
           'Bash(make test:*),Bash(yarn lint:*)'. Ignored when
           override_allow_list is set.
@@ -69,7 +69,7 @@ on:
       override_allow_list:
         description: |
           Comma-separated tool patterns that replace the workflow's entire
-          baseline allowlist (the `Bash(gh ...)` patterns AND the spec-tree
+          baseline allowlist (the `Bash(gh ...)` patterns AND the product-tree
           defaults). Use Claude Code's --allowed-tools pattern syntax.
           Example: 'Bash(gh pr view:*),Bash(gh pr comment:*)'. Use when you
           need a strictly different allowlist than the bake-in; note that
@@ -83,9 +83,9 @@ on:
           Trigger phrase forwarded to the action. Review does not use this to
           gate the run (review fires on every pull_request event), but the
           phrase is passed to the action for content-matching. Defaults to
-          `@spec-tree`.
+          `@product-tree`.
         type: string
-        default: "@spec-tree"
+        default: "@product-tree"
       use_bedrock:
         description: "Route Claude through Amazon Bedrock instead of the Claude API. Caller is responsible for AWS auth and for setting AWS_REGION via additional_env."
         type: boolean
@@ -128,7 +128,7 @@ on:
         default: false
       timeout_minutes:
         description: |
-          Wall-clock budget (in minutes) for the Run Claude Code Review step. When exceeded, GitHub cancels the step with a clear timeout message; the post-action cleanup steps still run, so the runner is left in a clean state. Default 30 covers longer spec-tree reviews with cleanup headroom. Lower it (e.g. to '5') to fail fast when a run hangs, or raise it for repositories where reviews legitimately take longer. Minimum meaningful value is 1; GitHub Actions silently rejects `timeout-minutes: 0` at runtime. Applies only to the Claude Code Action step; the authorize and validate-workflow jobs are short-lived and not gated by this input. Declared as a string so callers can forward a `vars.*` repo variable directly (`vars.*` always reads as a string); numeric literals like `30` are also accepted because GitHub Actions coerces them to strings on input.
+          Wall-clock budget (in minutes) for the Run Claude Code Review step. When exceeded, GitHub cancels the step with a clear timeout message; the post-action cleanup steps still run, so the runner is left in a clean state. Default 30 covers longer product-tree reviews with cleanup headroom. Lower it (e.g. to '5') to fail fast when a run hangs, or raise it for repositories where reviews legitimately take longer. Minimum meaningful value is 1; GitHub Actions silently rejects `timeout-minutes: 0` at runtime. Applies only to the Claude Code Action step; the authorize and validate-workflow jobs are short-lived and not gated by this input. Declared as a string so callers can forward a `vars.*` repo variable directly (`vars.*` always reads as a string); numeric literals like `30` are also accepted because GitHub Actions coerces them to strings on input.
         type: string
         default: "30"
     secrets:
@@ -228,7 +228,7 @@ jobs:
           # non-empty trigger phrase. Reject empty and whitespace-only
           # trigger phrases.
           if [[ -z "${TRIGGER_PHRASE//[[:space:]]/}" ]]; then
-            echo "::error::trigger_phrase is empty or whitespace-only. Set inputs.trigger_phrase, or the SPEC_TREE_REVIEW_TRIGGER_PHRASE repo variable, to a meaningful mention string (e.g. '@spec-tree')."
+            echo "::error::trigger_phrase is empty or whitespace-only. Set inputs.trigger_phrase, or the PRODUCT_TREE_REVIEW_TRIGGER_PHRASE repo variable, to a meaningful mention string (e.g. '@product-tree')."
             exit 1
           fi
 
@@ -269,7 +269,7 @@ jobs:
               ;;
           esac
 
-  spec-tree-review:
+  product-tree-review:
     needs: [authorize, validate-workflow]
     if: needs.authorize.outputs.authorized == 'true' && needs.validate-workflow.outputs.matches == 'true'
     concurrency:
@@ -370,7 +370,7 @@ jobs:
           OVERRIDE_ALLOW_LIST: ${{ inputs.override_allow_list }}
           # Baseline allowlist: the `Bash(gh ...)` patterns the prompt needs
           # to read PR context and post the review comment, plus the
-          # spec-tree defaults (sed/grep/head) for diff chunking.
+          # product-tree defaults (sed/grep/head) for diff chunking.
           BASELINE_ALLOW_LIST: "Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(sed:*),Bash(grep:*),Bash(head:*)"
         run: |
           set -euo pipefail
@@ -485,7 +485,7 @@ jobs:
 
             ## Steps
 
-            1. **Load repository conventions.** Read `REVIEW.md` from the repository root if present. Resolve the finding-classification taxonomy in this order: (a) `REVIEW.md` if present, (b) a taxonomy defined in `CLAUDE.md` if `REVIEW.md` is absent, (c) the defaults in the "Spec Tree Review Workflow" section below if neither file specifies one. Always read `CLAUDE.md` for project conventions independent of where the taxonomy comes from.
+            1. **Load repository conventions.** Read `REVIEW.md` from the repository root if present. Resolve the finding-classification taxonomy in this order: (a) `REVIEW.md` if present, (b) a taxonomy defined in `CLAUDE.md` if `REVIEW.md` is absent, (c) the defaults in the "Product Tree Review Workflow" section below if neither file specifies one. Always read `CLAUDE.md` for project conventions independent of where the taxonomy comes from.
 
             2. **Gather PR context.** Run:
 
@@ -527,7 +527,7 @@ jobs:
             | Helper scripts written to disk to assemble the body | Same write blockage; also adds turns for nothing the `printf` form does not already do. |
             | Backslash-newline (`\`) continuations in shell commands | The runner's parser flags continued lines as multiple operations and gates the fragments separately, even when every binary in the pipeline is approved. Keep `printf … \| gh pr comment …` on one physical line. |
 
-            ## Spec Tree Review Workflow
+            ## Product Tree Review Workflow
 
             These concerns and severities apply when the repository has no `REVIEW.md`; when `REVIEW.md` defines its own taxonomy, follow that instead.
 

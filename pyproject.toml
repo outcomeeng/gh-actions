@@ -16,7 +16,7 @@ test = [
 ]
 
 # The importable package is gh_actions. Declared explicitly so setuptools does
-# not auto-discover the spx/ spec tree as a second top-level package.
+# not auto-discover the spx/ product tree as a second top-level package.
 [tool.setuptools]
 packages = ["gh_actions"]
 
