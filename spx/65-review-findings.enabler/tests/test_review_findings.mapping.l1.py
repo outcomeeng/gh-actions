@@ -35,6 +35,6 @@ def test_cited_path_maps_to_each_artifact_kind() -> None:
     assert classify_path("gh_actions/review_findings.py") is PathKind.CODE
     assert (
         classify_path("spx/17-file-inclusion.enabler/EXCLUDE")
-        is PathKind.SPEC_TREE_OTHER
+        is PathKind.PRODUCT_TREE_OTHER
     )
     assert classify_path("README.md") is PathKind.OTHER

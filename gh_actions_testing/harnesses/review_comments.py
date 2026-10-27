@@ -1,6 +1,6 @@
 """Harness: load captured reviewer-comment payloads and assemble Comment inputs.
 
-The payloads are inert fixture files captured from the spec-tree review gate's
+The payloads are inert fixture files captured from the product-tree review gate's
 own findings on ``outcomeeng/spx`` pull requests. This harness owns reading them
 from disk by path and constructing ``gh_actions.review_findings.Comment`` inputs
 around them for ``build()``-level tests. It owns no severity, concern, or

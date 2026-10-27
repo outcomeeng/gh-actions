@@ -1,6 +1,6 @@
 """Scenario evidence: end-to-end extraction over real reviewer comment bodies.
 
-The comment payloads are inert fixture files captured from the spec-tree review
+The comment payloads are inert fixture files captured from the product-tree review
 gate's own findings on outcomeeng/spx pull requests, loaded through the
 ``gh_actions_testing`` review-comments harness.
 """
