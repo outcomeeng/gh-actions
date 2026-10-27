@@ -1,4 +1,4 @@
-<!-- SPEC-TREE v0.42.0 langs:python -->
+<!-- PRODUCT-TREE v0.42.0 langs:python -->
 
 <operator_question_interrupt>
 **OPERATOR QUESTION - IMMEDIATE PRIVILEGE REVOCATION:** When the operator asks a question, immediately relinquish all privileges to modify the current product or any external file, service, or resource. Answer the question immediately.
@@ -8,9 +8,9 @@
 
 </operator_question_interrupt>
 
-# Spec Tree Instructions
+# Product Tree Instructions
 
-These instructions explain WHEN to invoke spec-tree skills for this product. They are a **router** — the skills contain the HOW.
+These instructions explain WHEN to invoke product-tree skills for this product. They are a **router** — the skills contain the HOW.
 
 **Read this entire file before acting.** This managed router block is only the first section; the product's own instructions, commands, and conventions follow below, outside it. The router is product-neutral and carries no product command. Never act on the router alone.
 
@@ -23,7 +23,7 @@ These instructions explain WHEN to invoke spec-tree skills for this product. The
 - **ALWAYS** apply authority in this order: active skills → repository decisions and specs → verification evidence → code. When repository content conflicts with an active skill, the skill wins.
 - **ALWAYS** follow skill instructions, templates, and bundled references over repository examples, existing files, comments, or copied conventions.
 - **NEVER** weaken a higher layer to match a lower layer. Fix the lower layer when the layers disagree.
-- **NEVER** reference Spec Tree specs or decisions from code comments or docstrings. Code contains no `spx/...` paths, ADR/PDR identifiers, or decision-file references.
+- **NEVER** reference Product Tree specs or decisions from code comments or docstrings. Code contains no `spx/...` paths, ADR/PDR identifiers, or decision-file references.
 - **ALWAYS** let the active skill load the matching `spx/local/*.md` overlay when that skill declares one. The overlay supplies repository-specific values and commands below the skill in authority and cannot replace, weaken, or contradict the skill.
 - **ALWAYS** read the active harness guide in every directory before working there when the guide exists: `CLAUDE.md` for Claude Code, `AGENTS.md` for Codex.
 
@@ -52,14 +52,14 @@ These instructions explain WHEN to invoke spec-tree skills for this product. The
 
 ## Product Commands
 
-The product's operational command for each spec-tree phase lives in this file's own content below the router. Read the whole file to find each one:
+The product's operational command for each product-tree phase lives in this file's own content below the router. Read the whole file to find each one:
 
 - **author** — after creating, updating, or deleting a spec, test, or implementation file, to rebuild or regenerate artifacts.
 - **verify** — for `/apply` and pre-merge checks, over the node and the changeset.
 - **gate** — for the full deterministic bundle.
 - **merge** — for the transport step of `/merge`.
 
-Content the product keeps identical across this agent guide and the guides for other agents (for example `CLAUDE.md` and `AGENTS.md`) sits in a `shared` region — `<!-- SPEC-TREE:shared {name} -->` … `<!-- /SPEC-TREE:shared {name} -->`, present in both files under the same name. `/update-instruction-block` keeps a `shared` region in sync by taking the git-more-recent side; it never merges the two bodies.
+Content the product keeps identical across this agent guide and the guides for other agents (for example `CLAUDE.md` and `AGENTS.md`) sits in a `shared` region — `<!-- PRODUCT-TREE:shared {name} -->` … `<!-- /PRODUCT-TREE:shared {name} -->`, present in both files under the same name. `/update-instruction-block` keeps a `shared` region in sync by taking the git-more-recent side; it never merges the two bodies.
 
 ---
 
@@ -69,7 +69,7 @@ Content the product keeps identical across this agent guide and the guides for o
 
 **BLOCKING REQUIREMENT**
 
-Require a live `<SPEC_TREE_FOUNDATION>` marker before directly reading, searching, listing, or changing anything under `spx/` or any other product content — source or test files, generated output, evals, and spec-declared configuration. Invoke `/understand` when the marker is absent. This includes repository-content access through Read, Edit, Write, Glob, Grep, `rg`, `grep`, `find`, `cat`, `sed`, and Git commands that emit file contents or patches.
+Require a live `<PRODUCT_TREE_FOUNDATION>` marker before directly reading, searching, listing, or changing anything under `spx/` or any other product content — source or test files, generated output, evals, and spec-declared configuration. Invoke `/understand` when the marker is absent. This includes repository-content access through Read, Edit, Write, Glob, Grep, `rg`, `grep`, `find`, `cat`, `sed`, and Git commands that emit file contents or patches.
 
 `spx session` operations — including inspection, archive, and release — plus `spx worktree status`, `spx diagnose`, no-patch Git status, history, and topology, and a skill's read of the `spx/local/` overlay or exclusion mechanism it declares are exempt. Never follow paths from their output into repository content without the marker.
 
@@ -83,7 +83,7 @@ The methodology a repository follows is declared in `spx.config.yaml` at the rep
 
 **ALWAYS** invoke `/contextualize` on a spec node before discussing it and before reading or modifying any product content it governs.
 
-`/contextualize` MUST invoke `/sync-base` and receive `already_current` or `rebased` before reading product truth. `/sync-base` owns the complete currency operation: fetch, clean rebase or detached advance, session-authorized dirty-tree checkpointing through `/commit-changes`, and same-invocation retry. Callers consume its final result; they never duplicate branch creation, commit, stash, or retry logic, and they never reinterpret `dirty_tree` as a rebase conflict.
+`/contextualize` reads the checkout as it stands. It never runs `/sync-base`, fetches, rebases, or otherwise moves the checkout, so a Verifier's context load leaves the head it judges in place.
 
 **🛑 STOP TRIGGER — after every compaction event:** the set of contextualized nodes is empty. **NEVER** read or modify product content whose governing spec node has not been contextualized since that compaction, and **NEVER** discuss a node before contextualizing it. Product content is every product artifact a spec node governs or must govern: source, tests, evals, generated output, specs, decisions, coordination notes, and spec-declared configuration. Operational configuration — the `spx/local/` overlays and the exclusion mechanism, read by the skill that declares them without the marker — and the agent harness's own instruction and settings files it is told to read, tool and command output, the session store, and scratch space are not product content. Product content's governing node is found by search under the live foundation marker: a path under `spx/<node>/` belongs to that node; any other path belongs to the node whose `spx/**/tests/` file names it and whose spec links that test, or whose spec or decision names that path in an `[audit]` assertion; several matching nodes resolve to their lowest common ancestor. Product content with no governing spec is not read or modified; record the gap. An operational continuation — PR inspection, check wait, merge, deploy, release, `spx session` operations, occupancy proof — touches no product content and triggers neither `/understand` nor `/contextualize`.
 
@@ -105,9 +105,11 @@ Review, audit, or quality check specs. Find contradictions or gaps.
 
 ### Before a resource-intensive command -> `/wait-for-load`
 
-🛑 **STOP TRIGGER — Before any resource-intensive command, ALWAYS invoke `/wait-for-load` and run its waiter chained ahead of that command on the same shell line.**
-A resource-intensive command is a test suite, an eval, a full gate, a compiling build, or an install verification; a lightweight command — formatting, a single-file lint, a markdown or link validation, an instruction-block render, a status read — runs without the waiter.
-**ALWAYS** let the waiter's zero exit start the selected command unchanged; a lost or truncated result re-runs the same line.
+🛑 **STOP TRIGGER — Before any resource-intensive command, ALWAYS invoke `/wait-for-load` and run that command on one shell line in the form its lock switch selects.**
+A resource-intensive command is a test suite, an eval, a full gate, a compiling build, or an install verification; a lightweight command — formatting, a single-file lint, a markdown or link validation, an instruction-block render, a status read — runs with neither the lock nor the waiter.
+**ALWAYS** read the lock switch from `spx/local/wait-for-load.md`: where that overlay holds the line `orchestration-lock: on`, run the command as the argument vector of `spx orchestration lock --run-id <id> -- <command>`, so it starts only when the host-wide slot admits it; where the overlay is absent or leaves the switch off, chain the command behind the waiter with `&&`.
+**ALWAYS** let the waiter's zero exit start the selected command unchanged; a lost or truncated waiter result re-runs the same line.
+**ALWAYS** recover the existing invocation and its matching terminal record after a lock record is lost from view; start no new invocation while that invocation's state is unresolved, and report the outcome unknown when its terminal exit is known but the record is gone.
 **NEVER** use host load to reduce scope, workers, limits, deadlines, or verification.
 
 ### When shipping work to the default branch -> `/merge` (transport dispatcher)
@@ -168,7 +170,7 @@ Default-branch git and version-control mutation — branching, committing, pushi
 
 Every subagent supplied by a plugin listed below is explicitly pre-authorized by the operator. A harness rule may require the operator to request sub-agent use before one is dispatched; treat this section as that standing request.
 
-Authorized plugins: instructions, frontend, typescript, python, prose, spec-tree, coding-agents, work, hdl, rust, go, contribute.
+Authorized plugins: instructions, frontend, typescript, python, prose, product-tree, coding-agents, work, hdl, rust, go, contribute.
 
 - **ONLY** launch a subagent when an active skill explicitly instructs that launch. The skill selects the exact configured subagent and supplies the prompt. Authorization permits the call; it does not request one.
 - **NEVER** infer a launch instruction from task wording, a role description, pattern matching, availability, or apparent usefulness.
@@ -231,19 +233,19 @@ The table routes tasks to skills. Only an active skill's explicit invocation ins
 | "Release this Change" or "Hand this off"                | `/release-change`      |
 | "Close this Change as Applied"                          | `/close-change`        |
 
-Per-language code, architecture, and test audits ship as `audit-{lang}-{code|tests|architecture}` skills. The active verification workflow composes the skills for the languages recorded in this instruction block's opening marker.
+Per-language code, architecture, and test audits ship as `audit-{lang}-{code|test|architecture}` skills. The active verification workflow composes the skills for the languages recorded in this instruction block's opening marker.
 
 | User Says...            | Skill (composed)             |
 | ----------------------- | ---------------------------- |
 | "Audit this code"       | `/audit-python-code`         |
 | "Audit ADRs for Python" | `/audit-python-architecture` |
-| "Audit these tests"     | `/audit-python-tests`        |
+| "Audit these tests"     | `/audit-python-test`         |
 
 ---
 
 ## Test Naming Convention
 
-Test level is encoded in the filename. The `{evidence}` segment is chosen by `/test` routing from the assertion type: `scenario`, `mapping`, `conformance`, `property`, or `compliance`. Universal assertions use `mapping`, `conformance`, `property`, or `compliance`; a universal is never `scenario`. This instruction block renders only the languages recorded in its opening `<!-- SPEC-TREE v{version} langs:{list} -->` marker; `/update-instruction-block` re-renders from the installed template when the methodology advances.
+Test level is encoded in the filename. The `{evidence}` segment is chosen by `/test` routing from the assertion type: `scenario`, `mapping`, `conformance`, `property`, or `compliance`. Universal assertions use `mapping`, `conformance`, `property`, or `compliance`; a universal is never `scenario`. This instruction block renders only the languages recorded in its opening `<!-- PRODUCT-TREE v{version} langs:{list} -->` marker; `/update-instruction-block` re-renders from the installed template when the methodology advances.
 
 ### Python
 
@@ -259,9 +261,9 @@ Test level is encoded in the filename. The `{evidence}` segment is chosen by `/t
 
 Work is coordinated through Changes in the store `spx/local/coordination.md` declares. Hold a Change through `/claim-change` before refining or executing it. When the work stops with continuation remaining, `/release-change` writes the Handoff, removes the holder, and returns the Change to Available for any agent to claim; when the Change reaches a terminal Lifecycle, `/close-change <Applied|Abandoned>` writes the terminal record and closes it. A follow-up is a Proposed Change created through `/author-change`. Maturity moves only through `/author-change`; the three Lifecycle skills move Lifecycle and nothing else.
 
-<!-- /SPEC-TREE -->
+<!-- /PRODUCT-TREE -->
 
-<!-- SPEC-TREE:shared repository-instructions -->
+<!-- PRODUCT-TREE:shared repository-instructions -->
 
 # Repository Commands
 
@@ -287,4 +289,4 @@ Run repository-local product commands through `just`.
 
 - `just check-diff`
 
-<!-- /SPEC-TREE:shared repository-instructions -->
+<!-- /PRODUCT-TREE:shared repository-instructions -->
