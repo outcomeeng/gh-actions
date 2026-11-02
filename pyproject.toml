@@ -12,7 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-  "pytest==9.1.1",
+  "pytest==9.2.0",
 ]
 
 # The importable package is gh_actions. Declared explicitly so setuptools does
