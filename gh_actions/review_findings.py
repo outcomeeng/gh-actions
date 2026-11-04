@@ -64,11 +64,24 @@ FIELD_RE: Final = re.compile(
 
 NO_FINDINGS_RE: Final = re.compile(r"^\s*no findings\b", re.IGNORECASE)
 
+# Product-tree path conventions `classify_path` buckets a cited path by.
+ADR_SUFFIX: Final = ".adr.md"
+PDR_SUFFIX: Final = ".pdr.md"
+TEST_MARKERS: Final = (".test.", "/tests/")
+TREE_ROOT: Final = "spx/"
+SPEC_SUFFIX: Final = ".md"
+# `src/` for most product-tree products, `gh_actions/` for this repository per
+# `spx/15-evidence-model.adr.md`.
+CODE_ROOTS: Final = ("src/", "gh_actions/")
+
 # A language's test-infrastructure home, which holds harnesses, generators, and
 # inert fixtures: `testing/` at the root for TypeScript, `<package>_testing/` for
 # Python (this repository's own `gh_actions_testing/`, per
 # `spx/15-evidence-model.adr.md`).
-TEST_HOME_RE: Final = re.compile(r"^(testing|[A-Za-z_][A-Za-z0-9_]*_testing)/")
+TEST_HOME_DIR: Final = "testing"
+TEST_HOME_RE: Final = re.compile(
+    rf"^({TEST_HOME_DIR}|[A-Za-z_][A-Za-z0-9_]*_{TEST_HOME_DIR})/"
+)
 
 # A trailing "path:line" or "path:line-range" on a location string. A reviewer
 # cites `path/to/file:42` — the only line-bearing shape the review format emits,
@@ -123,25 +136,23 @@ class Comment:
 
 def classify_path(path: str) -> PathKind:
     """Bucket a cited path by artifact kind, heuristically, from product-tree path
-    conventions: `.adr.md`/`.pdr.md` decisions, `spx/` specs and tree paths,
-    `/tests/`|`.test.` tests alongside a language's test-infrastructure home
-    (`TEST_HOME_RE`), and a `src/` or `gh_actions/` code root (`src/` for most
-    product-tree products, `gh_actions/` for this repository per
-    `spx/15-evidence-model.adr.md`). Code laid out under any other root falls to
-    OTHER.
+    conventions: `ADR_SUFFIX`/`PDR_SUFFIX` decisions, `TREE_ROOT` specs and tree
+    paths, `TEST_MARKERS` tests alongside a language's test-infrastructure home
+    (`TEST_HOME_RE`), and a `CODE_ROOTS` code root. Code laid out under any other
+    root falls to OTHER.
     """
     p = path.strip("`")
-    if p.endswith(".adr.md"):
+    if p.endswith(ADR_SUFFIX):
         return PathKind.DECISION_ADR
-    if p.endswith(".pdr.md"):
+    if p.endswith(PDR_SUFFIX):
         return PathKind.DECISION_PDR
-    if ".test." in p or "/tests/" in p or TEST_HOME_RE.match(p):
+    if any(marker in p for marker in TEST_MARKERS) or TEST_HOME_RE.match(p):
         return PathKind.TEST
-    if p.endswith(".md") and p.startswith("spx/"):
+    if p.endswith(SPEC_SUFFIX) and p.startswith(TREE_ROOT):
         return PathKind.SPEC
-    if p.startswith("src/") or p.startswith("gh_actions/"):
+    if p.startswith(CODE_ROOTS):
         return PathKind.CODE
-    if p.startswith("spx/"):
+    if p.startswith(TREE_ROOT):
         return PathKind.PRODUCT_TREE_OTHER
     return PathKind.OTHER
 
