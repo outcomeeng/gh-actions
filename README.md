@@ -98,7 +98,7 @@ jobs:
       CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
     with:
       # Production callers must pin the skill source ref as well.
-      ref: ${{ vars.PRODUCT_TREE_VERIFICATION_SKILL_REF || '1a0a2474c50c2f60344e772576a0341fc3b4f8dd' }}
+      ref: ${{ vars.PRODUCT_TREE_VERIFICATION_SKILL_REF || '80204c86cc90d081c056ad75d8cfb541b7ed4745' }}
       agent: ${{ vars.PRODUCT_TREE_VERIFICATION_AGENT || 'claude-code' }}
 ```
 
