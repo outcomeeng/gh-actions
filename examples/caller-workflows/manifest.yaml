@@ -13,18 +13,18 @@ workflows:
     reusable: .github/workflows/claude-code-review.yml
     timeout_var: CLAUDE_REVIEW_TIMEOUT_MINUTES
     timeout_default: "30"
-  - id: spec-tree
-    example: examples/caller-workflows/spec-tree.yml
-    reusable: .github/workflows/spec-tree.yml
-    timeout_var: SPEC_TREE_TIMEOUT_MINUTES
+  - id: product-tree
+    example: examples/caller-workflows/product-tree.yml
+    reusable: .github/workflows/product-tree.yml
+    timeout_var: PRODUCT_TREE_TIMEOUT_MINUTES
     timeout_default: "30"
-  - id: spec-tree-review
-    example: examples/caller-workflows/spec-tree-review.yml
-    reusable: .github/workflows/spec-tree-review.yml
-    timeout_var: SPEC_TREE_REVIEW_TIMEOUT_MINUTES
+  - id: product-tree-review
+    example: examples/caller-workflows/product-tree-review.yml
+    reusable: .github/workflows/product-tree-review.yml
+    timeout_var: PRODUCT_TREE_REVIEW_TIMEOUT_MINUTES
     timeout_default: "30"
-  - id: spec-tree-verification
-    example: examples/caller-workflows/spec-tree-verification.yml
-    reusable: .github/workflows/spec-tree-verification.yml
-    timeout_var: SPEC_TREE_VERIFICATION_TIMEOUT_MINUTES
+  - id: product-tree-verification
+    example: examples/caller-workflows/product-tree-verification.yml
+    reusable: .github/workflows/product-tree-verification.yml
+    timeout_var: PRODUCT_TREE_VERIFICATION_TIMEOUT_MINUTES
     timeout_default: "30"

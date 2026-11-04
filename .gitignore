@@ -20,7 +20,7 @@ __pycache__/
 .claude/*
 !.claude/settings.json
 
-# Temporary spec-tree plugin files
+# Temporary product-tree plugin files
 .spx/*
 
 # Local session-resume helper

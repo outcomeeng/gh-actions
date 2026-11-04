@@ -1,11 +1,11 @@
-# Reusable Spec Tree verification host.
+# Reusable Product Tree verification host.
 #
 # Runs a caller-selected marketplace skill against a pull request through a
 # sanitized coding-agent CLI subprocess. The workflow owns GitHub plumbing,
 # checkout, authorization, filtering, and summaries; verdict judgment stays in
 # the installed skill.
 
-name: Spec Tree Verification
+name: Product Tree Verification
 
 on:
   workflow_call:
@@ -29,7 +29,7 @@ on:
       skill_path:
         description: "Path within the skill repository to the agent plugin directory."
         type: string
-        default: src/plugins/spec-tree
+        default: src/plugins/product-tree
       agent:
         description: "Agent adapter. Supported values: claude-code, codex."
         type: string
@@ -592,7 +592,7 @@ jobs:
               ${auth_env[@]+"${auth_env[@]}"} \
               SPX_VERIFY_BASE_REF="$BASE_REF" \
               SPX_VERIFY_HEAD_REF="$HEAD_REF" \
-              claude "${args[@]}" -- "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
+              claude "${args[@]}" -- "$prompt" | tee "$RUNNER_TEMP/product-tree-verification-output.txt"
           else
             codex_tmpdir="$GITHUB_WORKSPACE/.spx/tmp"
             mkdir -p "$codex_tmpdir"
@@ -612,7 +612,7 @@ jobs:
               TMP="$codex_tmpdir" \
               SPX_VERIFY_BASE_REF="$BASE_REF" \
               SPX_VERIFY_HEAD_REF="$HEAD_REF" \
-              codex "${args[@]}" "$prompt" | tee "$RUNNER_TEMP/spec-tree-verification-output.txt"
+              codex "${args[@]}" "$prompt" | tee "$RUNNER_TEMP/product-tree-verification-output.txt"
           fi
 
       - name: Clean up Codex adapter
@@ -634,7 +634,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "## Spec Tree Verification"
+            echo "## Product Tree Verification"
             echo
             echo "- Skill: \`$SKILL\`"
             echo "- Skill repository: \`$SKILL_REPOSITORY\`"
@@ -643,16 +643,16 @@ jobs:
             echo
             echo "### Output"
             echo
-            if [[ -f "$RUNNER_TEMP/spec-tree-verification-output.txt" ]]; then
+            if [[ -f "$RUNNER_TEMP/product-tree-verification-output.txt" ]]; then
               echo '```text'
-              sed -n '1,240p' "$RUNNER_TEMP/spec-tree-verification-output.txt"
-              total_lines=$(wc -l < "$RUNNER_TEMP/spec-tree-verification-output.txt" | tr -d ' ')
+              sed -n '1,240p' "$RUNNER_TEMP/product-tree-verification-output.txt"
+              total_lines=$(wc -l < "$RUNNER_TEMP/product-tree-verification-output.txt" | tr -d ' ')
               if ((total_lines > 240)); then
                 echo
                 echo "[output truncated at 240 of $total_lines lines]"
               fi
               echo '```'
-              token=$(awk 'NF { candidate = $NF } END { print candidate }' "$RUNNER_TEMP/spec-tree-verification-output.txt")
+              token=$(awk 'NF { candidate = $NF } END { print candidate }' "$RUNNER_TEMP/product-tree-verification-output.txt")
               journal_type=""
               if [[ "$SKILL" == "review-changes" ]]; then
                 journal_type="review"

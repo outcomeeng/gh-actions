@@ -9,7 +9,7 @@ test-file helpers (`_example_text`, `_manifest_text`, `_write_reusable`,
 `_write_workflow_call`, `_write_readme`, `_init_git_repo`). About fifteen tests
 repeat the same temporary caller-workspace scaffolding and git-repo setup.
 
-`spx/15-evidence-model.adr.md` places the `gh_actions` package's test
+[`spx/15-evidence-model.adr.md`](spx/15-evidence-model.adr.md) places the `gh_actions` package's test
 infrastructure — harnesses, generators, and inert fixtures — at
 `gh_actions_testing/{harnesses,generators,fixtures}/`, outside any `tests/`
 directory. The test file imports nothing from that home, so its fixtures and
