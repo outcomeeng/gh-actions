@@ -38,7 +38,7 @@ jobs:
     # Beta-tester consumers (internal repos deliberately tracking-latest) MAY
     # swap this for `@main` with a `# BETA TESTER:` marker comment — see the
     # documented exception in README "Security → Documented exception".
-    uses: outcomeeng/gh-actions/.github/workflows/product-tree-review.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    uses: outcomeeng/gh-actions/.github/workflows/product-tree-review.yml@f1fb76a6599b6c3baae97c9bf0a38431108cfa78 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 

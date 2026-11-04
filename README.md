@@ -46,7 +46,7 @@ permissions:
 jobs:
   product-tree:
     # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/product-tree.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    uses: outcomeeng/gh-actions/.github/workflows/product-tree.yml@f1fb76a6599b6c3baae97c9bf0a38431108cfa78 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -70,7 +70,7 @@ permissions:
 jobs:
   product-tree-review:
     # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/product-tree-review.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    uses: outcomeeng/gh-actions/.github/workflows/product-tree-review.yml@f1fb76a6599b6c3baae97c9bf0a38431108cfa78 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -91,7 +91,7 @@ permissions:
 jobs:
   product-tree-verification:
     # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/product-tree-verification.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    uses: outcomeeng/gh-actions/.github/workflows/product-tree-verification.yml@f1fb76a6599b6c3baae97c9bf0a38431108cfa78 # main
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -127,7 +127,7 @@ permissions:
 jobs:
   claude:
     # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    uses: outcomeeng/gh-actions/.github/workflows/claude.yml@f1fb76a6599b6c3baae97c9bf0a38431108cfa78 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -151,7 +151,7 @@ permissions:
 jobs:
   claude-code-review:
     # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    uses: outcomeeng/gh-actions/.github/workflows/claude-code-review.yml@f1fb76a6599b6c3baae97c9bf0a38431108cfa78 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -378,7 +378,7 @@ jobs:
     # Replace alice and bob with trusted accounts not on the repo's collaborators list.
     if: github.event.issue.pull_request && contains(fromJSON('["alice", "bob"]'), github.actor)
     # Release lane: pin to a full-length commit SHA — never @main or @v1. See "Security" below.
-    uses: outcomeeng/gh-actions/.github/workflows/product-tree.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+    uses: outcomeeng/gh-actions/.github/workflows/product-tree.yml@f1fb76a6599b6c3baae97c9bf0a38431108cfa78 # main
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     with:
@@ -426,7 +426,7 @@ Every `uses:` reference — actions and reusable workflows alike — is pinned b
 ```yaml
 # Correct
 uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-uses: outcomeeng/gh-actions/.github/workflows/product-tree.yml@a113491956c710dcdb7cb54174b4a52f9f6609d4 # main
+uses: outcomeeng/gh-actions/.github/workflows/product-tree.yml@f1fb76a6599b6c3baae97c9bf0a38431108cfa78 # main
 
 # Forbidden
 uses: actions/checkout@v6
