@@ -80,3 +80,17 @@ that reflects `is_error`, or if the verification host of
 [`spx/18-verification-host.adr.md`](spx/18-verification-host.adr.md) supersedes these action-based surfaces —
 that host invokes the agent CLI directly and owns its own outcome resolution,
 so it never inherits this defect.
+
+## 5. The `skill_path` default couples to the skill `ref` layout `.github/workflows/product-tree-verification.yml` `skill_path input` `consistency`
+
+`.github/workflows/product-tree-verification.yml` defaults `skill_path` to
+`src/plugins/product-tree`. A caller that sets `ref` to an `outcomeeng/plugins`
+commit whose plugin directory sits at another path, and leaves `skill_path` at
+its default, installs from a path that does not exist at that ref. The input
+description does not say that `skill_path` must name the plugin directory as it
+exists at `ref`.
+
+Accepted by operator ruling on the mention review of PR #79.
+
+**Settled when** the `skill_path` input description states that its value names
+the plugin directory at the selected `ref`.
